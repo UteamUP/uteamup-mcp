@@ -1,0 +1,12 @@
+{
+  "name": "@uteamup/mcp-server",
+  "version": "1.0.0",
+  "description": "UteamUP MCP Proxy - Handles OAuth automatically",
+  "main": "index.js",
+  "bin": {
+    "uteamup-mcp-server": "./index.js"
+  },
+  "keywords": ["mcp", "uteamup", "claude"],
+  "author": "UteamUP",
+  "license": "MIT"
+}
