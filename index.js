@@ -139,10 +139,11 @@ async function getAccessToken() {
 
         try {
           const json = JSON.parse(data);
-          // CRITICAL FIX: Backend returns access_token (OAuth 2.0 standard), not accessToken
-          if (json.access_token) {
+          // Accept both camelCase (accessToken) and snake_case (access_token) formats
+          const token = json.accessToken || json.access_token;
+          if (token) {
             debug('Access token received successfully');
-            resolve(json.access_token);
+            resolve(token);
           } else if (json.error) {
             reject(new Error(`OAuth error: ${json.error} - ${json.error_description || ''}`));
           } else {
@@ -168,7 +169,40 @@ async function getAccessToken() {
 }
 
 /**
+ * Parses Server-Sent Events (SSE) format response to extract JSON data.
+ * SSE format looks like:
+ *   event: message
+ *   data: {"json":"here"}
+ *
+ * @param {string} sseData - Raw SSE response string
+ * @returns {object|null} Parsed JSON object from data field, or null if not SSE format
+ */
+function parseSSE(sseData) {
+  const lines = sseData.trim().split('\n');
+  let jsonData = null;
+
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      jsonData = line.substring(6); // Remove "data: " prefix
+      break;
+    }
+  }
+
+  if (jsonData) {
+    try {
+      return JSON.parse(jsonData);
+    } catch (e) {
+      debug('SSE data parse error:', e.message);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Forwards a JSON-RPC 2.0 MCP request to the backend.
+ * Handles both plain JSON and Server-Sent Events (SSE) response formats.
  * @param {object} request - JSON-RPC 2.0 request object
  * @returns {Promise<object>} JSON-RPC 2.0 response object
  */
@@ -184,6 +218,7 @@ async function forwardRequest(request) {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
         'Content-Length': Buffer.byteLength(data)
       },
       rejectUnauthorized: false
@@ -192,10 +227,45 @@ async function forwardRequest(request) {
       res.on('data', chunk => responseData += chunk);
       res.on('end', () => {
         debug('MCP response received:', { statusCode: res.statusCode, dataLength: responseData.length });
+        debug('MCP response body:', responseData);
+
+        // Handle empty responses (e.g., HTTP 202 for notifications)
+        if (responseData.length === 0) {
+          debug('Empty response received (likely notification acknowledged)');
+          // For notifications (no id), don't send a response
+          if (request.id === undefined || request.id === null) {
+            debug('Notification acknowledged, no response needed');
+            resolve(null); // Don't send anything back for notifications
+          } else {
+            // For requests with ID, return success
+            resolve({ jsonrpc: '2.0', result: {}, id: request.id });
+          }
+          return;
+        }
+
+        // Try parsing as SSE format first (text/event-stream)
+        if (responseData.includes('event:') || responseData.includes('data:')) {
+          debug('Detected SSE format, parsing...');
+          const parsed = parseSSE(responseData);
+          if (parsed) {
+            debug('SSE parsed successfully:', JSON.stringify(parsed));
+            resolve(parsed);
+            return;
+          }
+        }
+
+        // Fall back to plain JSON parsing
         try {
-          resolve(JSON.parse(responseData));
+          const parsed = JSON.parse(responseData);
+          debug('JSON parsed successfully:', JSON.stringify(parsed));
+          resolve(parsed);
         } catch (e) {
-          resolve({ error: { code: -32700, message: 'Parse error', data: responseData } });
+          debug('Parse error (not SSE, not JSON):', e.message);
+          resolve({
+            jsonrpc: '2.0',
+            error: { code: -32700, message: 'Parse error', data: responseData },
+            id: request.id
+          });
         }
       });
     });
@@ -244,7 +314,7 @@ async function main() {
   }
 
   console.error('[MCP Proxy] Starting UteamUP MCP Server');
-  console.error(`[MCP Proxy] Version: 1.0.0-beta.1`);
+  console.error(`[MCP Proxy] Version: 1.0.0-beta.6`);
   console.error(`[MCP Proxy] Base URL: ${BASE_URL}`);
   console.error(`[MCP Proxy] API Key: ${API_KEY.substring(0, 8)}...`);
   console.error(`[MCP Proxy] Debug: ${DEBUG ? 'enabled' : 'disabled'}`);
@@ -268,6 +338,12 @@ async function main() {
         console.error(`[MCP Proxy] Request: ${request.method}`);
 
         const response = await forwardRequest(request);
+
+        // For notifications (null response), don't write anything to stdout
+        if (response === null) {
+          debug('Notification handled, no response sent');
+          continue;
+        }
 
         // Ensure response includes request ID for proper JSON-RPC 2.0 format
         if (request.id !== undefined && response.id === undefined) {

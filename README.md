@@ -17,6 +17,10 @@ This package enables AI assistants like Claude Desktop and Claude Code to connec
 - ✅ Zero configuration - just provide API credentials
 - ✅ Comprehensive error messages
 - ✅ Development mode support (self-signed certificates)
+- ✅ Server-Sent Events (SSE) response parsing
+- ✅ Proper JSON-RPC 2.0 notification handling
+
+**Current Status:** `v1.0.0-beta.6` - Stable and production-ready! See [CHANGELOG.md](CHANGELOG.md) for recent fixes.
 
 **Example Conversation:**
 ```
