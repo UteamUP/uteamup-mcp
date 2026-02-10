@@ -1,12 +1,57 @@
 {
   "name": "@uteamup/mcp-server",
-  "version": "1.0.0",
-  "description": "UteamUP MCP Proxy - Handles OAuth automatically",
+  "version": "1.0.0-beta.1",
+  "description": "MCP server client for UteamUP - enables Claude Desktop/Code integration with automatic OAuth 2.0 authentication",
   "main": "index.js",
   "bin": {
     "uteamup-mcp-server": "./index.js"
   },
-  "keywords": ["mcp", "uteamup", "claude"],
-  "author": "UteamUP",
-  "license": "MIT"
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "uteamup",
+    "claude",
+    "claude-desktop",
+    "claude-code",
+    "oauth",
+    "oauth2",
+    "pkce",
+    "cmms",
+    "maintenance",
+    "work-orders",
+    "asset-management"
+  ],
+  "author": "UteamUP <support@uteamup.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uteamup/mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/uteamup/mcp-server/issues"
+  },
+  "homepage": "https://github.com/uteamup/mcp-server#readme",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:integration": "jest test/integration.test.js",
+    "lint": "eslint index.js test/",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "prepublishOnly": "npm test"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
 }

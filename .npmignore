@@ -1,0 +1,36 @@
+# Tests
+test/
+*.test.js
+coverage/
+jest.config.js
+
+# Development
+.vscode/
+.idea/
+.DS_Store
+*.log
+npm-debug.log*
+node_modules/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.travis.yml
+.circleci/
+
+# Documentation source (keep compiled docs)
+docs/
+
+# Development configs
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
