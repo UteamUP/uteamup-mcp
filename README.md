@@ -6,6 +6,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 
+## Links
+
+- **📦 [npm Package](https://www.npmjs.com/package/@uteamup/mcp-server)** - Install with `npx -y @uteamup/mcp-server`
+- **📖 [Documentation](https://docs.uteamup.com/mcp)** - Full MCP integration guide
+- **🐛 [Issues](https://github.com/uteamup/mcp-server/issues)** - Report bugs and request features
+- **💬 [Support](mailto:support@uteamup.com)** - Get help
+
 ## What is this?
 
 This package enables AI assistants like Claude Desktop and Claude Code to connect to your UteamUP CMMS system using the Model Context Protocol (MCP). It handles OAuth 2.0 authentication automatically, so you can manage work orders, assets, inventory, and more through natural conversation.
