@@ -237,9 +237,181 @@ This will show raw stdio output. Send JSON-RPC messages manually to test.
 
 **Workaround:** Check Server Notifications for actual package output - authentication may have succeeded despite Inspector error
 
+## CLI Utilities (New in beta.7!)
+
+### --help
+Show complete usage information:
+```bash
+npx -y @uteamup/mcp-server --help
+```
+
+### --version
+Check installed version:
+```bash
+npx -y @uteamup/mcp-server --version
+```
+
+### --validate-config
+Validate environment variables without connecting:
+```bash
+export UTEAMUP_API_KEY="your-key"
+export UTEAMUP_SECRET="your-secret"
+npx -y @uteamup/mcp-server --validate-config
+```
+
+Output:
+```
+✅ Configuration is valid!
+[MCP Proxy] Configuration:
+  Base URL: https://api.uteamup.com
+  API Key: 12345678...
+  Log Level: INFO
+  ...
+```
+
+### --test-auth
+Test OAuth authentication flow without starting the server:
+```bash
+export UTEAMUP_API_KEY="your-key"
+export UTEAMUP_SECRET="your-secret"
+npx -y @uteamup/mcp-server --test-auth
+```
+
+Output:
+```
+Testing OAuth authentication...
+...
+✅ Authentication successful!
+   Token obtained in 1234ms
+   Token prefix: eyJhbGciOiJIUzI1NiI...
+   Token expires: 2026-02-18T12:34:56.789Z
+```
+
+---
+
+## Structured Logging (New in beta.7!)
+
+### Log Levels
+
+Set log level via `UTEAMUP_LOG_LEVEL`:
+
+```bash
+UTEAMUP_LOG_LEVEL=TRACE  # Most verbose
+UTEAMUP_LOG_LEVEL=DEBUG  # Detailed debugging
+UTEAMUP_LOG_LEVEL=INFO   # General info (default)
+UTEAMUP_LOG_LEVEL=WARN   # Warnings only
+UTEAMUP_LOG_LEVEL=ERROR  # Errors only
+```
+
+### Log Formats
+
+**Text Format (Development):**
+```bash
+UTEAMUP_LOG_FORMAT=text npx -y @uteamup/mcp-server
+```
+Output:
+```
+[12:34:56.789] INFO [MCP Proxy] Starting UteamUP MCP Server
+[12:34:56.790] INFO [MCP Proxy] Getting new access token
+[12:34:57.123] INFO [MCP Proxy] Access token obtained successfully
+```
+
+**JSON Format (Production):**
+```bash
+UTEAMUP_LOG_FORMAT=json npx -y @uteamup/mcp-server
+```
+Output:
+```json
+{"level":30,"time":1707656096789,"msg":"Starting UteamUP MCP Server","version":"1.0.0-beta.7"}
+{"level":30,"time":1707656096790,"msg":"Getting new access token"}
+{"level":30,"time":1707656097123,"msg":"Access token obtained successfully","durationMs":333}
+```
+
+### Sensitive Data Redaction
+
+All logs automatically redact:
+- Authorization headers
+- Access tokens
+- Client secrets
+- API keys
+- Passwords
+- Any field containing "secret", "token", "password", "bearer"
+
+Example:
+```json
+{
+  "headers": {
+    "Authorization": "[REDACTED]",
+    "Content-Type": "application/json"
+  }
+}
+```
+
+---
+
+## Performance Monitoring (New in beta.7!)
+
+Metrics are automatically tracked and printed on shutdown:
+
+```bash
+[INFO] Performance Metrics Summary
+  oauth:
+    attempts: 2
+    successRate: "100.00%"
+    avgDurationMs: 1234
+  requests:
+    total: 15
+    successRate: "93.33%"
+    avgDurationMs: 456
+  tokenCache:
+    hits: 13
+    misses: 2
+    hitRate: 86.67%
+```
+
+---
+
+## Retry Logic (New in beta.7!)
+
+### Configuration
+
+```bash
+UTEAMUP_MAX_RETRIES=5           # Max retry attempts (default: 3)
+UTEAMUP_REQUEST_TIMEOUT=60000   # Request timeout in ms (default: 30000)
+```
+
+### Retry Behavior
+
+The proxy automatically retries:
+- Network errors (ECONNREFUSED, ETIMEDOUT, etc.)
+- HTTP 429 (rate limiting)
+- HTTP 5xx (server errors)
+
+With:
+- Exponential backoff (1s, 2s, 4s, 8s, ...)
+- Jitter (±20%) to prevent thundering herd
+- Maximum backoff of 10 seconds
+
+Does NOT retry:
+- HTTP 4xx errors (except 429)
+- Authentication failures (401, 403)
+- Invalid credentials
+
+---
+
 ## Version History
 
-- **1.0.0-beta.6** (2026-02-10) ⭐ CURRENT
+- **1.0.0-beta.7** (2026-02-11) ⭐ CURRENT
+  - ✅ Structured logging with Pino (JSON/text formats)
+  - ✅ Configuration validation with Zod
+  - ✅ Performance monitoring and metrics
+  - ✅ Retry logic with exponential backoff
+  - ✅ CLI utilities (--help, --version, --validate-config, --test-auth)
+  - ✅ Comprehensive test suite (70 tests)
+  - ✅ Request tracing with unique IDs
+  - ✅ Sensitive data redaction
+
+- **1.0.0-beta.6** (2026-02-10)
   - ✅ Fixed JSON-RPC notification handling (HTTP 202 empty responses)
   - ✅ Eliminates "Received a response for an unknown message ID" errors
   - ✅ Production-ready and stable

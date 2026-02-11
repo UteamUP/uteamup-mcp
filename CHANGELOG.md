@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.7] - 2026-02-11
+
+### Added
+- **Structured Logging:** Production-ready logging with Pino
+  - Log levels: TRACE, DEBUG, INFO, WARN, ERROR (configurable via `UTEAMUP_LOG_LEVEL`)
+  - JSON and text output formats (configurable via `UTEAMUP_LOG_FORMAT`)
+  - Automatic sensitive data redaction (credentials, tokens, secrets)
+  - Pretty-printed logs in development, JSON logs in production
+- **Configuration Validation:** Runtime validation with Zod
+  - Strict validation of all environment variables
+  - Clear error messages with actionable guidance
+  - Type-safe configuration with schema enforcement
+- **Performance Monitoring:** Built-in metrics tracking
+  - OAuth flow duration and success rate
+  - Request latency and success rate
+  - Token cache hit/miss ratio
+  - Automatic metrics summary on shutdown
+- **Retry Logic:** Exponential backoff with jitter
+  - Configurable max retries (`UTEAMUP_MAX_RETRIES`, default: 3)
+  - Smart retry detection (network errors, timeouts, 5xx, 429)
+  - Exponential backoff with jitter to prevent thundering herd
+  - Request timeout support (`UTEAMUP_REQUEST_TIMEOUT`)
+- **Request Tracing:** Unique request IDs for correlation
+  - X-Request-ID header in all MCP requests
+  - Full request/response logging at TRACE level
+  - Request timing information
+- **CLI Utilities:** Developer-friendly command-line tools
+  - `--help` / `-h`: Show usage information
+  - `--version` / `-v`: Print version
+  - `--validate-config`: Validate environment variables
+  - `--test-auth`: Test OAuth authentication flow
+- **Test Suite:** Comprehensive test coverage (70 tests)
+  - Unit tests for configuration, logging, metrics, retry logic
+  - Integration tests with mock HTTP server
+  - SSE parser tests
+  - Error handling tests
+
+### Changed
+- Refactored codebase into modular structure (`lib/` directory)
+  - `lib/logger.js`: Structured logging module
+  - `lib/config.js`: Configuration validation module
+  - `lib/metrics.js`: Performance monitoring module
+  - `lib/retry.js`: Retry logic module
+- Enhanced error messages with more context and actionable guidance
+- Improved token refresh logic with configurable margin (`UTEAMUP_TOKEN_REFRESH_MARGIN`)
+- Better backward compatibility with legacy `UTEAMUP_DEBUG` flag
+
+### Dependencies
+- **Added:** `pino` (^9.6.0) - Structured logging
+- **Added:** `pino-pretty` (^12.0.0) - Pretty-printed logs for development
+- **Added:** `zod` (^3.25.0) - Runtime type validation
+- **Added (dev):** `nock` (^13.5.0) - HTTP mocking for tests
+- **Added (dev):** `@types/node` (^20.11.0) - Node.js type definitions
+
+### Improved
+- Production-readiness: Meets industry standards for observability and reliability
+- Developer experience: Better debugging with structured logs and CLI utilities
+- Error recovery: Automatic retry on transient failures
+- Security: Enhanced sensitive data redaction in logs
+
 ## [1.0.0-beta.6] - 2026-02-10
 
 ### Fixed

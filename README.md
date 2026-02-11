@@ -19,8 +19,14 @@ This package enables AI assistants like Claude Desktop and Claude Code to connec
 - ✅ Development mode support (self-signed certificates)
 - ✅ Server-Sent Events (SSE) response parsing
 - ✅ Proper JSON-RPC 2.0 notification handling
+- ✅ **NEW:** Structured logging with Pino (JSON/text formats)
+- ✅ **NEW:** Configuration validation with Zod
+- ✅ **NEW:** Performance monitoring and metrics
+- ✅ **NEW:** Retry logic with exponential backoff
+- ✅ **NEW:** CLI utilities (--help, --version, --validate-config, --test-auth)
+- ✅ **NEW:** Comprehensive test suite (70 tests)
 
-**Current Status:** `v1.0.0-beta.6` - Stable and production-ready! See [CHANGELOG.md](CHANGELOG.md) for recent fixes.
+**Current Status:** `v1.0.0-beta.7` - Production-ready with enhanced debugging! See [CHANGELOG.md](CHANGELOG.md) for details.
 
 **Example Conversation:**
 ```
@@ -122,12 +128,23 @@ That's it! 🎉
 
 ### Environment Variables
 
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `UTEAMUP_API_KEY` | **Yes** | Your MCP-enabled API key (32 chars) | - |
-| `UTEAMUP_SECRET` | **Yes** | Your API key secret (64 chars) | - |
-| `UTEAMUP_API_BASE_URL` | No | API endpoint URL | `https://api.uteamup.com` |
-| `UTEAMUP_DEBUG` | No | Enable debug logging (`1` or `true`) | `false` |
+#### Required
+| Variable | Description |
+|----------|-------------|
+| `UTEAMUP_API_KEY` | Your MCP-enabled API key (32 chars) |
+| `UTEAMUP_SECRET` | Your API key secret (64+ chars) |
+
+#### Optional
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `UTEAMUP_API_BASE_URL` | API endpoint URL | `https://api.uteamup.com` |
+| `UTEAMUP_LOG_LEVEL` | Log level: TRACE, DEBUG, INFO, WARN, ERROR | `INFO` |
+| `UTEAMUP_LOG_FORMAT` | Log format: text, json | `text` |
+| `UTEAMUP_DEBUG` | Legacy debug mode (`1` or `true`) | `false` |
+| `UTEAMUP_REQUEST_TIMEOUT` | Request timeout in milliseconds | `30000` |
+| `UTEAMUP_MAX_RETRIES` | Max retry attempts for network errors | `3` |
+| `UTEAMUP_TOKEN_CACHE_DIR` | Persistent token cache directory | - |
+| `UTEAMUP_TOKEN_REFRESH_MARGIN` | Token refresh margin in seconds | `300` |
 
 ### API Base URLs
 
@@ -243,7 +260,9 @@ Your AI assistant's permissions are controlled by the **role assigned to your AP
 
 ### Debugging
 
-Enable debug logging to see detailed information:
+#### Structured Logging
+
+Enable different log levels and formats:
 
 ```json
 {
@@ -254,20 +273,28 @@ Enable debug logging to see detailed information:
       "env": {
         "UTEAMUP_API_KEY": "your-key",
         "UTEAMUP_SECRET": "your-secret",
-        "UTEAMUP_DEBUG": "1"
+        "UTEAMUP_LOG_LEVEL": "DEBUG",
+        "UTEAMUP_LOG_FORMAT": "json"
       }
     }
   }
 }
 ```
 
-Debug logs include:
-- OAuth flow details
-- PKCE generation
-- Token caching events
-- Request/response details
+**Log Levels:**
+- `TRACE`: Most verbose, includes all request/response bodies (redacted)
+- `DEBUG`: Detailed debugging information
+- `INFO`: General informational messages (default)
+- `WARN`: Warning messages
+- `ERROR`: Error messages only
 
-**Note:** Debug logs are written to stderr, not stdout (which is reserved for JSON-RPC messages).
+**Log Formats:**
+- `text`: Pretty-printed human-readable logs (development)
+- `json`: Structured JSON logs (production)
+
+**Sensitive Data:** All credentials, tokens, and secrets are automatically redacted in logs.
+
+**Note:** Logs are written to stderr, not stdout (which is reserved for JSON-RPC messages).
 
 ---
 
@@ -306,18 +333,24 @@ Debug logs include:
 git clone https://github.com/UteamUP/uteamup-mcp-proxy.git
 cd uteamup-mcp-proxy
 
-# Install dev dependencies
+# Install dependencies
 npm install
 
 # Run tests
 npm test
 
-# Run with debug logging
-export UTEAMUP_DEBUG=1
+# Test with debug logging
+export UTEAMUP_LOG_LEVEL=DEBUG
 export UTEAMUP_API_KEY="your-dev-key"
 export UTEAMUP_SECRET="your-dev-secret"
 export UTEAMUP_API_BASE_URL="https://localhost:5002"
 node index.js
+
+# CLI Utilities
+node index.js --help                # Show help
+node index.js --version             # Show version
+node index.js --validate-config     # Validate environment variables
+node index.js --test-auth           # Test OAuth authentication
 
 # Test with a sample request
 echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node index.js
