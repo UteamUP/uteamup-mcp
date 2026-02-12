@@ -2,7 +2,7 @@
 
 /**
  * UteamUP MCP Proxy - Production-ready OAuth handler with enhanced debugging
- * Version: 1.0.0-beta.8
+ * Version: 1.0.0-beta.9
  *
  * Features:
  * - OAuth 2.0 Authorization Code + PKCE authentication
@@ -22,7 +22,7 @@ const { startTimer, recordOAuthAttempt, recordRequest, recordCacheHit, recordCac
 const { retryWithBackoff } = require('./lib/retry');
 
 // Package version
-const VERSION = '1.0.0-beta.8';
+const VERSION = '1.0.0-beta.9';
 
 // CLI argument handling
 const args = process.argv.slice(2);
