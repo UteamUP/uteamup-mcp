@@ -1,11 +1,14 @@
 /**
  * Schedule AI / Workforce Planning MCP tool tests (Phase 4)
  *
- * Tests that the 4 new WorkforcePlanningTools MCP tools are correctly formed
- * as JSON-RPC 2.0 requests and that the MCP proxy handles both successful and
- * error responses from the backend /mcp endpoint gracefully.
+ * Tests that WorkforcePlanningTools MCP tools are correctly formed as JSON-RPC
+ * 2.0 requests and that the MCP proxy handles both successful and error
+ * responses from the backend /mcp endpoint gracefully.
  *
  * Tools under test:
+ *   UteamupWorkforceSuggestAssignment(workorderId)
+ *   UteamupWorkforceGetCapacity(teamId, startDate, endDate)
+ *   UteamupWorkforceGetAvailableTechnicians(date, requiredSkills?, requiredCerts?, teamId?)
  *   UteamupWorkforceExplainAssignment(assignmentId)
  *   UteamupWorkforceRankTechniciansForWorkOrder(workorderId)
  *   UteamupWorkforceCheckTechnicianAvailability(technicianUserId, dateStr)
@@ -79,6 +82,449 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       req.end();
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // UteamupWorkforceSuggestAssignment
+  // ---------------------------------------------------------------------------
+  describe('UteamupWorkforceSuggestAssignment tool', () => {
+    test('uteamup_workforce_suggest_assignment returns best-match technician for a work order', async () => {
+      const mockSuggestion = {
+        userId: 'user-alice-001',
+        userName: 'Alice Smith',
+        availabilityStatus: 'available',
+        scheduledHours: 2.0,
+        capacityRemaining: 6.0,
+        matchingSkills: [{ skillId: 12, skillName: 'Electrical' }],
+        matchingCertificates: [],
+        competencyScore: 93.5
+      };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceSuggestAssignment',
+        { workorderId: 42 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(mockSuggestion) }] },
+            id: 70
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const suggestion = JSON.parse(response.body.result.content[0].text);
+      expect(suggestion.userId).toBe('user-alice-001');
+      expect(suggestion.availabilityStatus).toBe('available');
+      expect(typeof suggestion.competencyScore).toBe('number');
+    });
+
+    test('uteamup_workforce_suggest_assignment returns null when no suitable technician found', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceSuggestAssignment',
+        { workorderId: 99 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: 'null' }] },
+            id: 71
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      const suggestion = JSON.parse(response.body.result.content[0].text);
+      expect(suggestion).toBeNull();
+    });
+
+    test('uteamup_workforce_suggest_assignment with non-existent workorderId returns error', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceSuggestAssignment',
+        { workorderId: 888888 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Work order 888888 not found'
+            },
+            id: 72
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('uteamup_workforce_suggest_assignment request includes workorderId in params', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', (body) => {
+          capturedBody = body;
+          return true;
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: 'null' }] },
+          id: 73
+        }), { 'Content-Type': 'application/json' });
+
+      const requestPayload = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'UteamupWorkforceSuggestAssignment',
+          arguments: { workorderId: 55 }
+        },
+        id: 73
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(requestPayload);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          res.on('data', () => {});
+          res.on('end', resolve);
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.params.name).toBe('UteamupWorkforceSuggestAssignment');
+      expect(capturedBody.params.arguments.workorderId).toBe(55);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupWorkforceGetCapacity
+  // ---------------------------------------------------------------------------
+  describe('UteamupWorkforceGetCapacity tool', () => {
+    test('uteamup_workforce_get_capacity returns capacity overview for a team', async () => {
+      const mockCapacity = {
+        teamId: 3,
+        teamName: 'Electrical Team',
+        startDate: '2026-02-23',
+        endDate: '2026-02-27',
+        totalAvailableHours: 160.0,
+        totalScheduledHours: 88.0,
+        totalRemainingHours: 72.0,
+        utilizationPercent: 55.0,
+        members: [
+          {
+            userId: 'user-alice-001',
+            userName: 'Alice Smith',
+            availableHours: 40.0,
+            scheduledHours: 24.0,
+            remainingHours: 16.0,
+            utilizationPercent: 60.0
+          },
+          {
+            userId: 'user-bob-002',
+            userName: 'Bob Jones',
+            availableHours: 40.0,
+            scheduledHours: 16.0,
+            remainingHours: 24.0,
+            utilizationPercent: 40.0
+          }
+        ]
+      };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceGetCapacity',
+        { teamId: 3, startDate: '2026-02-23', endDate: '2026-02-27' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(mockCapacity) }] },
+            id: 74
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const capacity = JSON.parse(response.body.result.content[0].text);
+      expect(capacity.teamId).toBe(3);
+      expect(capacity.totalAvailableHours).toBe(160.0);
+      expect(capacity.utilizationPercent).toBe(55.0);
+      expect(Array.isArray(capacity.members)).toBe(true);
+      expect(capacity.members.length).toBe(2);
+    });
+
+    test('uteamup_workforce_get_capacity returns error for non-existent teamId', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetCapacity',
+        { teamId: 777777, startDate: '2026-02-23', endDate: '2026-02-27' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Team 777777 not found'
+            },
+            id: 75
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('uteamup_workforce_get_capacity returns error for invalid date format', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetCapacity',
+        { teamId: 3, startDate: 'not-a-date', endDate: '2026-02-27' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'StartDate must be a valid date string in YYYY-MM-DD format'
+            },
+            id: 76
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('YYYY-MM-DD');
+    });
+
+    test('uteamup_workforce_get_capacity request includes teamId, startDate, endDate in params', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', (body) => {
+          capturedBody = body;
+          return true;
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: '{}' }] },
+          id: 77
+        }), { 'Content-Type': 'application/json' });
+
+      const requestPayload = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'UteamupWorkforceGetCapacity',
+          arguments: { teamId: 4, startDate: '2026-02-23', endDate: '2026-02-27' }
+        },
+        id: 77
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(requestPayload);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          res.on('data', () => {});
+          res.on('end', resolve);
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.params.arguments.teamId).toBe(4);
+      expect(capturedBody.params.arguments.startDate).toBe('2026-02-23');
+      expect(capturedBody.params.arguments.endDate).toBe('2026-02-27');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupWorkforceGetAvailableTechnicians
+  // ---------------------------------------------------------------------------
+  describe('UteamupWorkforceGetAvailableTechnicians tool', () => {
+    test('uteamup_workforce_get_available_technicians returns list with capacity data', async () => {
+      const mockTechnicians = [
+        {
+          userId: 'user-alice-001',
+          userName: 'Alice Smith',
+          availabilityStatus: 'available',
+          scheduledHours: 3.0,
+          capacityRemaining: 5.0,
+          matchingSkills: [],
+          matchingCertificates: []
+        },
+        {
+          userId: 'user-bob-002',
+          userName: 'Bob Jones',
+          availabilityStatus: 'available',
+          scheduledHours: 0.0,
+          capacityRemaining: 8.0,
+          matchingSkills: [],
+          matchingCertificates: []
+        }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupWorkforceGetAvailableTechnicians',
+        { date: '2026-02-24' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(mockTechnicians) }] },
+            id: 78
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const technicians = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(technicians)).toBe(true);
+      expect(technicians.length).toBe(2);
+      expect(technicians[0].capacityRemaining).toBe(5.0);
+      expect(technicians[1].capacityRemaining).toBe(8.0);
+    });
+
+    test('uteamup_workforce_get_available_technicians filters by requiredSkills list', async () => {
+      const mockFiltered = [
+        {
+          userId: 'user-alice-001',
+          userName: 'Alice Smith',
+          availabilityStatus: 'available',
+          scheduledHours: 1.0,
+          capacityRemaining: 7.0,
+          matchingSkills: [{ skillId: 5, skillName: 'Plumbing' }],
+          matchingCertificates: []
+        }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupWorkforceGetAvailableTechnicians',
+        { date: '2026-02-24', requiredSkills: [5] },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(mockFiltered) }] },
+            id: 79
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const technicians = JSON.parse(response.body.result.content[0].text);
+      expect(technicians.length).toBe(1);
+      expect(technicians[0].matchingSkills[0].skillId).toBe(5);
+    });
+
+    test('uteamup_workforce_get_available_technicians returns error for invalid date', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetAvailableTechnicians',
+        { date: 'bad-date' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Invalid date format. Expected YYYY-MM-DD or ISO8601.'
+            },
+            id: 80
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('YYYY-MM-DD');
+    });
+
+    test('uteamup_workforce_get_available_technicians includes optional filters in request params', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', (body) => {
+          capturedBody = body;
+          return true;
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: '[]' }] },
+          id: 81
+        }), { 'Content-Type': 'application/json' });
+
+      const requestPayload = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'UteamupWorkforceGetAvailableTechnicians',
+          arguments: {
+            date: '2026-02-24',
+            requiredSkills: [5, 12],
+            requiredCerts: [3],
+            teamId: 2
+          }
+        },
+        id: 81
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(requestPayload);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          res.on('data', () => {});
+          res.on('end', resolve);
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.params.arguments.date).toBe('2026-02-24');
+      expect(capturedBody.params.arguments.requiredSkills).toEqual([5, 12]);
+      expect(capturedBody.params.arguments.requiredCerts).toEqual([3]);
+      expect(capturedBody.params.arguments.teamId).toBe(2);
+    });
+  });
 
   // ---------------------------------------------------------------------------
   // UteamupWorkforceExplainAssignment
@@ -600,29 +1046,44 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 4 tools
+  // JSON-RPC 2.0 compliance — all 7 tools
   // ---------------------------------------------------------------------------
   describe('JSON-RPC 2.0 compliance', () => {
     const complianceTools = [
       {
+        name: 'UteamupWorkforceSuggestAssignment',
+        args: { workorderId: 1 },
+        idBase: 20
+      },
+      {
+        name: 'UteamupWorkforceGetCapacity',
+        args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' },
+        idBase: 21
+      },
+      {
+        name: 'UteamupWorkforceGetAvailableTechnicians',
+        args: { date: '2026-02-24' },
+        idBase: 22
+      },
+      {
         name: 'UteamupWorkforceExplainAssignment',
         args: { assignmentId: 1 },
-        idBase: 20
+        idBase: 23
       },
       {
         name: 'UteamupWorkforceRankTechniciansForWorkOrder',
         args: { workorderId: 1 },
-        idBase: 21
+        idBase: 24
       },
       {
         name: 'UteamupWorkforceCheckTechnicianAvailability',
         args: { technicianUserId: 'user-test', dateStr: '2026-03-02' },
-        idBase: 22
+        idBase: 25
       },
       {
         name: 'UteamupWorkforceSuggestWeekPlan',
         args: { teamId: 1, weekStartDate: '2026-03-02' },
-        idBase: 23
+        idBase: 26
       }
     ];
 
@@ -702,10 +1163,13 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 4 tools
+  // 401 Unauthorized handling — all 7 tools
   // ---------------------------------------------------------------------------
   describe('401 Unauthorized handling', () => {
     const authTools = [
+      { name: 'UteamupWorkforceSuggestAssignment', args: { workorderId: 1 } },
+      { name: 'UteamupWorkforceGetCapacity', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
+      { name: 'UteamupWorkforceGetAvailableTechnicians', args: { date: '2026-02-24' } },
       { name: 'UteamupWorkforceExplainAssignment', args: { assignmentId: 1 } },
       { name: 'UteamupWorkforceRankTechniciansForWorkOrder', args: { workorderId: 1 } },
       { name: 'UteamupWorkforceCheckTechnicianAvailability', args: { technicianUserId: 'u1', dateStr: '2026-03-02' } },

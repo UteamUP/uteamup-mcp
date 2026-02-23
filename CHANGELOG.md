@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **test/schedule.test.js** — 33 new tests covering all 3 `ScheduleTools`: `UteamupScheduleGetMySchedule`, `UteamupScheduleGetTeamSchedule`, `UteamupScheduleGetAvailableTechnicians`. Tests include success responses, empty results, invalid input errors, parameter capture, JSON-RPC 2.0 compliance, 401/503 handling, and permission denial.
+- **test/schedule-ai-tools.test.js** — Added tests for 3 previously uncovered `WorkforcePlanningTools`: `UteamupWorkforceSuggestAssignment`, `UteamupWorkforceGetCapacity`, `UteamupWorkforceGetAvailableTechnicians`. Updated JSON-RPC compliance and 401 unauthorized suites to cover all 7 workforce tools.
+
+### Changed
+- Total test count increased from 70+ to 161 across 9 test suites (100% tool coverage for Schedule and WorkforcePlanning domains).
+
 ## [1.0.0-beta.7] - 2026-02-11
 
 ### Added
