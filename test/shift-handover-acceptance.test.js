@@ -1,0 +1,1253 @@
+/**
+ * Shift Handover Acceptance MCP tool tests
+ *
+ * Tests that shift handover acceptance MCP tool calls are correctly formed as
+ * JSON-RPC 2.0 requests and that the MCP proxy properly handles both successful
+ * and error responses from the backend /mcp endpoint.
+ *
+ * Tools under test:
+ *   UteamupShiftHandoverAccept(id, notes?)
+ *   UteamupShiftHandoverDeclineAcceptance(id, notes?)
+ *   UteamupShiftHandoverGetPendingAcceptances()
+ *   UteamupShiftHandoverCreate(..., shiftInstanceId?, journalId?, journalGenerationType?, journalName?)
+ *
+ * Pattern mirrors schedule-assignment.test.js: raw nock-mocked HTTPS calls
+ * that simulate what the MCP proxy would forward to the backend.
+ */
+
+'use strict';
+
+const nock = require('nock');
+const https = require('https');
+
+describe('Shift Handover Acceptance MCP Tools', () => {
+  const BASE_URL = 'https://api.test.com';
+  const ACCESS_TOKEN = 'test_access_token_shift_handover_acceptance';
+
+  beforeEach(() => {
+    nock.cleanAll();
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
+  // ---------------------------------------------------------------------------
+  function callMcpTool(toolName, toolArgs, mockReply) {
+    nock(BASE_URL)
+      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
+      .reply(mockReply.status, JSON.stringify(mockReply.body), {
+        'Content-Type': 'application/json'
+      });
+
+    const request = {
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: toolName,
+        arguments: toolArgs
+      },
+      id: Math.floor(Math.random() * 10000)
+    };
+
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify(request);
+
+      const req = https.request(`${BASE_URL}/mcp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+          'Content-Length': Buffer.byteLength(data)
+        },
+        rejectUnauthorized: false
+      }, (res) => {
+        let responseData = '';
+        res.on('data', chunk => responseData += chunk);
+        res.on('end', () => {
+          try {
+            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
+          } catch {
+            resolve({ status: res.statusCode, body: responseData });
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared mock data
+  // ---------------------------------------------------------------------------
+  const handover = {
+    id: 10,
+    shiftId: 1,
+    shiftName: 'Morning Shift',
+    shiftDate: '2026-03-01T00:00:00Z',
+    status: 'ReadyForReview',
+    outgoingOperatorId: 'user-alice-001',
+    outgoingOperatorName: 'Alice Smith',
+    incomingOperatorId: 'user-bob-002',
+    incomingOperatorName: 'Bob Jones',
+    incomingOperatorStatus: 'PendingAcceptance',
+    incomingOperatorRespondedAt: null,
+    incomingOperatorNotes: null,
+    shiftInstanceId: 5,
+    journalId: null,
+    journalGenerationType: 'AutoGenerate',
+    journalName: 'Morning Shift Handover 2026-03-01',
+    summary: 'All equipment checked, 2 WOs pending.'
+  };
+
+  const acceptedHandover = {
+    ...handover,
+    incomingOperatorStatus: 'Accepted',
+    incomingOperatorRespondedAt: '2026-03-01T08:05:00Z',
+    incomingOperatorNotes: 'Handover accepted, all items noted.',
+    status: 'Completed'
+  };
+
+  const declinedHandover = {
+    ...handover,
+    incomingOperatorStatus: 'Declined',
+    incomingOperatorRespondedAt: '2026-03-01T08:05:00Z',
+    incomingOperatorNotes: 'Missing critical information.',
+    status: 'ReadyForReview'
+  };
+
+  const pendingAcceptances = [handover];
+
+  // ---------------------------------------------------------------------------
+  // UteamupShiftHandoverAccept
+  // ---------------------------------------------------------------------------
+  describe('UteamupShiftHandoverAccept tool', () => {
+    test('happy path: accepting a handover sets incomingOperatorStatus to Accepted and status to Completed', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Handover accepted, all items noted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedHandover) }] },
+            id: 1
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.id).toBe(10);
+      expect(result.incomingOperatorStatus).toBe('Accepted');
+      expect(result.status).toBe('Completed');
+    });
+
+    test('accept with notes stores notes in incomingOperatorNotes field', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Handover accepted, all items noted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedHandover) }] },
+            id: 2
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorNotes).toBe('Handover accepted, all items noted.');
+    });
+
+    test('accept without notes leaves incomingOperatorNotes as null', async () => {
+      const acceptedNoNotes = { ...acceptedHandover, incomingOperatorNotes: null };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedNoNotes) }] },
+            id: 3
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorStatus).toBe('Accepted');
+      expect(result.incomingOperatorNotes).toBeNull();
+    });
+
+    test('returns error when handover with given id is not found', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 999999, notes: 'Accepted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Handover 999999 not found'
+            },
+            id: 4
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('returns error when handover has already been accepted', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Accept again.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Handover 10 has already been accepted'
+            },
+            id: 5
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('already been accepted');
+    });
+
+    test('returns permission denied when current user is not the incoming operator', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Accepted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'Permission denied: only the incoming operator can accept this handover'
+            },
+            id: 6
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('incoming operator');
+    });
+
+    test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Handover accepted, all items noted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedHandover) }] },
+            id: 7
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+      expect(response.body.id).toBe(7);
+    });
+
+    test('incomingOperatorRespondedAt is set to a non-null timestamp upon acceptance', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Handover accepted, all items noted.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedHandover) }] },
+            id: 8
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorRespondedAt).not.toBeNull();
+      expect(typeof result.incomingOperatorRespondedAt).toBe('string');
+      expect(result.incomingOperatorRespondedAt.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupShiftHandoverDeclineAcceptance
+  // ---------------------------------------------------------------------------
+  describe('UteamupShiftHandoverDeclineAcceptance tool', () => {
+    test('declining a handover sets incomingOperatorStatus to Declined', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Missing critical information.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 10
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorStatus).toBe('Declined');
+    });
+
+    test('decline with notes stores notes in incomingOperatorNotes field', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Missing critical information.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 11
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorNotes).toBe('Missing critical information.');
+    });
+
+    test('status remains ReadyForReview after decline — handover is not completed', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Missing critical information.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 12
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.status).toBe('ReadyForReview');
+      expect(result.status).not.toBe('Completed');
+    });
+
+    test('returns error when handover with given id is not found', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 999999, notes: 'Declined.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Handover 999999 not found'
+            },
+            id: 13
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('returns error when handover has already been declined', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Decline again.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: 'Handover 10 has already been declined'
+            },
+            id: 14
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('already been declined');
+    });
+
+    test('returns permission denied when current user is not the incoming operator', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Declined.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'Permission denied: only the incoming operator can decline this handover'
+            },
+            id: 15
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('incoming operator');
+    });
+
+    test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Missing critical information.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 16
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+      expect(response.body.id).toBe(16);
+    });
+
+    test('handover must be in ReadyForReview status to be declined — error when already Completed', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Trying to decline a completed handover.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: "Cannot decline handover 10: current status is 'Completed', expected 'ReadyForReview'"
+            },
+            id: 17
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('ReadyForReview');
+    });
+
+    test('incomingOperatorRespondedAt is set upon decline', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Missing critical information.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 18
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.incomingOperatorRespondedAt).not.toBeNull();
+      expect(typeof result.incomingOperatorRespondedAt).toBe('string');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupShiftHandoverGetPendingAcceptances
+  // ---------------------------------------------------------------------------
+  describe('UteamupShiftHandoverGetPendingAcceptances tool', () => {
+    test('returns list of handovers where incomingOperatorStatus is PendingAcceptance for current user', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(pendingAcceptances) }] },
+            id: 20
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(1);
+      expect(result[0].incomingOperatorStatus).toBe('PendingAcceptance');
+    });
+
+    test('returns empty array when current user has no pending acceptances', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: '[]' }] },
+            id: 21
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
+    });
+
+    test('only returns handovers where the current user is the incomingOperator', async () => {
+      const bobPending = [
+        { ...handover, id: 10, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones' },
+        { ...handover, id: 11, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones', shiftId: 2 }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(bobPending) }] },
+            id: 22
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.length).toBe(2);
+      result.forEach(h => {
+        expect(h.incomingOperatorId).toBe('user-bob-002');
+      });
+    });
+
+    test('returned handovers include shiftName, shiftDate, and outgoingOperatorName', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(pendingAcceptances) }] },
+            id: 23
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      const h = result[0];
+      expect(h.shiftName).toBe('Morning Shift');
+      expect(h.shiftDate).toBe('2026-03-01T00:00:00Z');
+      expect(h.outgoingOperatorName).toBe('Alice Smith');
+    });
+
+    test('returns permission error when ShiftHandover.Read permission is missing', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'Permission denied: ShiftHandover.Read required'
+            },
+            id: 24
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('ShiftHandover.Read');
+    });
+
+    test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(pendingAcceptances) }] },
+            id: 25
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+      expect(response.body.id).toBe(25);
+    });
+
+    test('response includes count of pending acceptances matching array length', async () => {
+      const multiplePending = [
+        { ...handover, id: 10 },
+        { ...handover, id: 11, shiftId: 2, shiftName: 'Evening Shift', shiftDate: '2026-03-02T00:00:00Z' },
+        { ...handover, id: 12, shiftId: 3, shiftName: 'Night Shift', shiftDate: '2026-03-03T00:00:00Z' }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(multiplePending) }] },
+            id: 26
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.length).toBe(3);
+    });
+
+    test('returned handovers are sorted by shiftDate descending — newest first', async () => {
+      const sortedPending = [
+        { ...handover, id: 12, shiftDate: '2026-03-03T00:00:00Z' },
+        { ...handover, id: 11, shiftDate: '2026-03-02T00:00:00Z' },
+        { ...handover, id: 10, shiftDate: '2026-03-01T00:00:00Z' }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverGetPendingAcceptances',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(sortedPending) }] },
+            id: 27
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.length).toBe(3);
+      // Verify descending order: first date >= second date >= third date
+      expect(new Date(result[0].shiftDate) >= new Date(result[1].shiftDate)).toBe(true);
+      expect(new Date(result[1].shiftDate) >= new Date(result[2].shiftDate)).toBe(true);
+    });
+
+    test('request body uses method tools/call with correct tool name', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', (body) => {
+          capturedBody = body;
+          return true;
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: '[]' }] },
+          id: 28
+        }), { 'Content-Type': 'application/json' });
+
+      const requestPayload = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'UteamupShiftHandoverGetPendingAcceptances',
+          arguments: {}
+        },
+        id: 28
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(requestPayload);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          res.on('data', () => {});
+          res.on('end', resolve);
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.method).toBe('tools/call');
+      expect(capturedBody.params.name).toBe('UteamupShiftHandoverGetPendingAcceptances');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupShiftHandoverCreate — journal selection fields
+  // ---------------------------------------------------------------------------
+  describe('UteamupShiftHandoverCreate tool — journal selection', () => {
+    test('create with existing journalId sets journalId and leaves journalGenerationType null', async () => {
+      const handoverWithJournal = {
+        ...handover,
+        id: 20,
+        journalId: 99,
+        journalGenerationType: null,
+        journalName: 'Existing Journal Q1 2026'
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked, 2 WOs pending.',
+          journalId: 99
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverWithJournal) }] },
+            id: 30
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.journalId).toBe(99);
+      expect(result.journalGenerationType).toBeNull();
+    });
+
+    test('create with AutoGenerate sets journalGenerationType to AutoGenerate and journalId to null', async () => {
+      const handoverAutoGenerate = {
+        ...handover,
+        id: 21,
+        journalId: null,
+        journalGenerationType: 'AutoGenerate',
+        journalName: 'Morning Shift Handover 2026-03-01'
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked, 2 WOs pending.',
+          journalGenerationType: 'AutoGenerate'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverAutoGenerate) }] },
+            id: 31
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.journalId).toBeNull();
+      expect(result.journalGenerationType).toBe('AutoGenerate');
+      expect(typeof result.journalName).toBe('string');
+      expect(result.journalName.length).toBeGreaterThan(0);
+    });
+
+    test('create with custom journalName stores the provided journal name', async () => {
+      const handoverCustomName = {
+        ...handover,
+        id: 22,
+        journalId: null,
+        journalGenerationType: 'AutoGenerate',
+        journalName: 'My Custom Handover Journal'
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.',
+          journalGenerationType: 'AutoGenerate',
+          journalName: 'My Custom Handover Journal'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverCustomName) }] },
+            id: 32
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.journalName).toBe('My Custom Handover Journal');
+    });
+
+    test('create without journal fields succeeds — journalId is nullable', async () => {
+      const handoverNoJournal = {
+        ...handover,
+        id: 23,
+        journalId: null,
+        journalGenerationType: null,
+        journalName: null
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked, 2 WOs pending.'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverNoJournal) }] },
+            id: 33
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.journalId).toBeNull();
+    });
+
+    test('create with shiftInstanceId links the handover to the shift instance', async () => {
+      const handoverWithInstance = {
+        ...handover,
+        id: 24,
+        shiftInstanceId: 5
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.',
+          shiftInstanceId: 5,
+          journalGenerationType: 'AutoGenerate'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverWithInstance) }] },
+            id: 34
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.shiftInstanceId).toBe(5);
+    });
+
+    test('create without shiftInstanceId succeeds for backward compatibility', async () => {
+      const handoverNoInstance = {
+        ...handover,
+        id: 25,
+        shiftInstanceId: null
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverNoInstance) }] },
+            id: 35
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+    });
+
+    test('AutoGenerate generates journalName based on shift name and date', async () => {
+      const handoverAutoName = {
+        ...handover,
+        id: 26,
+        shiftName: 'Morning Shift',
+        shiftDate: '2026-03-01T00:00:00Z',
+        journalId: null,
+        journalGenerationType: 'AutoGenerate',
+        journalName: 'Morning Shift Handover 2026-03-01'
+      };
+
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.',
+          journalGenerationType: 'AutoGenerate'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(handoverAutoName) }] },
+            id: 36
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.journalName).toContain('Morning Shift');
+      expect(result.journalName).toContain('2026-03-01');
+    });
+
+    test('returns permission error when ShiftHandover.Create permission is missing', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'Permission denied: ShiftHandover.Create required'
+            },
+            id: 37
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('ShiftHandover.Create');
+    });
+
+    test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverCreate',
+        {
+          shiftId: 1,
+          outgoingOperatorId: 'user-alice-001',
+          incomingOperatorId: 'user-bob-002',
+          summary: 'All equipment checked.',
+          journalGenerationType: 'AutoGenerate'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify({ ...handover, id: 27 }) }] },
+            id: 38
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+      expect(response.body.id).toBe(38);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // JSON-RPC 2.0 compliance — all 4 tools
+  // ---------------------------------------------------------------------------
+  describe('JSON-RPC 2.0 compliance — all tools', () => {
+    const complianceTools = [
+      {
+        name: 'UteamupShiftHandoverAccept',
+        args: { id: 10, notes: 'Handover accepted, all items noted.' },
+        mockText: JSON.stringify(acceptedHandover),
+        idBase: 50
+      },
+      {
+        name: 'UteamupShiftHandoverDeclineAcceptance',
+        args: { id: 10, notes: 'Missing critical information.' },
+        mockText: JSON.stringify(declinedHandover),
+        idBase: 51
+      },
+      {
+        name: 'UteamupShiftHandoverGetPendingAcceptances',
+        args: {},
+        mockText: JSON.stringify(pendingAcceptances),
+        idBase: 52
+      },
+      {
+        name: 'UteamupShiftHandoverCreate',
+        args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' },
+        mockText: JSON.stringify(handover),
+        idBase: 53
+      }
+    ];
+
+    test.each(complianceTools)(
+      '$name — success response has jsonrpc, id, result and no error',
+      async ({ name, args, mockText, idBase }) => {
+        const response = await callMcpTool(
+          name,
+          args,
+          {
+            status: 200,
+            body: {
+              jsonrpc: '2.0',
+              result: { content: [{ type: 'text', text: mockText }] },
+              id: idBase
+            }
+          }
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.jsonrpc).toBe('2.0');
+        expect(response.body.result).toBeDefined();
+        expect(response.body.error).toBeUndefined();
+        expect(response.body.id).toBe(idBase);
+      }
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // 401 Unauthorized handling — all tools
+  // ---------------------------------------------------------------------------
+  describe('401 Unauthorized handling', () => {
+    const authTools = [
+      { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' } },
+      { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' } },
+      { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
+      { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
+    ];
+
+    test.each(authTools)(
+      '$name — 401 response from backend is surfaced correctly, not a crash',
+      async ({ name, args }) => {
+        nock(BASE_URL)
+          .post('/mcp')
+          .reply(401, 'Unauthorized');
+
+        const statusCode = await new Promise((resolve, reject) => {
+          const data = JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: { name, arguments: args },
+            id: Math.floor(Math.random() * 9000) + 1000
+          });
+
+          const req = https.request(`${BASE_URL}/mcp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(data)
+            },
+            rejectUnauthorized: false
+          }, (res) => {
+            res.on('data', () => {});
+            res.on('end', () => resolve(res.statusCode));
+          });
+          req.on('error', reject);
+          req.write(data);
+          req.end();
+        });
+
+        expect(statusCode).toBe(401);
+      }
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // 503 Service Unavailable handling — all tools
+  // ---------------------------------------------------------------------------
+  describe('503 Service Unavailable handling', () => {
+    const serviceTools = [
+      { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' }, id: 70 },
+      { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' }, id: 71 },
+      { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {}, id: 72 },
+      { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' }, id: 73 }
+    ];
+
+    test.each(serviceTools)(
+      '$name — 503 response is surfaced correctly, not a process crash',
+      async ({ name, args, id }) => {
+        nock(BASE_URL)
+          .post('/mcp')
+          .reply(503, 'Service Unavailable');
+
+        const status = await new Promise((resolve, reject) => {
+          const data = JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: { name, arguments: args },
+            id
+          });
+
+          const req = https.request(`${BASE_URL}/mcp`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${ACCESS_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(data)
+            },
+            rejectUnauthorized: false
+          }, (res) => {
+            res.on('data', () => {});
+            res.on('end', () => resolve(res.statusCode));
+          });
+          req.on('error', reject);
+          req.write(data);
+          req.end();
+        });
+
+        expect(status).toBe(503);
+      }
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Accept / Decline mutual exclusion — state machine correctness
+  // ---------------------------------------------------------------------------
+  describe('Accept/Decline state machine correctness', () => {
+    test('accepted handover has status Completed, declined handover retains ReadyForReview', async () => {
+      const acceptResponse = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'All good.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(acceptedHandover) }] },
+            id: 80
+          }
+        }
+      );
+
+      const acceptedResult = JSON.parse(acceptResponse.body.result.content[0].text);
+      expect(acceptedResult.status).toBe('Completed');
+
+      const declineResponse = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 11, notes: 'Issues found.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(declinedHandover) }] },
+            id: 81
+          }
+        }
+      );
+
+      const declinedResult = JSON.parse(declineResponse.body.result.content[0].text);
+      expect(declinedResult.status).toBe('ReadyForReview');
+    });
+
+    test('attempting to accept a declined handover returns an error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverAccept',
+        { id: 10, notes: 'Trying to accept a declined handover.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: "Cannot accept handover 10: current incomingOperatorStatus is 'Declined'"
+            },
+            id: 82
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Declined');
+    });
+
+    test('attempting to decline an accepted handover returns an error', async () => {
+      const response = await callMcpTool(
+        'UteamupShiftHandoverDeclineAcceptance',
+        { id: 10, notes: 'Trying to decline an accepted handover.' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: {
+              code: -32602,
+              message: "Cannot decline handover 10: current incomingOperatorStatus is 'Accepted'"
+            },
+            id: 83
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Accepted');
+    });
+  });
+});
