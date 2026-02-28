@@ -21,6 +21,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Shift User Assignment MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -29,72 +31,7 @@ describe('Shift User Assignment MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
-
-  function successReply(data, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        result: { content: [{ type: 'text', text: JSON.stringify(data) }] },
-        id
-      }
-    };
-  }
-
-  function errorReply(code, message, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        error: { code, message },
-        id
-      }
-    };
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Mock data
@@ -133,7 +70,7 @@ describe('Shift User Assignment MCP Tools', () => {
         { ...assignment, id: 12, userId: 'user-carol-003', userName: 'Carol Davis', status: 'Declined' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 5 },
         successReply(threeAssignments, 1)
@@ -152,7 +89,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('empty instance — shift instance exists but has no assignments', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 99 },
         successReply([], 2)
@@ -166,7 +103,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('not found — shift instance does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 99999 },
         errorReply(-32602, 'Shift instance 99999 not found', 3)
@@ -185,7 +122,7 @@ describe('Shift User Assignment MCP Tools', () => {
         { ...assignment, id: 13, userId: 'user-dave-004', status: 'Replaced', replacedByUserId: 'user-eve-005' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 5 },
         successReply(allStatuses, 4)
@@ -201,7 +138,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 5;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 5 },
         successReply([assignment], id)
@@ -214,7 +151,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 5 },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Read required', 6)
@@ -225,7 +162,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('assignment has all expected fields including skillMatchLevel and isRecurring', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByInstance',
         { shiftInstanceId: 5 },
         successReply([assignment], 7)
@@ -297,7 +234,7 @@ describe('Shift User Assignment MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftUserAssignmentListByUserAndDate tool', () => {
     test('found — returns assignments for specific user and date', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: '2026-03-01' },
         successReply([assignment], 10)
@@ -314,7 +251,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('not found date — user has no assignments on the specified date returns empty array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: '2026-12-25' },
         successReply([], 11)
@@ -328,7 +265,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('invalid date format — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: 'not-a-date' },
         errorReply(-32602, 'Date must be a valid date string in YYYY-MM-DD format', 12)
@@ -339,7 +276,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('user not found — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-nonexistent-999', date: '2026-03-01' },
         errorReply(-32602, 'User user-nonexistent-999 not found', 13)
@@ -351,7 +288,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 14;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: '2026-03-01' },
         successReply([assignment], id)
@@ -369,7 +306,7 @@ describe('Shift User Assignment MCP Tools', () => {
         { ...assignment, id: 15, shiftInstanceId: 8, categoryName: 'Evening Maintenance' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: '2026-03-01' },
         successReply(twoShifts, 15)
@@ -382,7 +319,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentListByUserAndDate',
         { userId: 'user-alice-001', date: '2026-03-01' },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Read required', 16)
@@ -482,7 +419,7 @@ describe('Shift User Assignment MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftUserAssignmentCreate tool', () => {
     test('success — creates assignment and returns full assignment object', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 },
         successReply(assignment, 20)
@@ -501,7 +438,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('duplicate — user already assigned to this shift instance returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 },
         errorReply(-32602, 'User user-alice-001 is already assigned to shift instance 5', 21)
@@ -513,7 +450,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error when ShiftUserAssignment.Create is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Create required', 22)
@@ -525,7 +462,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('shift instance not found — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 99999, userId: 'user-alice-001', workforceCategoryId: 1 },
         errorReply(-32602, 'Shift instance 99999 not found', 23)
@@ -536,7 +473,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('user not found — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-nonexistent-999', workforceCategoryId: 1 },
         errorReply(-32602, 'User user-nonexistent-999 not found', 24)
@@ -547,7 +484,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('workforce category not found — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 99999 },
         errorReply(-32602, 'Workforce category 99999 not found', 25)
@@ -559,7 +496,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — created assignment response has id and result', async () => {
       const id = 26;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 },
         successReply(assignment, id)
@@ -621,7 +558,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('created assignment status defaults to Assigned', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentCreate',
         { shiftInstanceId: 5, userId: 'user-bob-002', workforceCategoryId: 1 },
         successReply({ ...assignment, id: 20, userId: 'user-bob-002', userName: 'Bob Jones' }, 28)
@@ -639,7 +576,7 @@ describe('Shift User Assignment MCP Tools', () => {
     test('status Confirmed — updates assignment to Confirmed and returns updated object', async () => {
       const confirmed = { ...assignment, status: 'Confirmed' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'Confirmed' },
         successReply(confirmed, 30)
@@ -657,7 +594,7 @@ describe('Shift User Assignment MCP Tools', () => {
     test('status Declined — updates assignment to Declined', async () => {
       const declined = { ...assignment, status: 'Declined' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'Declined' },
         successReply(declined, 31)
@@ -668,7 +605,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('not found — assignment id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 99999, status: 'Confirmed' },
         errorReply(-32602, 'Shift user assignment 99999 not found', 32)
@@ -680,7 +617,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('invalid status value — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'InvalidStatus' },
         errorReply(-32602, 'Status must be one of: Assigned, Confirmed, Declined, Replaced', 33)
@@ -691,7 +628,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'Confirmed' },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Update required', 34)
@@ -703,7 +640,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — update response has id and result, no error', async () => {
       const id = 35;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'Confirmed' },
         successReply({ ...assignment, status: 'Confirmed' }, id)
@@ -718,7 +655,7 @@ describe('Shift User Assignment MCP Tools', () => {
     test('status Replaced with replacedByUserId — replacement is recorded', async () => {
       const replaced = { ...assignment, status: 'Replaced', replacedByUserId: 'user-bob-002' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentUpdate',
         { id: 10, status: 'Replaced' },
         successReply(replaced, 36)
@@ -782,7 +719,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
       for (let i = 0; i < validStatuses.length; i++) {
         const status = validStatuses[i];
-        const response = await callMcpTool(
+        const response = await call(
           'UteamupShiftUserAssignmentUpdate',
           { id: 10, status },
           successReply({ ...assignment, status }, 38 + i)
@@ -799,7 +736,7 @@ describe('Shift User Assignment MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftUserAssignmentDelete tool', () => {
     test('success — deletes assignment and returns confirmation', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentDelete',
         { id: 10 },
         successReply({ deleted: true, id: 10 }, 50)
@@ -815,7 +752,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('not found — assignment id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentDelete',
         { id: 99999 },
         errorReply(-32602, 'Shift user assignment 99999 not found', 51)
@@ -827,7 +764,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error when ShiftUserAssignment.Delete is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentDelete',
         { id: 10 },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Delete required', 52)
@@ -840,7 +777,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — delete response has id and result, no error', async () => {
       const id = 53;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentDelete',
         { id: 10 },
         successReply({ deleted: true, id: 10 }, id)
@@ -900,7 +837,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('delete a non-integer id — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentDelete',
         { id: 'not-an-int' },
         errorReply(-32602, 'Id must be a positive integer', 55)
@@ -981,7 +918,7 @@ describe('Shift User Assignment MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftUserAssignmentMarkUnavailable tool', () => {
     test('success — marks unavailable and returns assignment plus replacement suggestion', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Sick leave' },
         successReply(unavailableResult, 60)
@@ -1010,7 +947,7 @@ describe('Shift User Assignment MCP Tools', () => {
         }
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Emergency leave' },
         successReply(noCandidates, 61)
@@ -1023,7 +960,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('not found — assignment id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 99999, reason: 'Sick leave' },
         errorReply(-32602, 'Shift user assignment 99999 not found', 62)
@@ -1035,7 +972,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Sick leave' },
         errorReply(-32600, 'Permission denied: ShiftUserAssignment.Update required', 63)
@@ -1047,7 +984,7 @@ describe('Shift User Assignment MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 64;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Sick leave' },
         successReply(unavailableResult, id)
@@ -1060,7 +997,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('replacement suggestion includes unavailableUserId field', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Sick leave' },
         successReply(unavailableResult, 65)
@@ -1072,7 +1009,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('missing reason — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: '' },
         errorReply(-32602, 'Reason must not be empty', 66)
@@ -1131,7 +1068,7 @@ describe('Shift User Assignment MCP Tools', () => {
     });
 
     test('replacement candidate has score and rationale fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftUserAssignmentMarkUnavailable',
         { id: 10, reason: 'Sick leave' },
         successReply(unavailableResult, 68)
@@ -1147,89 +1084,18 @@ describe('Shift User Assignment MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 6 tools
+  // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance across all tools', () => {
-    const complianceTools = [
-      { name: 'UteamupShiftUserAssignmentListByInstance', args: { shiftInstanceId: 5 }, idBase: 70 },
-      { name: 'UteamupShiftUserAssignmentListByUserAndDate', args: { userId: 'user-alice-001', date: '2026-03-01' }, idBase: 71 },
-      { name: 'UteamupShiftUserAssignmentCreate', args: { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 }, idBase: 72 },
-      { name: 'UteamupShiftUserAssignmentUpdate', args: { id: 10, status: 'Confirmed' }, idBase: 73 },
-      { name: 'UteamupShiftUserAssignmentDelete', args: { id: 10 }, idBase: 74 },
-      { name: 'UteamupShiftUserAssignmentMarkUnavailable', args: { id: 10, reason: 'Sick leave' }, idBase: 75 }
-    ];
+  const allTools = [
+    { name: 'UteamupShiftUserAssignmentListByInstance', args: { shiftInstanceId: 5 } },
+    { name: 'UteamupShiftUserAssignmentListByUserAndDate', args: { userId: 'user-alice-001', date: '2026-03-01' } },
+    { name: 'UteamupShiftUserAssignmentCreate', args: { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 } },
+    { name: 'UteamupShiftUserAssignmentUpdate', args: { id: 10, status: 'Confirmed' } },
+    { name: 'UteamupShiftUserAssignmentDelete', args: { id: 10 } },
+    { name: 'UteamupShiftUserAssignmentMarkUnavailable', args: { id: 10, reason: 'Sick leave' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — success response has jsonrpc 2.0, id, result and no error field',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(idBase);
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 6 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupShiftUserAssignmentListByInstance', args: { shiftInstanceId: 5 } },
-      { name: 'UteamupShiftUserAssignmentListByUserAndDate', args: { userId: 'user-alice-001', date: '2026-03-01' } },
-      { name: 'UteamupShiftUserAssignmentCreate', args: { shiftInstanceId: 5, userId: 'user-alice-001', workforceCategoryId: 1 } },
-      { name: 'UteamupShiftUserAssignmentUpdate', args: { id: 10, status: 'Confirmed' } },
-      { name: 'UteamupShiftUserAssignmentDelete', args: { id: 10 } },
-      { name: 'UteamupShiftUserAssignmentMarkUnavailable', args: { id: 10, reason: 'Sick leave' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });

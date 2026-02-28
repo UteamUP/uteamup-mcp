@@ -22,6 +22,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Shift Request MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -30,72 +32,7 @@ describe('Shift Request MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
-
-  function successReply(data, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        result: { content: [{ type: 'text', text: JSON.stringify(data) }] },
-        id
-      }
-    };
-  }
-
-  function errorReply(code, message, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        error: { code, message },
-        id
-      }
-    };
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Mock data
@@ -142,7 +79,7 @@ describe('Shift Request MCP Tools', () => {
         { ...shiftRequest, id: 2, userId: 'user-bob-002', userName: 'Bob Jones', requestedDate: '2026-03-02T00:00:00Z' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         { status: 'Pending' },
         successReply(pendingRequests, 1)
@@ -160,7 +97,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('filtered by status — returns only Approved requests', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         { status: 'Approved' },
         successReply([approvedRequest], 2)
@@ -173,7 +110,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('filtered by userId — returns only requests for a specific user', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         { userId: 'user-alice-001' },
         successReply([shiftRequest], 3)
@@ -185,7 +122,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('empty list — no requests matching filters returns empty array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         { status: 'Denied' },
         successReply([], 4)
@@ -197,7 +134,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         {},
         errorReply(-32600, 'Permission denied: ShiftRequest.Read required', 5)
@@ -216,7 +153,7 @@ describe('Shift Request MCP Tools', () => {
         { ...deniedRequest, id: 3 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         {},
         successReply(mixed, 6)
@@ -232,7 +169,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 7;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         {},
         successReply([shiftRequest], id)
@@ -278,7 +215,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('filtered by both status and userId — returns intersection', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestList',
         { status: 'Pending', userId: 'user-alice-001' },
         successReply([shiftRequest], 9)
@@ -296,7 +233,7 @@ describe('Shift Request MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftRequestGet tool', () => {
     test('found — returns shift request with full shape', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 1 },
         successReply(shiftRequest, 10)
@@ -315,7 +252,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('not found — id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 99999 },
         errorReply(-32602, 'Shift request 99999 not found', 11)
@@ -328,7 +265,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 12;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 1 },
         successReply(shiftRequest, id)
@@ -341,7 +278,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('approved request — includes reviewedByUserId, reviewedAt, and reviewNotes', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 2 },
         successReply(approvedRequest, 13)
@@ -355,7 +292,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('pending request — reviewedByUserId, reviewedAt and reviewNotes are null', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 1 },
         successReply(shiftRequest, 14)
@@ -368,7 +305,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestGet',
         { id: 1 },
         errorReply(-32600, 'Permission denied: ShiftRequest.Read required', 15)
@@ -464,7 +401,7 @@ describe('Shift Request MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftRequestCreate tool — DateRequest', () => {
     test('success — creates DateRequest and returns full request object', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'Need to work this day' },
         successReply(shiftRequest, 20)
@@ -483,7 +420,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('invalid date — requestedDate is not a valid date returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: 'not-a-date', shiftId: 1, reason: 'test' },
         errorReply(-32602, 'RequestedDate must be a valid date string in YYYY-MM-DD format', 21)
@@ -495,7 +432,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('missing reason — empty reason returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: '' },
         errorReply(-32602, 'Reason must not be empty', 22)
@@ -506,7 +443,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('shift not found — shiftId does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 99999, reason: 'test' },
         errorReply(-32602, 'Shift 99999 not found', 23)
@@ -518,7 +455,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — create response has id and result, no error', async () => {
       const id = 24;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
         successReply(shiftRequest, id)
@@ -531,7 +468,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
         errorReply(-32600, 'Permission denied: ShiftRequest.Create required', 25)
@@ -628,7 +565,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('created request status defaults to Pending', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
         successReply(shiftRequest, 28)
@@ -657,7 +594,7 @@ describe('Shift Request MCP Tools', () => {
         reason: 'Available for morning shifts next month'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         {
           requestType: 'AvailabilityDeclaration',
@@ -683,7 +620,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('invalid availableDaysMask — must be between 1 and 127 returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'AvailabilityDeclaration', availableDaysMask: 0, shiftId: 1, reason: 'test' },
         errorReply(-32602, 'AvailableDaysMask must be between 1 and 127', 31)
@@ -694,7 +631,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('availableFrom after availableTo — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         {
           requestType: 'AvailabilityDeclaration',
@@ -715,7 +652,7 @@ describe('Shift Request MCP Tools', () => {
       const id = 33;
       const availabilityRequest = { ...shiftRequest, id: 5, requestType: 'AvailabilityDeclaration', availableDaysMask: 31 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestCreate',
         { requestType: 'AvailabilityDeclaration', availableDaysMask: 31, shiftId: 1, reason: 'test' },
         successReply(availabilityRequest, id)
@@ -792,7 +729,7 @@ describe('Shift Request MCP Tools', () => {
     test('success — updates reason and returns updated request', async () => {
       const updated = { ...shiftRequest, reason: 'Updated reason' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 1, reason: 'Updated reason' },
         successReply(updated, 40)
@@ -808,7 +745,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('not found — id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 99999, reason: 'Updated' },
         errorReply(-32602, 'Shift request 99999 not found', 41)
@@ -820,7 +757,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('cannot update an already reviewed request — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 2, reason: 'Trying to update an approved request' },
         errorReply(-32602, 'Cannot update a shift request that has already been reviewed', 42)
@@ -832,7 +769,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — update response has id and result, no error', async () => {
       const id = 43;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 1, reason: 'Updated reason' },
         successReply({ ...shiftRequest, reason: 'Updated reason' }, id)
@@ -845,7 +782,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 1, reason: 'Updated' },
         errorReply(-32600, 'Permission denied: ShiftRequest.Update required', 44)
@@ -937,7 +874,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('empty reason — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestUpdate',
         { id: 1, reason: '' },
         errorReply(-32602, 'Reason must not be empty', 47)
@@ -953,7 +890,7 @@ describe('Shift Request MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftRequestDelete tool', () => {
     test('success — deletes request and returns confirmation', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDelete',
         { id: 1 },
         successReply({ deleted: true, id: 1 }, 50)
@@ -969,7 +906,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('not found — id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDelete',
         { id: 99999 },
         errorReply(-32602, 'Shift request 99999 not found', 51)
@@ -981,7 +918,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('cannot delete a reviewed request — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDelete',
         { id: 2 },
         errorReply(-32602, 'Cannot delete a shift request that has already been reviewed', 52)
@@ -993,7 +930,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — delete response has id and result, no error', async () => {
       const id = 53;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDelete',
         { id: 1 },
         successReply({ deleted: true, id: 1 }, id)
@@ -1006,7 +943,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDelete',
         { id: 1 },
         errorReply(-32600, 'Permission denied: ShiftRequest.Delete required', 54)
@@ -1134,7 +1071,7 @@ describe('Shift Request MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftRequestApprove tool', () => {
     test('success — returns approved request with reviewNotes', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1, notes: 'Approved as requested' },
         successReply(approvedRequest, 60)
@@ -1153,7 +1090,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('already approved — returns error when request is already in Approved state', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1, notes: 'Approving again' },
         errorReply(-32602, 'Shift request 1 has already been reviewed', 61)
@@ -1165,7 +1102,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('not found — id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 99999, notes: 'Approved' },
         errorReply(-32602, 'Shift request 99999 not found', 62)
@@ -1176,7 +1113,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission — ShiftRequest.Update required for approval', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1, notes: 'Approved' },
         errorReply(-32600, 'Permission denied: ShiftRequest.Update required', 63)
@@ -1188,7 +1125,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — approve response has id and result, no error', async () => {
       const id = 64;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1, notes: 'Approved as requested' },
         successReply(approvedRequest, id)
@@ -1203,7 +1140,7 @@ describe('Shift Request MCP Tools', () => {
     test('approve without notes — notes field is optional', async () => {
       const approvedNoNotes = { ...approvedRequest, reviewNotes: null };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1 },
         successReply(approvedNoNotes, 65)
@@ -1295,7 +1232,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('approved request has reviewedAt set to a valid ISO timestamp', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestApprove',
         { id: 1, notes: 'Approved as requested' },
         successReply(approvedRequest, 68)
@@ -1312,7 +1249,7 @@ describe('Shift Request MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftRequestDeny tool', () => {
     test('success — returns denied request with deny notes', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Not enough staff available' },
         successReply(deniedRequest, 70)
@@ -1333,7 +1270,7 @@ describe('Shift Request MCP Tools', () => {
     test('deny with notes — reviewNotes field is populated from notes arg', async () => {
       const customDenied = { ...deniedRequest, reviewNotes: 'Shift already fully staffed for that day' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Shift already fully staffed for that day' },
         successReply(customDenied, 71)
@@ -1344,7 +1281,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('already reviewed — returns error when request is already Denied', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Denying again' },
         errorReply(-32602, 'Shift request 1 has already been reviewed', 72)
@@ -1356,7 +1293,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('not found — id does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 99999, notes: 'Denied' },
         errorReply(-32602, 'Shift request 99999 not found', 73)
@@ -1367,7 +1304,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('permission — ShiftRequest.Update required for denial', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Denied' },
         errorReply(-32600, 'Permission denied: ShiftRequest.Update required', 74)
@@ -1379,7 +1316,7 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — deny response has id and result, no error', async () => {
       const id = 75;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Not enough staff available' },
         successReply(deniedRequest, id)
@@ -1394,7 +1331,7 @@ describe('Shift Request MCP Tools', () => {
     test('deny without notes — notes field is optional', async () => {
       const deniedNoNotes = { ...deniedRequest, reviewNotes: null };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1 },
         successReply(deniedNoNotes, 76)
@@ -1486,7 +1423,7 @@ describe('Shift Request MCP Tools', () => {
     });
 
     test('denied request has reviewedAt set to a valid ISO timestamp', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftRequestDeny',
         { id: 1, notes: 'Not enough staff available' },
         successReply(deniedRequest, 79)
@@ -1499,142 +1436,19 @@ describe('Shift Request MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 7 tools
+  // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance across all tools', () => {
-    const complianceTools = [
-      { name: 'UteamupShiftRequestList', args: {}, idBase: 80 },
-      { name: 'UteamupShiftRequestGet', args: { id: 1 }, idBase: 81 },
-      { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' }, idBase: 82 },
-      { name: 'UteamupShiftRequestUpdate', args: { id: 1, reason: 'Updated' }, idBase: 83 },
-      { name: 'UteamupShiftRequestDelete', args: { id: 1 }, idBase: 84 },
-      { name: 'UteamupShiftRequestApprove', args: { id: 1, notes: 'Approved' }, idBase: 85 },
-      { name: 'UteamupShiftRequestDeny', args: { id: 1, notes: 'Denied' }, idBase: 86 }
-    ];
+  const allTools = [
+    { name: 'UteamupShiftRequestList', args: {} },
+    { name: 'UteamupShiftRequestGet', args: { id: 1 } },
+    { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' } },
+    { name: 'UteamupShiftRequestUpdate', args: { id: 1, reason: 'Updated' } },
+    { name: 'UteamupShiftRequestDelete', args: { id: 1 } },
+    { name: 'UteamupShiftRequestApprove', args: { id: 1, notes: 'Approved' } },
+    { name: 'UteamupShiftRequestDeny', args: { id: 1, notes: 'Denied' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — success response has jsonrpc 2.0, id, result and no error field',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(idBase);
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 7 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupShiftRequestList', args: {} },
-      { name: 'UteamupShiftRequestGet', args: { id: 1 } },
-      { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' } },
-      { name: 'UteamupShiftRequestUpdate', args: { id: 1, reason: 'Updated' } },
-      { name: 'UteamupShiftRequestDelete', args: { id: 1 } },
-      { name: 'UteamupShiftRequestApprove', args: { id: 1, notes: 'Approved' } },
-      { name: 'UteamupShiftRequestDeny', args: { id: 1, notes: 'Denied' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Service Unavailable handling — all 7 tools
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    const serviceTools = [
-      { name: 'UteamupShiftRequestList', args: {}, id: 90 },
-      { name: 'UteamupShiftRequestGet', args: { id: 1 }, id: 91 },
-      { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' }, id: 92 },
-      { name: 'UteamupShiftRequestUpdate', args: { id: 1, reason: 'Updated' }, id: 93 },
-      { name: 'UteamupShiftRequestDelete', args: { id: 1 }, id: 94 },
-      { name: 'UteamupShiftRequestApprove', args: { id: 1, notes: 'Approved' }, id: 95 },
-      { name: 'UteamupShiftRequestDeny', args: { id: 1, notes: 'Denied' }, id: 96 }
-    ];
-
-    test.each(serviceTools)(
-      '$name — 503 is surfaced correctly without crashing',
-      async ({ name, args, id }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(503, 'Service Unavailable');
-
-        const status = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ACCESS_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(status).toBe(503);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });

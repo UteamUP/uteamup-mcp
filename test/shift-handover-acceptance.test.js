@@ -19,6 +19,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Shift Handover Acceptance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -32,55 +34,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     nock.cleanAll();
   });
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: toolArgs
-      },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -128,7 +82,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftHandoverAccept tool', () => {
     test('happy path: accepting a handover sets incomingOperatorStatus to Accepted and status to Completed', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Handover accepted, all items noted.' },
         {
@@ -152,7 +106,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('accept with notes stores notes in incomingOperatorNotes field', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Handover accepted, all items noted.' },
         {
@@ -172,7 +126,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('accept without notes leaves incomingOperatorNotes as null', async () => {
       const acceptedNoNotes = { ...acceptedHandover, incomingOperatorNotes: null };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10 },
         {
@@ -191,7 +145,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns error when handover with given id is not found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 999999, notes: 'Accepted.' },
         {
@@ -213,7 +167,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns error when handover has already been accepted', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Accept again.' },
         {
@@ -235,7 +189,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns permission denied when current user is not the incoming operator', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Accepted.' },
         {
@@ -256,7 +210,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Handover accepted, all items noted.' },
         {
@@ -277,7 +231,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('incomingOperatorRespondedAt is set to a non-null timestamp upon acceptance', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Handover accepted, all items noted.' },
         {
@@ -302,7 +256,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftHandoverDeclineAcceptance tool', () => {
     test('declining a handover sets incomingOperatorStatus to Declined', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Missing critical information.' },
         {
@@ -324,7 +278,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('decline with notes stores notes in incomingOperatorNotes field', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Missing critical information.' },
         {
@@ -342,7 +296,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('status remains ReadyForReview after decline — handover is not completed', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Missing critical information.' },
         {
@@ -361,7 +315,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns error when handover with given id is not found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 999999, notes: 'Declined.' },
         {
@@ -383,7 +337,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns error when handover has already been declined', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Decline again.' },
         {
@@ -405,7 +359,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns permission denied when current user is not the incoming operator', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Declined.' },
         {
@@ -426,7 +380,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Missing critical information.' },
         {
@@ -447,7 +401,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('handover must be in ReadyForReview status to be declined — error when already Completed', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Trying to decline a completed handover.' },
         {
@@ -469,7 +423,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('incomingOperatorRespondedAt is set upon decline', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Missing critical information.' },
         {
@@ -493,7 +447,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftHandoverGetPendingAcceptances tool', () => {
     test('returns list of handovers where incomingOperatorStatus is PendingAcceptance for current user', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -517,7 +471,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns empty array when current user has no pending acceptances', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -542,7 +496,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         { ...handover, id: 11, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones', shiftId: 2 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -563,7 +517,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returned handovers include shiftName, shiftDate, and outgoingOperatorName', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -584,7 +538,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftHandover.Read permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -605,7 +559,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -632,7 +586,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         { ...handover, id: 12, shiftId: 3, shiftName: 'Night Shift', shiftDate: '2026-03-03T00:00:00Z' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -656,7 +610,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         { ...handover, id: 10, shiftDate: '2026-03-01T00:00:00Z' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverGetPendingAcceptances',
         {},
         {
@@ -738,7 +692,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         journalName: 'Existing Journal Q1 2026'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -775,7 +729,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         journalName: 'Morning Shift Handover 2026-03-01'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -810,7 +764,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         journalName: 'My Custom Handover Journal'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -843,7 +797,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         journalName: null
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -876,7 +830,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         shiftInstanceId: 5
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -907,7 +861,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         shiftInstanceId: null
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -941,7 +895,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
         journalName: 'Morning Shift Handover 2026-03-01'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -966,7 +920,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftHandover.Create permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -992,7 +946,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverCreate',
         {
           shiftId: 1,
@@ -1020,162 +974,25 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 4 tools
+  // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance — all tools', () => {
-    const complianceTools = [
-      {
-        name: 'UteamupShiftHandoverAccept',
-        args: { id: 10, notes: 'Handover accepted, all items noted.' },
-        mockText: JSON.stringify(acceptedHandover),
-        idBase: 50
-      },
-      {
-        name: 'UteamupShiftHandoverDeclineAcceptance',
-        args: { id: 10, notes: 'Missing critical information.' },
-        mockText: JSON.stringify(declinedHandover),
-        idBase: 51
-      },
-      {
-        name: 'UteamupShiftHandoverGetPendingAcceptances',
-        args: {},
-        mockText: JSON.stringify(pendingAcceptances),
-        idBase: 52
-      },
-      {
-        name: 'UteamupShiftHandoverCreate',
-        args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' },
-        mockText: JSON.stringify(handover),
-        idBase: 53
-      }
-    ];
+  const allTools = [
+    { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' } },
+    { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' } },
+    { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
+    { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — success response has jsonrpc, id, result and no error',
-      async ({ name, args, mockText, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: mockText }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' } },
-      { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' } },
-      { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
-      { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly, not a crash',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Service Unavailable handling — all tools
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    const serviceTools = [
-      { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' }, id: 70 },
-      { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' }, id: 71 },
-      { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {}, id: 72 },
-      { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' }, id: 73 }
-    ];
-
-    test.each(serviceTools)(
-      '$name — 503 response is surfaced correctly, not a process crash',
-      async ({ name, args, id }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(503, 'Service Unavailable');
-
-        const status = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ACCESS_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(status).toBe(503);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 
   // ---------------------------------------------------------------------------
   // Accept / Decline mutual exclusion — state machine correctness
   // ---------------------------------------------------------------------------
   describe('Accept/Decline state machine correctness', () => {
     test('accepted handover has status Completed, declined handover retains ReadyForReview', async () => {
-      const acceptResponse = await callMcpTool(
+      const acceptResponse = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'All good.' },
         {
@@ -1191,7 +1008,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const acceptedResult = JSON.parse(acceptResponse.body.result.content[0].text);
       expect(acceptedResult.status).toBe('Completed');
 
-      const declineResponse = await callMcpTool(
+      const declineResponse = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 11, notes: 'Issues found.' },
         {
@@ -1209,7 +1026,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('attempting to accept a declined handover returns an error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverAccept',
         { id: 10, notes: 'Trying to accept a declined handover.' },
         {
@@ -1230,7 +1047,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     });
 
     test('attempting to decline an accepted handover returns an error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { id: 10, notes: 'Trying to decline an accepted handover.' },
         {

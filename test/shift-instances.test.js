@@ -23,6 +23,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Shift Instance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -31,50 +33,7 @@ describe('Shift Instance MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -103,7 +62,7 @@ describe('Shift Instance MCP Tools', () => {
         { ...instance, id: 7, instanceDate: '2026-03-03T00:00:00Z', isHoliday: true, assignmentCount: 0 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -128,7 +87,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns empty array when no instances exist in range', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-04-01', dateTo: '2026-04-07' },
         {
@@ -153,7 +112,7 @@ describe('Shift Instance MCP Tools', () => {
         { ...instance, id: 8, instanceDate: '2026-03-04T00:00:00Z' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07', shiftId: 1 },
         {
@@ -177,7 +136,7 @@ describe('Shift Instance MCP Tools', () => {
         { ...instance, id: 9, instanceDate: '2026-03-03T00:00:00Z', isHoliday: true, assignmentCount: 0 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -198,7 +157,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -260,7 +219,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -280,7 +239,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error for missing dateFrom parameter', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceListByRange',
         { dateTo: '2026-03-07' },
         {
@@ -304,7 +263,7 @@ describe('Shift Instance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftInstanceGet tool', () => {
     test('returns a single shift instance by id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 5 },
         {
@@ -330,7 +289,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error for non-existent id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 99999 },
         {
@@ -350,7 +309,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 5 },
         {
@@ -369,7 +328,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when id is not provided', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         {},
         {
@@ -426,7 +385,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 5 },
         {
@@ -448,7 +407,7 @@ describe('Shift Instance MCP Tools', () => {
     test('returns holiday instance with isHoliday: true', async () => {
       const holidayInstance = { ...instance, id: 9, instanceDate: '2026-03-03T00:00:00Z', isHoliday: true, assignmentCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 9 },
         {
@@ -470,7 +429,7 @@ describe('Shift Instance MCP Tools', () => {
     test('returns AI-generated instance with generatedByAI: true', async () => {
       const aiInstance = { ...instance, generatedByAI: true };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGet',
         { id: 5 },
         {
@@ -496,7 +455,7 @@ describe('Shift Instance MCP Tools', () => {
     test('creates a new shift instance and returns the created object', async () => {
       const created = { ...instance, id: 20, instanceDate: '2026-03-15T00:00:00Z', status: 'Draft', assignmentCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 1, instanceDate: '2026-03-15' },
         {
@@ -520,7 +479,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error when shiftId does not exist', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 99999, instanceDate: '2026-03-15' },
         {
@@ -539,7 +498,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Create is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 1, instanceDate: '2026-03-15' },
         {
@@ -559,7 +518,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when instanceDate is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 1 },
         {
@@ -578,7 +537,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when instance for date already exists', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 1, instanceDate: '2026-03-01' },
         {
@@ -635,7 +594,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — created response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceCreate',
         { shiftId: 1, instanceDate: '2026-03-15' },
         {
@@ -691,7 +650,7 @@ describe('Shift Instance MCP Tools', () => {
     test('updates a shift instance and returns the updated object', async () => {
       const updated = { ...instance, instanceDate: '2026-03-05T00:00:00Z' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { id: 5, shiftId: 1, instanceDate: '2026-03-05' },
         {
@@ -714,7 +673,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error for non-existent instance id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { id: 99999, shiftId: 1, instanceDate: '2026-03-05' },
         {
@@ -733,7 +692,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { id: 5, shiftId: 1, instanceDate: '2026-03-05' },
         {
@@ -753,7 +712,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when id is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { shiftId: 1, instanceDate: '2026-03-05' },
         {
@@ -811,7 +770,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — update response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { id: 5, shiftId: 1, instanceDate: '2026-03-05' },
         {
@@ -833,7 +792,7 @@ describe('Shift Instance MCP Tools', () => {
     test('can update isHoliday flag', async () => {
       const markedHoliday = { ...instance, isHoliday: true };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceUpdate',
         { id: 5, shiftId: 1, instanceDate: '2026-03-01', isHoliday: true },
         {
@@ -857,7 +816,7 @@ describe('Shift Instance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftInstanceDelete tool', () => {
     test('deletes a shift instance and returns deleted: true', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         { id: 5 },
         {
@@ -879,7 +838,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error for non-existent instance id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         { id: 99999 },
         {
@@ -898,7 +857,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Delete is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         { id: 5 },
         {
@@ -918,7 +877,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when id is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         {},
         {
@@ -936,7 +895,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — delete response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         { id: 5 },
         {
@@ -956,7 +915,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when instance has active assignments and cannot be deleted', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceDelete',
         { id: 5 },
         {
@@ -1047,7 +1006,7 @@ describe('Shift Instance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupShiftInstanceGenerate tool', () => {
     test('generates instances for a shift and returns created count', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-31', publishImmediately: false, skipExisting: true },
         {
@@ -1072,7 +1031,7 @@ describe('Shift Instance MCP Tools', () => {
     test('publishImmediately: true generates instances with Published status', async () => {
       const publishedResult = { created: 3, message: '3 shift instance(s) generated and published.' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: true, skipExisting: false },
         {
@@ -1094,7 +1053,7 @@ describe('Shift Instance MCP Tools', () => {
     test('skipExisting: true skips dates that already have instances', async () => {
       const skippedResult = { created: 2, message: '2 shift instance(s) generated. 5 skipped (already exist).' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true },
         {
@@ -1114,7 +1073,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error when shiftId does not exist', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 99999, dateFrom: '2026-03-01', dateTo: '2026-03-31', publishImmediately: false, skipExisting: true },
         {
@@ -1133,7 +1092,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Create is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-31', publishImmediately: false, skipExisting: true },
         {
@@ -1196,7 +1155,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — generate response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true },
         {
@@ -1218,7 +1177,7 @@ describe('Shift Instance MCP Tools', () => {
     test('returns zero created when all dates already have instances and skipExisting is true', async () => {
       const zeroResult = { created: 0, message: '0 shift instance(s) generated. 7 skipped (already exist).' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceGenerate',
         { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true },
         {
@@ -1244,7 +1203,7 @@ describe('Shift Instance MCP Tools', () => {
     test('approves a shift instance and returns the updated instance', async () => {
       const approved = { ...instance, status: 'Approved' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         { id: 5 },
         {
@@ -1267,7 +1226,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error for non-existent instance id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         { id: 99999 },
         {
@@ -1286,7 +1245,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Approve is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         { id: 5 },
         {
@@ -1305,7 +1264,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when id is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         {},
         {
@@ -1323,7 +1282,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error when instance is already in a terminal state', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         { id: 5 },
         {
@@ -1342,7 +1301,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — approve response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceApprove',
         { id: 5 },
         {
@@ -1436,7 +1395,7 @@ describe('Shift Instance MCP Tools', () => {
     test('sets status to InProgress and returns the updated instance', async () => {
       const inProgress = { ...instance, status: 'InProgress' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'InProgress' },
         {
@@ -1461,7 +1420,7 @@ describe('Shift Instance MCP Tools', () => {
     test('sets status to Completed and returns the updated instance', async () => {
       const completed = { ...instance, status: 'Completed' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'Completed' },
         {
@@ -1482,7 +1441,7 @@ describe('Shift Instance MCP Tools', () => {
     test('sets status to Cancelled and returns the updated instance', async () => {
       const cancelled = { ...instance, status: 'Cancelled' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'Cancelled' },
         {
@@ -1501,7 +1460,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns not found error for non-existent instance id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 99999, status: 'InProgress' },
         {
@@ -1520,7 +1479,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns permission error when ShiftInstance.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'InProgress' },
         {
@@ -1539,7 +1498,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('returns error for invalid status value', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'InvalidStatus' },
         {
@@ -1596,7 +1555,7 @@ describe('Shift Instance MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — setStatus response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupShiftInstanceSetStatus',
         { id: 5, status: 'InProgress' },
         {
@@ -1617,90 +1576,20 @@ describe('Shift Instance MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 8 tools
+  // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance — all tools', () => {
-    const complianceTools = [
-      { name: 'UteamupShiftInstanceListByRange', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' }, idBase: 100 },
-      { name: 'UteamupShiftInstanceGet', args: { id: 5 }, idBase: 101 },
-      { name: 'UteamupShiftInstanceCreate', args: { shiftId: 1, instanceDate: '2026-03-15' }, idBase: 102 },
-      { name: 'UteamupShiftInstanceUpdate', args: { id: 5, shiftId: 1, instanceDate: '2026-03-05' }, idBase: 103 },
-      { name: 'UteamupShiftInstanceDelete', args: { id: 5 }, idBase: 104 },
-      { name: 'UteamupShiftInstanceGenerate', args: { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true }, idBase: 105 },
-      { name: 'UteamupShiftInstanceApprove', args: { id: 5 }, idBase: 106 },
-      { name: 'UteamupShiftInstanceSetStatus', args: { id: 5, status: 'InProgress' }, idBase: 107 }
-    ];
+  const allTools = [
+    { name: 'UteamupShiftInstanceListByRange', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
+    { name: 'UteamupShiftInstanceGet', args: { id: 5 } },
+    { name: 'UteamupShiftInstanceCreate', args: { shiftId: 1, instanceDate: '2026-03-15' } },
+    { name: 'UteamupShiftInstanceUpdate', args: { id: 5, shiftId: 1, instanceDate: '2026-03-05' } },
+    { name: 'UteamupShiftInstanceDelete', args: { id: 5 } },
+    { name: 'UteamupShiftInstanceGenerate', args: { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true } },
+    { name: 'UteamupShiftInstanceApprove', args: { id: 5 } },
+    { name: 'UteamupShiftInstanceSetStatus', args: { id: 5, status: 'InProgress' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — response has id and result, no error (JSON-RPC 2.0 success shape)',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 8 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling — all tools', () => {
-    const authTools = [
-      { name: 'UteamupShiftInstanceListByRange', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
-      { name: 'UteamupShiftInstanceGet', args: { id: 5 } },
-      { name: 'UteamupShiftInstanceCreate', args: { shiftId: 1, instanceDate: '2026-03-15' } },
-      { name: 'UteamupShiftInstanceUpdate', args: { id: 5, shiftId: 1, instanceDate: '2026-03-05' } },
-      { name: 'UteamupShiftInstanceDelete', args: { id: 5 } },
-      { name: 'UteamupShiftInstanceGenerate', args: { shiftId: 1, dateFrom: '2026-03-01', dateTo: '2026-03-07', publishImmediately: false, skipExisting: true } },
-      { name: 'UteamupShiftInstanceApprove', args: { id: 5 } },
-      { name: 'UteamupShiftInstanceSetStatus', args: { id: 5, status: 'InProgress' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });
