@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 8 MCP proxy tests for `UteamupWorkforceGetGroupMembers` and `UteamupWorkforceAssignWorkOrder` tools in `workforce-planning.test.js`
 - 7 IconName field tests in `workforce-categories.test.js`: create with icon, create without (backwards-compat), update, clear, list returns, get by id returns, create request params
 
 ### Changed
