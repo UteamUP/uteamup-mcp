@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 7 IconName field tests in `workforce-categories.test.js`: create with icon, create without (backwards-compat), update, clear, list returns, get by id returns, create request params
+
+### Changed
 - **test/labour-rate.test.js** — 20 tests covering all 6 `LabourRateTools`: `UteamupLabourRateGetMyEffectiveRate` (including at= param), `UteamupLabourRateGetRules`, `UteamupLabourRateGetModifiers`, `UteamupLabourRateCreateModifier`, `UteamupLabourRateUpdateModifier`, `UteamupLabourRateDeleteModifier`. Tests cover success paths, validation errors (missing name, zero rateValue, invalid id), permission denial (LaborCost.All), and 401 unauthorized.
 - **test/schedule.test.js** — 33 new tests covering all 3 `ScheduleTools`: `UteamupScheduleGetMySchedule`, `UteamupScheduleGetTeamSchedule`, `UteamupScheduleGetAvailableTechnicians`. Tests include success responses, empty results, invalid input errors, parameter capture, JSON-RPC 2.0 compliance, 401/503 handling, and permission denial.
 - **test/schedule-ai-tools.test.js** — Added tests for 3 previously uncovered `WorkforcePlanningTools`: `UteamupWorkforceSuggestAssignment`, `UteamupWorkforceGetCapacity`, `UteamupWorkforceGetAvailableTechnicians`. Updated JSON-RPC compliance and 401 unauthorized suites to cover all 7 workforce tools.

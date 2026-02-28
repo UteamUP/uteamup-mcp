@@ -84,6 +84,7 @@ describe('Workforce Category MCP Tools', () => {
     name: 'Electrical Day',
     description: 'Day shift electricians',
     colorCode: '#3B82F6',
+    iconName: 'bolt',
     defaultLocationId: null,
     isActive: true,
     memberCount: 3
@@ -1649,6 +1650,184 @@ describe('Workforce Category MCP Tools', () => {
       expect(response.status).toBe(200);
       expect(response.body.error).toBeDefined();
       expect(response.body.error.message).toContain('88888');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // IconName field support
+  // ---------------------------------------------------------------------------
+  describe('IconName field support', () => {
+    test('create with iconName returns iconName in response', async () => {
+      const createArgs = { name: 'Icon Team', description: 'Team with icon', colorCode: '#8B5CF6', iconName: 'wrench-screwdriver' };
+      const created = { ...createArgs, id: 20, defaultLocationId: null, isActive: true, memberCount: 0 };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryCreate',
+        createArgs,
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(created) }] },
+            id: 200
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.iconName).toBe('wrench-screwdriver');
+      expect(result.name).toBe('Icon Team');
+    });
+
+    test('create without iconName returns null iconName (backwards-compatible)', async () => {
+      const createArgs = { name: 'No Icon Team', colorCode: '#10B981' };
+      const created = { ...createArgs, id: 21, iconName: null, defaultLocationId: null, isActive: true, memberCount: 0 };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryCreate',
+        createArgs,
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(created) }] },
+            id: 201
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.iconName).toBeNull();
+    });
+
+    test('update iconName returns updated value', async () => {
+      const updated = { ...category, iconName: 'users' };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryUpdate',
+        { id: 1, iconName: 'users' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(updated) }] },
+            id: 202
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.iconName).toBe('users');
+    });
+
+    test('clear iconName by setting to null', async () => {
+      const updated = { ...category, iconName: null };
+
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryUpdate',
+        { id: 1, iconName: null },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(updated) }] },
+            id: 203
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.iconName).toBeNull();
+    });
+
+    test('list categories returns iconName field', async () => {
+      const categories = [
+        { ...category, iconName: 'bolt' },
+        { id: 2, name: 'Plumbing Night', colorCode: '#10B981', iconName: null, isActive: true, memberCount: 5 },
+        { id: 3, name: 'HVAC Team', colorCode: '#F59E0B', iconName: 'wrench-screwdriver', isActive: true, memberCount: 2 }
+      ];
+
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryList',
+        {},
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(categories) }] },
+            id: 204
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result[0].iconName).toBe('bolt');
+      expect(result[1].iconName).toBeNull();
+      expect(result[2].iconName).toBe('wrench-screwdriver');
+    });
+
+    test('get category by id returns iconName', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceCategoryGet',
+        { id: 1 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(category) }] },
+            id: 205
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.iconName).toBe('bolt');
+    });
+
+    test('iconName is included in create request params', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', (body) => { capturedBody = body; return true; })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: '{}' }] },
+          id: 206
+        }), { 'Content-Type': 'application/json' });
+
+      const requestPayload = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'UteamupWorkforceCategoryCreate',
+          arguments: { name: 'Icon Team', colorCode: '#3B82F6', iconName: 'cog-6-tooth' }
+        },
+        id: 206
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(requestPayload);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+          rejectUnauthorized: false
+        }, (res) => {
+          res.on('data', () => {});
+          res.on('end', resolve);
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.params.arguments.iconName).toBe('cog-6-tooth');
     });
   });
 
