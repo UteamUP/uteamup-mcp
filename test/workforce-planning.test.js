@@ -8,6 +8,8 @@
  * Tools under test:
  *   UteamupWorkforcePlanningGetGrid        — get the planning grid for a date range
  *   UteamupWorkforcePlanningGetWorkOrders  — get work orders panel for a date range
+ *   UteamupWorkforceGetGroupMembers        — get workforce group members for per-member rows
+ *   UteamupWorkforceAssignWorkOrder        — assign work order to a specific group member
  *
  * Pattern mirrors schedule.test.js: raw nock-mocked HTTPS calls that simulate
  * what the MCP proxy would forward to the backend.
@@ -1101,6 +1103,262 @@ describe('Workforce Planning MCP Tools', () => {
       expect(response.body.error).toBeDefined();
       expect(response.body.error.code).toBe(-32600);
       expect(response.body.error.message).toContain('Permission denied');
+      expect(response.body.result).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupWorkforceGetGroupMembers — per-member rows
+  // ---------------------------------------------------------------------------
+  describe('UteamupWorkforceGetGroupMembers', () => {
+    const groupMembers = [
+      {
+        id: 1,
+        workforceGroupId: 5,
+        userId: 'user-abc-123',
+        userName: 'Erik Larsson',
+        userEmail: 'erik@example.com',
+        userAvatarUrl: null,
+        teamId: null,
+        teamName: null,
+        role: 0,
+        isActive: true
+      },
+      {
+        id: 2,
+        workforceGroupId: 5,
+        userId: 'user-def-456',
+        userName: 'Sofia Andersson',
+        userEmail: 'sofia@example.com',
+        userAvatarUrl: 'https://example.com/sofia.jpg',
+        teamId: 3,
+        teamName: 'Team Alpha',
+        role: 1,
+        isActive: true
+      }
+    ];
+
+    test('returns group members with user details', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetGroupMembers',
+        { groupId: 5 },
+        {
+          status: 200,
+          body: { jsonrpc: '2.0', result: { content: [{ type: 'text', text: JSON.stringify(groupMembers) }] }, id: 200 }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+      expect(response.body.id).toBeDefined();
+
+      const members = JSON.parse(response.body.result.content[0].text);
+      expect(members).toHaveLength(2);
+      expect(members[0].userId).toBe('user-abc-123');
+      expect(members[0].userName).toBe('Erik Larsson');
+      expect(members[1].userId).toBe('user-def-456');
+      expect(members[1].role).toBe(1); // Lead
+    });
+
+    test('returns empty array for group with no members', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetGroupMembers',
+        { groupId: 99 },
+        {
+          status: 200,
+          body: { jsonrpc: '2.0', result: { content: [{ type: 'text', text: '[]' }] }, id: 201 }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const members = JSON.parse(response.body.result.content[0].text);
+      expect(members).toEqual([]);
+    });
+
+    test('returns permission error when Schedule.Manage is missing', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceGetGroupMembers',
+        { groupId: 5 },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32600, message: 'Permission denied: Schedule.Manage required' },
+            id: 202
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32600);
+      expect(response.body.error.message).toContain('Schedule.Manage');
+      expect(response.body.result).toBeUndefined();
+    });
+
+    test('captures groupId parameter in request', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          capturedBody = body;
+          return body.method === 'tools/call' && body.params?.name === 'UteamupWorkforceGetGroupMembers';
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: '[]' }] },
+          id: 203
+        }), { 'Content-Type': 'application/json' });
+
+      const request = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: 'UteamupWorkforceGetGroupMembers', arguments: { groupId: 7 } },
+        id: 203
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(request);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          let responseData = '';
+          res.on('data', chunk => responseData += chunk);
+          res.on('end', () => resolve(JSON.parse(responseData)));
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).toBeTruthy();
+      expect(capturedBody.params.arguments.groupId).toBe(7);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupWorkforceAssignWorkOrder — drag-and-drop assignment
+  // ---------------------------------------------------------------------------
+  describe('UteamupWorkforceAssignWorkOrder', () => {
+    const assignedWorkOrder = {
+      id: 42,
+      title: 'Replace HVAC filter',
+      primaryAssigneeId: 'user-abc-123',
+      primaryAssigneeName: 'Erik Larsson',
+      status: 1
+    };
+
+    test('assigns work order to member and returns updated work order', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceAssignWorkOrder',
+        { workOrderId: 42, assigneeUserId: 'user-abc-123' },
+        {
+          status: 200,
+          body: { jsonrpc: '2.0', result: { content: [{ type: 'text', text: JSON.stringify(assignedWorkOrder) }] }, id: 300 }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.jsonrpc).toBe('2.0');
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const wo = JSON.parse(response.body.result.content[0].text);
+      expect(wo.id).toBe(42);
+      expect(wo.primaryAssigneeId).toBe('user-abc-123');
+    });
+
+    test('returns permission error when WorkOrder.Update is missing', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceAssignWorkOrder',
+        { workOrderId: 42, assigneeUserId: 'user-abc-123' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32600, message: 'Permission denied: WorkOrder.Update required' },
+            id: 301
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32600);
+      expect(response.body.error.message).toContain('WorkOrder.Update');
+      expect(response.body.result).toBeUndefined();
+    });
+
+    test('captures workOrderId and assigneeUserId parameters', async () => {
+      let capturedBody = null;
+
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          capturedBody = body;
+          return body.method === 'tools/call' && body.params?.name === 'UteamupWorkforceAssignWorkOrder';
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: { content: [{ type: 'text', text: JSON.stringify(assignedWorkOrder) }] },
+          id: 302
+        }), { 'Content-Type': 'application/json' });
+
+      const request = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: 'UteamupWorkforceAssignWorkOrder', arguments: { workOrderId: 42, assigneeUserId: 'user-abc-123' } },
+        id: 302
+      };
+
+      await new Promise((resolve, reject) => {
+        const data = JSON.stringify(request);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+            'Content-Length': Buffer.byteLength(data)
+          },
+          rejectUnauthorized: false
+        }, (res) => {
+          let responseData = '';
+          res.on('data', chunk => responseData += chunk);
+          res.on('end', () => resolve(JSON.parse(responseData)));
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(capturedBody).toBeTruthy();
+      expect(capturedBody.params.arguments.workOrderId).toBe(42);
+      expect(capturedBody.params.arguments.assigneeUserId).toBe('user-abc-123');
+    });
+
+    test('returns error for non-existent work order', async () => {
+      const response = await callMcpTool(
+        'UteamupWorkforceAssignWorkOrder',
+        { workOrderId: 999999, assigneeUserId: 'user-abc-123' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Work order not found' },
+            id: 303
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32603);
       expect(response.body.result).toBeUndefined();
     });
   });
