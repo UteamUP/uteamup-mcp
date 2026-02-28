@@ -20,6 +20,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   const BASE_URL = 'https://api.test.com';
@@ -33,55 +35,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     nock.cleanAll();
   });
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: toolArgs
-      },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // UteamupWorkforceSuggestAssignment
@@ -99,7 +53,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         competencyScore: 93.5
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestAssignment',
         { workorderId: 42 },
         {
@@ -123,7 +77,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_suggest_assignment returns null when no suitable technician found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestAssignment',
         { workorderId: 99 },
         {
@@ -143,7 +97,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_suggest_assignment with non-existent workorderId returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestAssignment',
         { workorderId: 888888 },
         {
@@ -247,7 +201,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetCapacity',
         { teamId: 3, startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -273,7 +227,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_get_capacity returns error for non-existent teamId', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetCapacity',
         { teamId: 777777, startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -295,7 +249,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_get_capacity returns error for invalid date format', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetCapacity',
         { teamId: 3, startDate: 'not-a-date', endDate: '2026-02-27' },
         {
@@ -392,7 +346,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetAvailableTechnicians',
         { date: '2026-02-24' },
         {
@@ -429,7 +383,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetAvailableTechnicians',
         { date: '2026-02-24', requiredSkills: [5] },
         {
@@ -449,7 +403,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_get_available_technicians returns error for invalid date', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetAvailableTechnicians',
         { date: 'bad-date' },
         {
@@ -543,7 +497,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         proximityScore: 87.0
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceExplainAssignment',
         { assignmentId: 42 },
         {
@@ -568,7 +522,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_explain_assignment with invalid assignmentId returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceExplainAssignment',
         { assignmentId: 999999 },
         {
@@ -667,7 +621,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
         { workorderId: 55 },
         {
@@ -693,7 +647,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_rank_technicians_for_work_order returns empty list when no technicians available', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
         { workorderId: 123 },
         {
@@ -714,7 +668,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_rank_technicians_for_work_order with non-existent workorderId returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
         { workorderId: 888888 },
         {
@@ -757,7 +711,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         totalBookedMinutes: 120
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
         { technicianUserId: 'user-charlie-003', dateStr: '2026-03-04' },
         {
@@ -795,7 +749,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         totalBookedMinutes: 540
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
         { technicianUserId: 'user-dave-004', dateStr: '2026-03-05' },
         {
@@ -818,7 +772,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_check_technician_availability with invalid dateStr returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
         { technicianUserId: 'user-alice-001', dateStr: 'not-a-date' },
         {
@@ -926,7 +880,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         unschedulableWorkorders: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
         { teamId: 3, weekStartDate: '2026-03-02' },
         {
@@ -952,7 +906,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_suggest_week_plan with invalid teamId returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
         { teamId: 777777, weekStartDate: '2026-03-02' },
         {
@@ -975,7 +929,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('uteamup_workforce_suggest_week_plan with invalid weekStartDate returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
         { teamId: 3, weekStartDate: 'bad-date' },
         {
@@ -1046,379 +1000,28 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 7 tools
+  // Shared error-handling coverage (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance', () => {
-    const complianceTools = [
-      {
-        name: 'UteamupWorkforceSuggestAssignment',
-        args: { workorderId: 1 },
-        idBase: 20
-      },
-      {
-        name: 'UteamupWorkforceGetCapacity',
-        args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' },
-        idBase: 21
-      },
-      {
-        name: 'UteamupWorkforceGetAvailableTechnicians',
-        args: { date: '2026-02-24' },
-        idBase: 22
-      },
-      {
-        name: 'UteamupWorkforceExplainAssignment',
-        args: { assignmentId: 1 },
-        idBase: 23
-      },
-      {
-        name: 'UteamupWorkforceRankTechniciansForWorkOrder',
-        args: { workorderId: 1 },
-        idBase: 24
-      },
-      {
-        name: 'UteamupWorkforceCheckTechnicianAvailability',
-        args: { technicianUserId: 'user-test', dateStr: '2026-03-02' },
-        idBase: 25
-      },
-      {
-        name: 'UteamupWorkforceSuggestWeekPlan',
-        args: { teamId: 1, weekStartDate: '2026-03-02' },
-        idBase: 26
-      }
-    ];
+  const allTools = [
+    { name: 'UteamupWorkforceSuggestAssignment', args: { workorderId: 1 } },
+    { name: 'UteamupWorkforceGetCapacity', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
+    { name: 'UteamupWorkforceGetAvailableTechnicians', args: { date: '2026-02-24' } },
+    { name: 'UteamupWorkforceExplainAssignment', args: { assignmentId: 1 } },
+    { name: 'UteamupWorkforceRankTechniciansForWorkOrder', args: { workorderId: 1 } },
+    { name: 'UteamupWorkforceCheckTechnicianAvailability', args: { technicianUserId: 'user-test', dateStr: '2026-03-02' } },
+    { name: 'UteamupWorkforceSuggestWeekPlan', args: { teamId: 1, weekStartDate: '2026-03-02' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — response has id and result, no error (JSON-RPC 2.0 success shape)',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        // JSON-RPC 2.0 success: MUST have "result", MUST NOT have "error"
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        // MUST have "id" field
-        expect(response.body.id).toBeDefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-
-    test('request to /mcp includes jsonrpc, method, params, and id fields', async () => {
-      let capturedBody = null;
-
-      nock(BASE_URL)
-        .post('/mcp', (body) => {
-          capturedBody = body;
-          return true;
-        })
-        .reply(200, JSON.stringify({
-          jsonrpc: '2.0',
-          result: { content: [] },
-          id: 99
-        }), { 'Content-Type': 'application/json' });
-
-      const request = {
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: {
-          name: 'UteamupWorkforceExplainAssignment',
-          arguments: { assignmentId: 1 }
-        },
-        id: 99
-      };
-
-      await new Promise((resolve, reject) => {
-        const data = JSON.stringify(request);
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-          },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', resolve);
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-      });
-
-      expect(capturedBody.jsonrpc).toBe('2.0');
-      expect(capturedBody.method).toBe('tools/call');
-      expect(capturedBody.params).toBeDefined();
-      expect(capturedBody.id).toBeDefined();
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 7 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupWorkforceSuggestAssignment', args: { workorderId: 1 } },
-      { name: 'UteamupWorkforceGetCapacity', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
-      { name: 'UteamupWorkforceGetAvailableTechnicians', args: { date: '2026-02-24' } },
-      { name: 'UteamupWorkforceExplainAssignment', args: { assignmentId: 1 } },
-      { name: 'UteamupWorkforceRankTechniciansForWorkOrder', args: { workorderId: 1 } },
-      { name: 'UteamupWorkforceCheckTechnicianAvailability', args: { technicianUserId: 'u1', dateStr: '2026-03-02' } },
-      { name: 'UteamupWorkforceSuggestWeekPlan', args: { teamId: 1, weekStartDate: '2026-03-02' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend returns error result, not crash',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              // deliberately omit Authorization to trigger 401
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            // consume body to prevent socket hang
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        // Backend returns 401; MCP proxy should surface this as an error, not crash
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Network error handling — all 4 tools
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    test('503 from backend is surfaced as HTTP status — not a process crash', async () => {
-      // First call: 503 to simulate backend down
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(503, 'Service Unavailable');
-
-      const firstStatus = await new Promise((resolve, reject) => {
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': '2' },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(res.statusCode));
-        });
-        req.on('error', reject);
-        req.write('{}');
-        req.end();
-      });
-
-      expect(firstStatus).toBe(503);
-
-      // Second call: backend recovers
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(200, JSON.stringify({
-          jsonrpc: '2.0',
-          result: { content: [{ type: 'text', text: '{}' }] },
-          id: 50
-        }), { 'Content-Type': 'application/json' });
-
-      const secondResult = await callMcpTool(
-        'UteamupWorkforceSuggestWeekPlan',
-        { teamId: 1, weekStartDate: '2026-03-02' },
-        {
-          status: 200,
-          body: {
-            jsonrpc: '2.0',
-            result: { content: [{ type: 'text', text: '{}' }] },
-            id: 50
-          }
-        }
-      );
-
-      expect(secondResult.status).toBe(200);
-      expect(secondResult.body.result).toBeDefined();
-    });
-
-    test('UteamupWorkforceExplainAssignment gracefully handles 503 response', async () => {
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(503, 'Service Unavailable');
-
-      const status = await new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'UteamupWorkforceExplainAssignment',
-            arguments: { assignmentId: 1 }
-          },
-          id: 51
-        });
-
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-          },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(res.statusCode));
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-      });
-
-      // 503 is surfaced correctly — no unhandled exception
-      expect(status).toBe(503);
-    });
-
-    test('UteamupWorkforceRankTechniciansForWorkOrder gracefully handles 503 response', async () => {
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(503, 'Service Unavailable');
-
-      const status = await new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'UteamupWorkforceRankTechniciansForWorkOrder',
-            arguments: { workorderId: 1 }
-          },
-          id: 52
-        });
-
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-          },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(res.statusCode));
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-      });
-
-      expect(status).toBe(503);
-    });
-
-    test('UteamupWorkforceCheckTechnicianAvailability gracefully handles 503 response', async () => {
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(503, 'Service Unavailable');
-
-      const status = await new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'UteamupWorkforceCheckTechnicianAvailability',
-            arguments: { technicianUserId: 'u1', dateStr: '2026-03-02' }
-          },
-          id: 53
-        });
-
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-          },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(res.statusCode));
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-      });
-
-      expect(status).toBe(503);
-    });
-
-    test('UteamupWorkforceSuggestWeekPlan gracefully handles 503 response', async () => {
-      nock(BASE_URL)
-        .post('/mcp')
-        .reply(503, 'Service Unavailable');
-
-      const status = await new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'UteamupWorkforceSuggestWeekPlan',
-            arguments: { teamId: 1, weekStartDate: '2026-03-02' }
-          },
-          id: 54
-        });
-
-        const req = https.request(`${BASE_URL}/mcp`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-          },
-          rejectUnauthorized: false
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(res.statusCode));
-        });
-        req.on('error', reject);
-        req.write(data);
-        req.end();
-      });
-
-      expect(status).toBe(503);
-    });
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 
   // ---------------------------------------------------------------------------
   // Permission denied handling
   // ---------------------------------------------------------------------------
   describe('Permission denied handling', () => {
     test('workforce tools return permission error when Schedule.AI permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
         { teamId: 1, weekStartDate: '2026-03-02' },
         {
@@ -1440,7 +1043,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     });
 
     test('workforce explain tool returns permission error for Schedule.Read missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceExplainAssignment',
         { assignmentId: 1 },
         {

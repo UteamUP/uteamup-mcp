@@ -11,6 +11,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Schedule Assignment MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -24,55 +26,7 @@ describe('Schedule Assignment MCP Tools', () => {
     nock.cleanAll();
   });
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC tools/call request to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: toolArgs
-      },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // get_week_schedule
@@ -95,7 +49,7 @@ describe('Schedule Assignment MCP Tools', () => {
         unassignedWorkorders: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetWeekSchedule',
         { weekStart: '2026-03-02', teamId: 3 },
         {
@@ -123,7 +77,7 @@ describe('Schedule Assignment MCP Tools', () => {
         unassignedWorkorders: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetWeekSchedule',
         { weekStart: '2026-03-02' }, // no teamId
         {
@@ -141,7 +95,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should handle backend error for invalid weekStart date', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetWeekSchedule',
         { weekStart: 'not-a-date' },
         {
@@ -184,7 +138,7 @@ describe('Schedule Assignment MCP Tools', () => {
         competencyScore: 82.5
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentCreate',
         {
           workOrderId: 42,
@@ -269,7 +223,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should reject when scheduledEnd is before scheduledStart', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentCreate',
         {
           workOrderId: 42,
@@ -324,7 +278,7 @@ describe('Schedule Assignment MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentAutoAssign',
         { workOrderIds: [10, 11], date: '2026-03-02' },
         {
@@ -343,7 +297,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should handle empty workOrderIds array with error response', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentAutoAssign',
         { workOrderIds: [], date: '2026-03-02' }, // empty list
         {
@@ -431,7 +385,7 @@ describe('Schedule Assignment MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetTechnicianSchedule',
         { technicianId: 'user-alice-001', from: '2026-02-23', to: '2026-02-28' },
         {
@@ -450,7 +404,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should validate date range — to date must be after from date', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetTechnicianSchedule',
         {
           technicianId: 'user-alice-001',
@@ -476,7 +430,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should return empty list when technician has no assignments in range', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetTechnicianSchedule',
         { technicianId: 'user-new-999', from: '2026-03-01', to: '2026-03-07' },
         {
@@ -521,7 +475,7 @@ describe('Schedule Assignment MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentGetUnassignedWorkOrders',
         { from: '2026-03-02', to: '2026-03-07' },
         {
@@ -682,7 +636,7 @@ describe('Schedule Assignment MCP Tools', () => {
     });
 
     test('should return permission denied error when user lacks Schedule.Manage permission', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleAssignmentCreate',
         {
           workOrderId: 42,
@@ -816,4 +770,19 @@ describe('Schedule Assignment MCP Tools', () => {
       expect(response.result.content[0].type).toBe('text');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Shared error-handling coverage (JSON-RPC, 401, 503)
+  // ---------------------------------------------------------------------------
+  const allTools = [
+    { name: 'UteamupScheduleAssignmentGetWeekSchedule', args: { weekStart: '2026-03-02' } },
+    { name: 'UteamupScheduleAssignmentCreate', args: { workOrderId: 42, technicianId: 'user-bob-456', scheduledStart: '2026-03-02T09:00:00', scheduledEnd: '2026-03-02T12:00:00' } },
+    { name: 'UteamupScheduleAssignmentAutoAssign', args: { startDate: '2026-03-02', endDate: '2026-03-07' } },
+    { name: 'UteamupScheduleAssignmentGetTechnicianSchedule', args: { technicianId: 'user-abc-123', weekStart: '2026-03-02' } },
+    { name: 'UteamupScheduleAssignmentGetUnassignedWorkOrders', args: { from: '2026-03-02', to: '2026-03-07' } }
+  ];
+
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });

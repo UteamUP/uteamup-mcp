@@ -16,6 +16,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Schedule MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -29,55 +31,7 @@ describe('Schedule MCP Tools', () => {
     nock.cleanAll();
   });
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: toolArgs
-      },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // UteamupScheduleGetMySchedule
@@ -109,7 +63,7 @@ describe('Schedule MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetMySchedule',
         { startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -141,7 +95,7 @@ describe('Schedule MCP Tools', () => {
         items: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetMySchedule',
         { startDate: '2026-03-01', endDate: '2026-03-07' },
         {
@@ -162,7 +116,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('returns error for invalid date format', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetMySchedule',
         { startDate: 'not-a-date', endDate: '2026-02-27' },
         {
@@ -262,7 +216,7 @@ describe('Schedule MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetTeamSchedule',
         { teamId: 3, startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -287,7 +241,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('returns empty list when team has no members with assignments', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetTeamSchedule',
         { teamId: 99, startDate: '2026-03-01', endDate: '2026-03-07' },
         {
@@ -308,7 +262,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('returns error for non-existent teamId', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetTeamSchedule',
         { teamId: 999999, startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -405,7 +359,7 @@ describe('Schedule MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetAvailableTechnicians',
         { date: '2026-02-24' },
         {
@@ -442,7 +396,7 @@ describe('Schedule MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetAvailableTechnicians',
         { date: '2026-02-24', requiredSkillIds: '12' },
         {
@@ -463,7 +417,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('returns empty list when no technicians match skill and cert filters', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetAvailableTechnicians',
         { date: '2026-02-24', requiredSkillIds: '999', requiredCertIds: '888' },
         {
@@ -484,7 +438,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('returns error for invalid date format', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetAvailableTechnicians',
         { date: 'bad-date' },
         {
@@ -562,150 +516,24 @@ describe('Schedule MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 3 tools
+  // Shared error-handling coverage (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance', () => {
-    const complianceTools = [
-      {
-        name: 'UteamupScheduleGetMySchedule',
-        args: { startDate: '2026-02-23', endDate: '2026-02-27' },
-        idBase: 30
-      },
-      {
-        name: 'UteamupScheduleGetTeamSchedule',
-        args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' },
-        idBase: 31
-      },
-      {
-        name: 'UteamupScheduleGetAvailableTechnicians',
-        args: { date: '2026-02-24' },
-        idBase: 32
-      }
-    ];
+  const allTools = [
+    { name: 'UteamupScheduleGetMySchedule', args: { startDate: '2026-02-23', endDate: '2026-02-27' } },
+    { name: 'UteamupScheduleGetTeamSchedule', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
+    { name: 'UteamupScheduleGetAvailableTechnicians', args: { date: '2026-02-24' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — response has id and result, no error (JSON-RPC 2.0 success shape)',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 3 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupScheduleGetMySchedule', args: { startDate: '2026-02-23', endDate: '2026-02-27' } },
-      { name: 'UteamupScheduleGetTeamSchedule', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
-      { name: 'UteamupScheduleGetAvailableTechnicians', args: { date: '2026-02-24' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Service Unavailable handling
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    const serviceTools = [
-      { name: 'UteamupScheduleGetMySchedule', args: { startDate: '2026-02-23', endDate: '2026-02-27' }, id: 50 },
-      { name: 'UteamupScheduleGetTeamSchedule', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' }, id: 51 },
-      { name: 'UteamupScheduleGetAvailableTechnicians', args: { date: '2026-02-24' }, id: 52 }
-    ];
-
-    test.each(serviceTools)(
-      '$name — 503 response is surfaced correctly, not a crash',
-      async ({ name, args, id }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(503, 'Service Unavailable');
-
-        const status = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ACCESS_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(status).toBe(503);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 
   // ---------------------------------------------------------------------------
   // Permission denied handling
   // ---------------------------------------------------------------------------
   describe('Permission denied handling', () => {
     test('schedule tools return permission error when Schedule.View permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetMySchedule',
         { startDate: '2026-02-23', endDate: '2026-02-27' },
         {
@@ -727,7 +555,7 @@ describe('Schedule MCP Tools', () => {
     });
 
     test('UteamupScheduleGetTeamSchedule returns permission error when Schedule.ViewTeam is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupScheduleGetTeamSchedule',
         { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' },
         {
