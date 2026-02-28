@@ -20,6 +20,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Tenant Holidays MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -33,55 +35,7 @@ describe('Tenant Holidays MCP Tools', () => {
     nock.cleanAll();
   });
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: toolArgs
-      },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -129,7 +83,7 @@ describe('Tenant Holidays MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -154,7 +108,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns empty array when no holidays exist for the year', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2099 },
         {
@@ -184,7 +138,7 @@ describe('Tenant Holidays MCP Tools', () => {
       ];
 
       // Call for 2025
-      const response2025 = await callMcpTool(
+      const response2025 = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2025 },
         {
@@ -202,7 +156,7 @@ describe('Tenant Holidays MCP Tools', () => {
       expect(result2025[0].date).toBe('2025-12-25T00:00:00Z');
 
       // Call for 2026
-      const response2026 = await callMcpTool(
+      const response2026 = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -268,7 +222,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -294,7 +248,7 @@ describe('Tenant Holidays MCP Tools', () => {
         { ...holiday, id: 3, name: 'Company Anniversary', isNational: false, source: 'Manual' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -348,7 +302,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns permission error when TenantHoliday.Read permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -375,7 +329,7 @@ describe('Tenant Holidays MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupTenantHolidayCreate tool', () => {
     test('successfully creates a new holiday with all fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-12-25',
@@ -409,7 +363,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error when creating a holiday on a date that already exists', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-12-25',
@@ -438,7 +392,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error for invalid date format', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '25-12-2026',
@@ -466,7 +420,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns permission error when TenantHoliday.Create permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-12-25',
@@ -494,7 +448,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('created holiday has source field set to Manual', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-06-17',
@@ -533,7 +487,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('isRecurringAnnually is stored correctly when set to true', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-01-01',
@@ -629,7 +583,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-12-25',
@@ -667,7 +621,7 @@ describe('Tenant Holidays MCP Tools', () => {
         source: 'Manual'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-06-17',
@@ -698,7 +652,7 @@ describe('Tenant Holidays MCP Tools', () => {
     test('successfully updates the name of an existing holiday', async () => {
       const updatedHoliday = { ...holiday, name: 'Updated Name' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Updated Name', isActive: true },
         {
@@ -722,7 +676,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error when holiday with given id is not found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 999999, name: 'Does Not Exist', isActive: true },
         {
@@ -746,7 +700,7 @@ describe('Tenant Holidays MCP Tools', () => {
     test('successfully sets isActive to false to deactivate a holiday', async () => {
       const deactivatedHoliday = { ...holiday, isActive: false };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Christmas Day', isActive: false },
         {
@@ -765,7 +719,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns permission error when TenantHoliday.Update permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Updated Name', isActive: true },
         {
@@ -836,7 +790,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Christmas Day', isActive: true },
         {
@@ -859,7 +813,7 @@ describe('Tenant Holidays MCP Tools', () => {
     test('updated holiday preserves unchanged fields', async () => {
       const updatedHoliday = { ...holiday, name: 'Updated Christmas Day' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Updated Christmas Day', isActive: true },
         {
@@ -882,7 +836,7 @@ describe('Tenant Holidays MCP Tools', () => {
     test('reactivating a holiday sets isActive back to true', async () => {
       const reactivatedHoliday = { ...holiday, isActive: true };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayUpdate',
         { id: 1, name: 'Christmas Day', isActive: true },
         {
@@ -905,7 +859,7 @@ describe('Tenant Holidays MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupTenantHolidayDelete tool', () => {
     test('successfully deletes an existing holiday', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: 1 },
         {
@@ -928,7 +882,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error when holiday with given id is not found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: 999999 },
         {
@@ -950,7 +904,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns permission error when TenantHoliday.Delete permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: 1 },
         {
@@ -1019,7 +973,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: 1 },
         {
@@ -1040,7 +994,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('deleting an auto-imported holiday succeeds the same as a manual one', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: 2 },
         {
@@ -1091,7 +1045,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error when attempting to delete a holiday with negative id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayDelete',
         { id: -1 },
         {
@@ -1118,7 +1072,7 @@ describe('Tenant Holidays MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupTenantHolidayImport tool', () => {
     test('fresh import: all 12 holidays imported, 0 skipped', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1156,7 +1110,7 @@ describe('Tenant Holidays MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1176,7 +1130,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('returns error for invalid country code', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'XX' },
         {
@@ -1206,7 +1160,7 @@ describe('Tenant Holidays MCP Tools', () => {
         holidays: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1234,7 +1188,7 @@ describe('Tenant Holidays MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1303,7 +1257,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1324,7 +1278,7 @@ describe('Tenant Holidays MCP Tools', () => {
     });
 
     test('result contains imported and skipped counts plus holidays array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'IS' },
         {
@@ -1356,7 +1310,7 @@ describe('Tenant Holidays MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayImport',
         { year: 2026, countryCode: 'DE' },
         {
@@ -1379,165 +1333,26 @@ describe('Tenant Holidays MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 5 tools
+  // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance — all tools', () => {
-    const complianceTools = [
-      {
-        name: 'UteamupTenantHolidayListByYear',
-        args: { year: 2026 },
-        idBase: 50
-      },
-      {
-        name: 'UteamupTenantHolidayCreate',
-        args: { date: '2026-12-25', name: 'Christmas Day', isNational: true, countryCode: 'IS', isRecurringAnnually: true },
-        idBase: 51
-      },
-      {
-        name: 'UteamupTenantHolidayUpdate',
-        args: { id: 1, name: 'Updated Name', isActive: true },
-        idBase: 52
-      },
-      {
-        name: 'UteamupTenantHolidayDelete',
-        args: { id: 1 },
-        idBase: 53
-      },
-      {
-        name: 'UteamupTenantHolidayImport',
-        args: { year: 2026, countryCode: 'IS' },
-        idBase: 54
-      }
-    ];
+  const allTools = [
+    { name: 'UteamupTenantHolidayListByYear', args: { year: 2026 } },
+    { name: 'UteamupTenantHolidayCreate', args: { date: '2026-12-25', name: 'Christmas Day', isNational: true, countryCode: 'IS', isRecurringAnnually: true } },
+    { name: 'UteamupTenantHolidayUpdate', args: { id: 1, name: 'Updated Name', isActive: true } },
+    { name: 'UteamupTenantHolidayDelete', args: { id: 1 } },
+    { name: 'UteamupTenantHolidayImport', args: { year: 2026, countryCode: 'IS' } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — success response has id and result, no error',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupTenantHolidayListByYear', args: { year: 2026 } },
-      { name: 'UteamupTenantHolidayCreate', args: { date: '2026-12-25', name: 'Christmas Day', isNational: true, countryCode: 'IS', isRecurringAnnually: true } },
-      { name: 'UteamupTenantHolidayUpdate', args: { id: 1, name: 'Updated Name', isActive: true } },
-      { name: 'UteamupTenantHolidayDelete', args: { id: 1 } },
-      { name: 'UteamupTenantHolidayImport', args: { year: 2026, countryCode: 'IS' } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Service Unavailable handling — all tools
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    const serviceTools = [
-      { name: 'UteamupTenantHolidayListByYear', args: { year: 2026 }, id: 60 },
-      { name: 'UteamupTenantHolidayCreate', args: { date: '2026-12-25', name: 'Christmas Day', isNational: true, countryCode: 'IS', isRecurringAnnually: true }, id: 61 },
-      { name: 'UteamupTenantHolidayUpdate', args: { id: 1, name: 'Updated Name', isActive: true }, id: 62 },
-      { name: 'UteamupTenantHolidayDelete', args: { id: 1 }, id: 63 },
-      { name: 'UteamupTenantHolidayImport', args: { year: 2026, countryCode: 'IS' }, id: 64 }
-    ];
-
-    test.each(serviceTools)(
-      '$name — 503 response is surfaced correctly, not a crash',
-      async ({ name, args, id }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(503, 'Service Unavailable');
-
-        const status = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ACCESS_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(status).toBe(503);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 
   // ---------------------------------------------------------------------------
   // National vs Manual source field correctness
   // ---------------------------------------------------------------------------
   describe('National vs manual holiday source field', () => {
     test('auto-imported national holiday has source AutoImported', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -1578,7 +1393,7 @@ describe('Tenant Holidays MCP Tools', () => {
         source: 'Manual'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-06-17',
@@ -1619,7 +1434,7 @@ describe('Tenant Holidays MCP Tools', () => {
         source: 'AutoImported'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayListByYear',
         { year: 2026 },
         {
@@ -1648,7 +1463,7 @@ describe('Tenant Holidays MCP Tools', () => {
         source: 'Manual'
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupTenantHolidayCreate',
         {
           date: '2026-07-04',

@@ -21,6 +21,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Labour Rate MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -29,50 +31,7 @@ describe('Labour Rate MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -125,7 +84,7 @@ describe('Labour Rate MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupLabourRateGetMyEffectiveRate tool', () => {
     test('returns effective rate for current user', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetMyEffectiveRate',
         {},
         {
@@ -152,7 +111,7 @@ describe('Labour Rate MCP Tools', () => {
       const atDateTime = '2026-01-03T22:00:00Z';  // Saturday night
       const weekendRate = { ...effectiveRate, effectiveHourlyRate: 112.50 }; // 75 × 1.5
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetMyEffectiveRate',
         { atDateTime },
         {
@@ -171,7 +130,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns 401 when authorization is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetMyEffectiveRate',
         {},
         {
@@ -195,7 +154,7 @@ describe('Labour Rate MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupLabourRateGetRules tool', () => {
     test('returns list of all labour rate rules', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetRules',
         {},
         {
@@ -218,7 +177,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns 403 when LaborCost.All permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetRules',
         {},
         {
@@ -236,7 +195,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns empty array when no rules are configured', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetRules',
         {},
         {
@@ -261,7 +220,7 @@ describe('Labour Rate MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupLabourRateGetModifiers tool', () => {
     test('returns list of all rate modifiers', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetModifiers',
         {},
         {
@@ -284,7 +243,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns empty array when no modifiers configured', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateGetModifiers',
         {},
         {
@@ -317,7 +276,7 @@ describe('Labour Rate MCP Tools', () => {
         priority: 0
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateCreateModifier',
         createArgs,
         {
@@ -350,7 +309,7 @@ describe('Labour Rate MCP Tools', () => {
         rateValue: 90.00
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateCreateModifier',
         {
           name: 'Night Shift Flat Rate',
@@ -377,7 +336,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error when name is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateCreateModifier',
         { rateDefinitionType: 0, rateValue: 1.5 },
         {
@@ -395,7 +354,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error when rateValue is zero (validation)', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateCreateModifier',
         { name: 'Bad Modifier', rateDefinitionType: 0, rateValue: 0 },
         {
@@ -413,7 +372,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns 403 when LaborCost.All permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateCreateModifier',
         { name: 'Weekend', rateDefinitionType: 0, rateValue: 1.5 },
         {
@@ -438,7 +397,7 @@ describe('Labour Rate MCP Tools', () => {
     test('updates an existing modifier successfully', async () => {
       const updatedModifier = { ...modifier, rateValue: 1.75, name: 'Weekend Surcharge (updated)' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateUpdateModifier',
         {
           id: 10,
@@ -466,7 +425,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error for invalid id (0)', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateUpdateModifier',
         { id: 0, name: 'Test', rateDefinitionType: 0, rateValue: 1.5 },
         {
@@ -484,7 +443,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error when modifier not found', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateUpdateModifier',
         { id: 99999, name: 'Test', rateDefinitionType: 0, rateValue: 1.5 },
         {
@@ -506,7 +465,7 @@ describe('Labour Rate MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupLabourRateDeleteModifier tool', () => {
     test('deletes a modifier successfully', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateDeleteModifier',
         { id: 10 },
         {
@@ -525,7 +484,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error for non-existent modifier id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateDeleteModifier',
         { id: 99999999 },
         {
@@ -542,7 +501,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns error for invalid id (0)', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateDeleteModifier',
         { id: 0 },
         {
@@ -560,7 +519,7 @@ describe('Labour Rate MCP Tools', () => {
     });
 
     test('returns 403 when LaborCost.All permission is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupLabourRateDeleteModifier',
         { id: 10 },
         {
@@ -577,4 +536,20 @@ describe('Labour Rate MCP Tools', () => {
       expect(response.body.error.message).toContain('LaborCost.All');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Shared error-handling tests (JSON-RPC, 401, 503)
+  // ---------------------------------------------------------------------------
+  const allTools = [
+    { name: 'UteamupLabourRateGetMyEffectiveRate', args: {} },
+    { name: 'UteamupLabourRateGetRules', args: {} },
+    { name: 'UteamupLabourRateGetModifiers', args: {} },
+    { name: 'UteamupLabourRateCreateModifier', args: { name: 'Test', rateDefinitionType: 'Flat', rateValue: 25.00 } },
+    { name: 'UteamupLabourRateUpdateModifier', args: { id: 1, name: 'Updated', rateDefinitionType: 'Flat', rateValue: 30.00 } },
+    { name: 'UteamupLabourRateDeleteModifier', args: { id: 1 } }
+  ];
+
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });

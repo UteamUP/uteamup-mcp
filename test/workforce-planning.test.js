@@ -19,6 +19,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Workforce Planning MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -27,50 +29,7 @@ describe('Workforce Planning MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -128,7 +87,7 @@ describe('Workforce Planning MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforcePlanningGetGrid tool', () => {
     test('returns grid with shiftRows for valid date range', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -154,7 +113,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('grid has correct dates array with 7 entries for a 7-day range', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -176,7 +135,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('holiday dates are included in holidayDates array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -207,7 +166,7 @@ describe('Workforce Planning MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07', categoryIds: [1] },
         {
@@ -234,7 +193,7 @@ describe('Workforce Planning MCP Tools', () => {
         unassignedWorkOrders: 0
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -254,7 +213,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('grid contains assignment data per user per date in categoryGroups', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -278,7 +237,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('instancesByDate includes workOrderCount and assignedCount for published instances', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -302,7 +261,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns permission error when WorkforcePlanning.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -322,7 +281,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -342,7 +301,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('totalWorkOrders and unassignedWorkOrders are present in the grid response', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -406,7 +365,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('instancesByDate is null for dates with no instance', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -426,7 +385,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns error for missing dateFrom parameter', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateTo: '2026-03-07' },
         {
@@ -474,7 +433,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('grid shiftRows contain colorCode and time data for each shift', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -539,7 +498,7 @@ describe('Workforce Planning MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07', categoryIds: [1, 2] },
         {
@@ -565,7 +524,7 @@ describe('Workforce Planning MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforcePlanningGetWorkOrders tool', () => {
     test('returns scheduled, overdue, and unassigned work order lists', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -592,7 +551,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('overdue items have isOverdue: true with past scheduledDate', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -615,7 +574,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('scheduled items have assignedUserId set', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -642,7 +601,7 @@ describe('Workforce Planning MCP Tools', () => {
     test('returns empty scheduled list when no work orders are in the range', async () => {
       const emptyScheduled = { ...workOrdersPanel, scheduled: [], overdue: [], unassigned: [] };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-04-01', dateTo: '2026-04-07' },
         {
@@ -671,7 +630,7 @@ describe('Workforce Planning MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -694,7 +653,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns permission error when WorkforcePlanning.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -714,7 +673,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -736,7 +695,7 @@ describe('Workforce Planning MCP Tools', () => {
     test('all three tabs (scheduled, overdue, unassigned) are present even when empty', async () => {
       const allEmptyPanel = { ...workOrdersPanel, scheduled: [], overdue: [], unassigned: [] };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -809,7 +768,7 @@ describe('Workforce Planning MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -861,7 +820,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('response includes dateFrom and dateTo fields matching the query range', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -890,7 +849,7 @@ describe('Workforce Planning MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -946,39 +905,10 @@ describe('Workforce Planning MCP Tools', () => {
     });
   });
 
+
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — both tools
+  // Standalone: request envelope test
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance — all tools', () => {
-    const complianceTools = [
-      { name: 'UteamupWorkforcePlanningGetGrid', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' }, idBase: 100 },
-      { name: 'UteamupWorkforcePlanningGetWorkOrders', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' }, idBase: 101 }
-    ];
-
-    test.each(complianceTools)(
-      '$name — response has id and result, no error (JSON-RPC 2.0 success shape)',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-
     test('request to /mcp includes jsonrpc 2.0 envelope with method tools/call', async () => {
       let capturedBody = null;
 
@@ -1017,56 +947,24 @@ describe('Workforce Planning MCP Tools', () => {
       expect(capturedBody.params).toBeDefined();
       expect(capturedBody.id).toBeDefined();
     });
-  });
 
   // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — both tools
+  // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling — all tools', () => {
-    const authTools = [
-      { name: 'UteamupWorkforcePlanningGetGrid', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
-      { name: 'UteamupWorkforcePlanningGetWorkOrders', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } }
-    ];
+  const allTools = [
+    { name: 'UteamupWorkforcePlanningGetGrid', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
+    { name: 'UteamupWorkforcePlanningGetWorkOrders', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } }
+  ];
 
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
   // ---------------------------------------------------------------------------
   // Permission denied handling — both tools
   // ---------------------------------------------------------------------------
   describe('Permission denied handling', () => {
     test('GetGrid returns permission error when WorkforcePlanning.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetGrid',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -1087,7 +985,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('GetWorkOrders returns permission error when WorkforcePlanning.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforcePlanningGetWorkOrders',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         {
@@ -1139,7 +1037,7 @@ describe('Workforce Planning MCP Tools', () => {
     ];
 
     test('returns group members with user details', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetGroupMembers',
         { groupId: 5 },
         {
@@ -1163,7 +1061,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns empty array for group with no members', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetGroupMembers',
         { groupId: 99 },
         {
@@ -1178,7 +1076,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns permission error when Schedule.Manage is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceGetGroupMembers',
         { groupId: 5 },
         {
@@ -1257,7 +1155,7 @@ describe('Workforce Planning MCP Tools', () => {
     };
 
     test('assigns work order to member and returns updated work order', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAssignWorkOrder',
         { workOrderId: 42, assigneeUserId: 'user-abc-123' },
         {
@@ -1277,7 +1175,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns permission error when WorkOrder.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAssignWorkOrder',
         { workOrderId: 42, assigneeUserId: 'user-abc-123' },
         {
@@ -1344,7 +1242,7 @@ describe('Workforce Planning MCP Tools', () => {
     });
 
     test('returns error for non-existent work order', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAssignWorkOrder',
         { workOrderId: 999999, assigneeUserId: 'user-abc-123' },
         {

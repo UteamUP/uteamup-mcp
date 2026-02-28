@@ -20,6 +20,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Workforce AI MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -28,72 +30,7 @@ describe('Workforce AI MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
-
-  function successReply(data, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        result: { content: [{ type: 'text', text: JSON.stringify(data) }] },
-        id
-      }
-    };
-  }
-
-  function errorReply(code, message, id = 1) {
-    return {
-      status: 200,
-      body: {
-        jsonrpc: '2.0',
-        error: { code, message },
-        id
-      }
-    };
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Mock data
@@ -199,7 +136,7 @@ describe('Workforce AI MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceAIGetSchedulingSuggestions tool', () => {
     test('happy path — returns scheduling suggestions with correct shape', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         successReply(schedulingSuggestions, 1)
@@ -220,7 +157,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('empty result — date range with no shifts returns empty array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-12-24', dateTo: '2026-12-26' },
         successReply([], 2)
@@ -240,7 +177,7 @@ describe('Workforce AI MCP Tools', () => {
         { ...schedulingSuggestions[0], confidenceScore: 0.97, aiRationale: 'Very strong match.' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         successReply(highConfidence, 3)
@@ -255,7 +192,7 @@ describe('Workforce AI MCP Tools', () => {
         { ...schedulingSuggestions[0], confidenceScore: 0.41, aiRationale: 'Weak match, no history.' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         successReply(lowConfidence, 4)
@@ -266,7 +203,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('permission denied — returns error with permission message', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         errorReply(-32600, 'Permission denied: WorkforceAI.View required', 5)
@@ -279,7 +216,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('invalid date format — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: 'not-a-date', dateTo: '2026-03-07' },
         errorReply(-32602, 'DateFrom must be a valid date string in YYYY-MM-DD format', 6)
@@ -291,7 +228,7 @@ describe('Workforce AI MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 7;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-01', dateTo: '2026-03-07' },
         successReply(schedulingSuggestions, id)
@@ -311,7 +248,7 @@ describe('Workforce AI MCP Tools', () => {
         { ...schedulingSuggestions[0], shiftInstanceId: 7, instanceDate: '2026-03-04T00:00:00Z' }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetSchedulingSuggestions',
         { dateFrom: '2026-03-02', dateTo: '2026-03-04' },
         successReply(multiDay, 8)
@@ -377,7 +314,7 @@ describe('Workforce AI MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceAIGetReplacementSuggestion tool', () => {
     test('happy path — returns replacement suggestion with candidates ranked by score', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         successReply(replacementSuggestion, 10)
@@ -397,7 +334,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('not found — shift instance does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 99999, unavailableUserId: 'user-alice-001' },
         errorReply(-32602, 'Shift instance 99999 not found', 11)
@@ -416,7 +353,7 @@ describe('Workforce AI MCP Tools', () => {
         candidates: []
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         successReply(noCandidates, 12)
@@ -428,7 +365,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         errorReply(-32600, 'Permission denied: WorkforceAI.View required', 13)
@@ -440,7 +377,7 @@ describe('Workforce AI MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 14;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         successReply(replacementSuggestion, id)
@@ -462,7 +399,7 @@ describe('Workforce AI MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         successReply(threeCandidates, 15)
@@ -475,7 +412,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('unavailable user not found in shift — returns descriptive error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-nonexistent-999' },
         errorReply(-32602, 'User user-nonexistent-999 is not assigned to shift instance 5', 16)
@@ -542,7 +479,7 @@ describe('Workforce AI MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetReplacementSuggestion',
         { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' },
         successReply(withAlreadyAssigned, 18)
@@ -559,7 +496,7 @@ describe('Workforce AI MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceAIGetWOWorkerMatches tool', () => {
     test('happy path — returns work order worker matches with correct shape', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply(woWorkerMatches, 20)
@@ -579,7 +516,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('not found — shift instance does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 99999 },
         errorReply(-32602, 'Shift instance 99999 not found', 21)
@@ -591,7 +528,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('empty result — shift instance has no work orders returns empty array', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply([], 22)
@@ -603,7 +540,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         errorReply(-32600, 'Permission denied: WorkforceAI.View required', 23)
@@ -616,7 +553,7 @@ describe('Workforce AI MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 24;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply(woWorkerMatches, id)
@@ -646,7 +583,7 @@ describe('Workforce AI MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply(multipleWO, 25)
@@ -667,7 +604,7 @@ describe('Workforce AI MCP Tools', () => {
         { workOrderId: 200, workOrderTitle: 'Specialized Chemical Work', matches: [] }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply(noMatches, 26)
@@ -736,7 +673,7 @@ describe('Workforce AI MCP Tools', () => {
         }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetWOWorkerMatches',
         { shiftInstanceId: 5 },
         successReply(rankedMatches, 28)
@@ -752,7 +689,7 @@ describe('Workforce AI MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceAIGetShiftBriefing tool', () => {
     test('happy path — returns full shift briefing with all expected fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         successReply(shiftBriefing, 30)
@@ -777,7 +714,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('not found — shift instance does not exist returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 99999, userId: 'user-alice-001' },
         errorReply(-32602, 'Shift instance 99999 not found', 31)
@@ -789,7 +726,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('user not assigned to shift — returns error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-nonexistent-999' },
         errorReply(-32602, 'User user-nonexistent-999 is not assigned to shift instance 5', 32)
@@ -800,7 +737,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         errorReply(-32600, 'Permission denied: WorkforceAI.View required', 33)
@@ -812,7 +749,7 @@ describe('Workforce AI MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 34;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         successReply(shiftBriefing, id)
@@ -827,7 +764,7 @@ describe('Workforce AI MCP Tools', () => {
     test('briefing with no carry overs — carryOversFromPreviousShift is empty array', async () => {
       const noCarryOvers = { ...shiftBriefing, carryOversFromPreviousShift: [] };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         successReply(noCarryOvers, 35)
@@ -839,7 +776,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('briefing includes work order priority and scheduled date', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         successReply(shiftBriefing, 36)
@@ -854,7 +791,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('briefing generatedAt is a valid ISO timestamp string', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIGetShiftBriefing',
         { shiftInstanceId: 5, userId: 'user-alice-001' },
         successReply(shiftBriefing, 37)
@@ -919,7 +856,7 @@ describe('Workforce AI MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceAIChat tool', () => {
     test('happy path — returns AI reply and updated history', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: 'What shifts are available next week?', history: [] },
         successReply(chatResponse, 40)
@@ -953,7 +890,7 @@ describe('Workforce AI MCP Tools', () => {
         ]
       };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: 'What shifts are available next week?', history: existingHistory },
         successReply(extendedResponse, 41)
@@ -967,7 +904,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('empty query — returns validation error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: '', history: [] },
         errorReply(-32602, 'Query must not be empty', 42)
@@ -978,7 +915,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('permission denied — returns permission error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: 'Who is available on Friday?', history: [] },
         errorReply(-32600, 'Permission denied: WorkforceAI.Chat required', 43)
@@ -991,7 +928,7 @@ describe('Workforce AI MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
       const id = 44;
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: 'What shifts are available next week?', history: [] },
         successReply(chatResponse, id)
@@ -1004,7 +941,7 @@ describe('Workforce AI MCP Tools', () => {
     });
 
     test('history entries have role, content, and timestamp fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceAIChat',
         { query: 'What shifts are available next week?', history: [] },
         successReply(chatResponse, 45)
@@ -1105,136 +1042,17 @@ describe('Workforce AI MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 5 tools
+  // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance', () => {
-    const complianceTools = [
-      { name: 'UteamupWorkforceAIGetSchedulingSuggestions', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' }, idBase: 50 },
-      { name: 'UteamupWorkforceAIGetReplacementSuggestion', args: { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' }, idBase: 51 },
-      { name: 'UteamupWorkforceAIGetWOWorkerMatches', args: { shiftInstanceId: 5 }, idBase: 52 },
-      { name: 'UteamupWorkforceAIGetShiftBriefing', args: { shiftInstanceId: 5, userId: 'user-alice-001' }, idBase: 53 },
-      { name: 'UteamupWorkforceAIChat', args: { query: 'test query', history: [] }, idBase: 54 }
-    ];
+  const allTools = [
+    { name: 'UteamupWorkforceAIGetSchedulingSuggestions', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
+    { name: 'UteamupWorkforceAIGetReplacementSuggestion', args: { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' } },
+    { name: 'UteamupWorkforceAIGetWOWorkerMatches', args: { shiftInstanceId: 5 } },
+    { name: 'UteamupWorkforceAIGetShiftBriefing', args: { shiftInstanceId: 5, userId: 'user-alice-001' } },
+    { name: 'UteamupWorkforceAIChat', args: { query: 'test query', history: [] } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — success response has jsonrpc 2.0, id, result and no error field',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(idBase);
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 5 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling', () => {
-    const authTools = [
-      { name: 'UteamupWorkforceAIGetSchedulingSuggestions', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' } },
-      { name: 'UteamupWorkforceAIGetReplacementSuggestion', args: { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' } },
-      { name: 'UteamupWorkforceAIGetWOWorkerMatches', args: { shiftInstanceId: 5 } },
-      { name: 'UteamupWorkforceAIGetShiftBriefing', args: { shiftInstanceId: 5, userId: 'user-alice-001' } },
-      { name: 'UteamupWorkforceAIChat', args: { query: 'test', history: [] } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 503 Service Unavailable handling — all 5 tools
-  // ---------------------------------------------------------------------------
-  describe('503 Service Unavailable handling', () => {
-    const serviceTools = [
-      { name: 'UteamupWorkforceAIGetSchedulingSuggestions', args: { dateFrom: '2026-03-01', dateTo: '2026-03-07' }, id: 60 },
-      { name: 'UteamupWorkforceAIGetReplacementSuggestion', args: { shiftInstanceId: 5, unavailableUserId: 'user-alice-001' }, id: 61 },
-      { name: 'UteamupWorkforceAIGetWOWorkerMatches', args: { shiftInstanceId: 5 }, id: 62 },
-      { name: 'UteamupWorkforceAIGetShiftBriefing', args: { shiftInstanceId: 5, userId: 'user-alice-001' }, id: 63 },
-      { name: 'UteamupWorkforceAIChat', args: { query: 'test', history: [] }, id: 64 }
-    ];
-
-    test.each(serviceTools)(
-      '$name — 503 is surfaced correctly without crashing',
-      async ({ name, args, id }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(503, 'Service Unavailable');
-
-        const status = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ACCESS_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(data)
-            },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(status).toBe(503);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });

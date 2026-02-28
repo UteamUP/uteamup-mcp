@@ -23,6 +23,8 @@
 
 const nock = require('nock');
 const https = require('https');
+const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Workforce Category MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
@@ -31,50 +33,7 @@ describe('Workforce Category MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  // ---------------------------------------------------------------------------
-  // Helper: send a JSON-RPC 2.0 tools/call to /mcp
-  // ---------------------------------------------------------------------------
-  function callMcpTool(toolName, toolArgs, mockReply) {
-    nock(BASE_URL)
-      .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
-      .reply(mockReply.status, JSON.stringify(mockReply.body), {
-        'Content-Type': 'application/json'
-      });
-
-    const request = {
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: toolArgs },
-      id: Math.floor(Math.random() * 10000)
-    };
-
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(request);
-      const req = https.request(`${BASE_URL}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Content-Length': Buffer.byteLength(data)
-        },
-        rejectUnauthorized: false
-      }, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: res.statusCode, body: responseData });
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
-    });
-  }
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -113,7 +72,7 @@ describe('Workforce Category MCP Tools', () => {
         { id: 3, name: 'HVAC Technicians', description: 'HVAC specialists', colorCode: '#F59E0B', defaultLocationId: 4, isActive: true, memberCount: 2 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -139,7 +98,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns empty array when tenant has no categories', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -160,7 +119,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -180,7 +139,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -201,7 +160,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns categories with all expected fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -230,7 +189,7 @@ describe('Workforce Category MCP Tools', () => {
         { id: 2, name: 'Plumbing Night', description: 'Night shift plumbers', colorCode: '#10B981', defaultLocationId: null, isActive: true, memberCount: 5 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         { activeOnly: true },
         {
@@ -312,7 +271,7 @@ describe('Workforce Category MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceCategoryGet tool', () => {
     test('returns single category by id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 1 },
         {
@@ -337,7 +296,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error for non-existent category id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 99999 },
         {
@@ -357,7 +316,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 1 },
         {
@@ -377,7 +336,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when id is not provided', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         {},
         {
@@ -434,7 +393,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 1 },
         {
@@ -456,7 +415,7 @@ describe('Workforce Category MCP Tools', () => {
     test('returns category with defaultLocationId when set', async () => {
       const categoryWithLocation = { ...category, defaultLocationId: 7 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 1 },
         {
@@ -477,7 +436,7 @@ describe('Workforce Category MCP Tools', () => {
     test('returns inactive category when queried directly by id', async () => {
       const inactiveCategory = { ...category, id: 5, isActive: false, memberCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 5 },
         {
@@ -504,7 +463,7 @@ describe('Workforce Category MCP Tools', () => {
       const createArgs = { name: 'Mechanical Team', description: 'Mechanical technicians', colorCode: '#EF4444' };
       const created = { ...createArgs, id: 4, defaultLocationId: null, isActive: true, memberCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         createArgs,
         {
@@ -529,7 +488,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when name is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { colorCode: '#EF4444' },
         {
@@ -548,7 +507,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error for duplicate category name', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { name: 'Electrical Day', colorCode: '#3B82F6' },
         {
@@ -567,7 +526,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Create is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { name: 'New Team', colorCode: '#00FF00' },
         {
@@ -630,7 +589,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — created response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { name: 'New Category', colorCode: '#FF0000' },
         {
@@ -650,7 +609,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('newly created category has memberCount of zero', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { name: 'Empty Team', colorCode: '#AABBCC' },
         {
@@ -669,7 +628,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('creates category with defaultLocationId when provided', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         { name: 'Site A Team', colorCode: '#112233', defaultLocationId: 3 },
         {
@@ -695,7 +654,7 @@ describe('Workforce Category MCP Tools', () => {
     test('updates a category and returns the updated object', async () => {
       const updated = { ...category, name: 'Electrical Night', colorCode: '#6366F1' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, name: 'Electrical Night', colorCode: '#6366F1' },
         {
@@ -719,7 +678,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error for non-existent category id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 99999, name: 'Updated Name' },
         {
@@ -738,7 +697,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, name: 'New Name' },
         {
@@ -758,7 +717,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when id is missing from update args', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { name: 'No Id Provided' },
         {
@@ -820,7 +779,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — update response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, name: 'Updated' },
         {
@@ -842,7 +801,7 @@ describe('Workforce Category MCP Tools', () => {
     test('can deactivate a category by setting isActive to false', async () => {
       const deactivated = { ...category, isActive: false };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, isActive: false },
         {
@@ -863,7 +822,7 @@ describe('Workforce Category MCP Tools', () => {
     test('can update defaultLocationId to a new location', async () => {
       const withNewLocation = { ...category, defaultLocationId: 9 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, defaultLocationId: 9 },
         {
@@ -887,7 +846,7 @@ describe('Workforce Category MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceCategoryDelete tool', () => {
     test('deletes a category and returns deleted: true', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         { id: 1 },
         {
@@ -909,7 +868,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error for non-existent category id', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         { id: 99999 },
         {
@@ -928,7 +887,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Delete is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         { id: 1 },
         {
@@ -948,7 +907,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when id is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         {},
         {
@@ -1005,7 +964,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — delete response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         { id: 2 },
         {
@@ -1025,7 +984,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when category has active members and cannot be deleted', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryDelete',
         { id: 1 },
         {
@@ -1084,7 +1043,7 @@ describe('Workforce Category MCP Tools', () => {
         { id: 12, workforceCategoryId: 1, categoryName: 'Electrical Day', userId: 'user-charlie-003', userName: 'Charlie Brown', teamId: null, teamName: null, role: 'Lead', isActive: true }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 1 },
         {
@@ -1109,7 +1068,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns empty array when category has no members', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 3 },
         {
@@ -1129,7 +1088,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error for non-existent categoryId', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 99999 },
         {
@@ -1148,7 +1107,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Read is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 1 },
         {
@@ -1167,7 +1126,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns members with correct shape including all fields', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 1 },
         {
@@ -1193,7 +1152,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 1 },
         {
@@ -1252,7 +1211,7 @@ describe('Workforce Category MCP Tools', () => {
     test('returns team-based members with teamId and teamName set', async () => {
       const teamMember = { ...member, id: 20, teamId: 5, teamName: 'Electrical Team Alpha', userId: null, userName: null };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGetMembers',
         { categoryId: 1 },
         {
@@ -1277,7 +1236,7 @@ describe('Workforce Category MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceCategoryAddMember tool', () => {
     test('adds a member to a category and returns the member object', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, userId: 'user-alice-001', role: 'Member' },
         {
@@ -1302,7 +1261,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error when categoryId does not exist', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 99999, userId: 'user-alice-001', role: 'Member' },
         {
@@ -1321,7 +1280,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, userId: 'user-bob-002', role: 'Member' },
         {
@@ -1340,7 +1299,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when userId is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, role: 'Member' },
         {
@@ -1359,7 +1318,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when user is already a member of the category', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, userId: 'user-alice-001', role: 'Member' },
         {
@@ -1420,7 +1379,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, userId: 'user-alice-001', role: 'Member' },
         {
@@ -1442,7 +1401,7 @@ describe('Workforce Category MCP Tools', () => {
     test('can add a team as a member using teamId instead of userId', async () => {
       const teamMember = { id: 20, workforceCategoryId: 1, categoryName: 'Electrical Day', userId: null, userName: null, teamId: 5, teamName: 'Electrical Team Alpha', role: 'Member', isActive: true };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryAddMember',
         { categoryId: 1, teamId: 5, role: 'Member' },
         {
@@ -1467,7 +1426,7 @@ describe('Workforce Category MCP Tools', () => {
   // ---------------------------------------------------------------------------
   describe('UteamupWorkforceCategoryRemoveMember tool', () => {
     test('removes a member from a category and returns removed: true', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 1, memberId: 10 },
         {
@@ -1489,7 +1448,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found error when memberId does not exist in category', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 1, memberId: 99999 },
         {
@@ -1508,7 +1467,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns permission error when WorkforceCategory.Update is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 1, memberId: 10 },
         {
@@ -1528,7 +1487,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns error when memberId is missing', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 1 },
         {
@@ -1585,7 +1544,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('JSON-RPC 2.0 compliance — remove response has id and result, no error', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 1, memberId: 10 },
         {
@@ -1634,7 +1593,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('returns not found when categoryId itself does not exist', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryRemoveMember',
         { categoryId: 88888, memberId: 10 },
         {
@@ -1661,7 +1620,7 @@ describe('Workforce Category MCP Tools', () => {
       const createArgs = { name: 'Icon Team', description: 'Team with icon', colorCode: '#8B5CF6', iconName: 'wrench-screwdriver' };
       const created = { ...createArgs, id: 20, defaultLocationId: null, isActive: true, memberCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         createArgs,
         {
@@ -1684,7 +1643,7 @@ describe('Workforce Category MCP Tools', () => {
       const createArgs = { name: 'No Icon Team', colorCode: '#10B981' };
       const created = { ...createArgs, id: 21, iconName: null, defaultLocationId: null, isActive: true, memberCount: 0 };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryCreate',
         createArgs,
         {
@@ -1705,7 +1664,7 @@ describe('Workforce Category MCP Tools', () => {
     test('update iconName returns updated value', async () => {
       const updated = { ...category, iconName: 'users' };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, iconName: 'users' },
         {
@@ -1726,7 +1685,7 @@ describe('Workforce Category MCP Tools', () => {
     test('clear iconName by setting to null', async () => {
       const updated = { ...category, iconName: null };
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryUpdate',
         { id: 1, iconName: null },
         {
@@ -1751,7 +1710,7 @@ describe('Workforce Category MCP Tools', () => {
         { id: 3, name: 'HVAC Team', colorCode: '#F59E0B', iconName: 'wrench-screwdriver', isActive: true, memberCount: 2 }
       ];
 
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryList',
         {},
         {
@@ -1772,7 +1731,7 @@ describe('Workforce Category MCP Tools', () => {
     });
 
     test('get category by id returns iconName', async () => {
-      const response = await callMcpTool(
+      const response = await call(
         'UteamupWorkforceCategoryGet',
         { id: 1 },
         {
@@ -1832,90 +1791,20 @@ describe('Workforce Category MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // JSON-RPC 2.0 compliance — all 8 tools
+  // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
-  describe('JSON-RPC 2.0 compliance — all tools', () => {
-    const complianceTools = [
-      { name: 'UteamupWorkforceCategoryList', args: {}, idBase: 100 },
-      { name: 'UteamupWorkforceCategoryGet', args: { id: 1 }, idBase: 101 },
-      { name: 'UteamupWorkforceCategoryCreate', args: { name: 'Test', colorCode: '#000000' }, idBase: 102 },
-      { name: 'UteamupWorkforceCategoryUpdate', args: { id: 1, name: 'Updated' }, idBase: 103 },
-      { name: 'UteamupWorkforceCategoryDelete', args: { id: 1 }, idBase: 104 },
-      { name: 'UteamupWorkforceCategoryGetMembers', args: { categoryId: 1 }, idBase: 105 },
-      { name: 'UteamupWorkforceCategoryAddMember', args: { categoryId: 1, userId: 'user-001', role: 'Member' }, idBase: 106 },
-      { name: 'UteamupWorkforceCategoryRemoveMember', args: { categoryId: 1, memberId: 10 }, idBase: 107 }
-    ];
+  const allTools = [
+    { name: 'UteamupWorkforceCategoryList', args: {} },
+    { name: 'UteamupWorkforceCategoryGet', args: { id: 1 } },
+    { name: 'UteamupWorkforceCategoryCreate', args: { name: 'Test', colorCode: '#000000' } },
+    { name: 'UteamupWorkforceCategoryUpdate', args: { id: 1, name: 'Updated' } },
+    { name: 'UteamupWorkforceCategoryDelete', args: { id: 1 } },
+    { name: 'UteamupWorkforceCategoryGetMembers', args: { categoryId: 1 } },
+    { name: 'UteamupWorkforceCategoryAddMember', args: { categoryId: 1, userId: 'user-001', role: 'Member' } },
+    { name: 'UteamupWorkforceCategoryRemoveMember', args: { categoryId: 1, memberId: 10 } }
+  ];
 
-    test.each(complianceTools)(
-      '$name — response has id and result, no error (JSON-RPC 2.0 success shape)',
-      async ({ name, args, idBase }) => {
-        const response = await callMcpTool(
-          name,
-          args,
-          {
-            status: 200,
-            body: {
-              jsonrpc: '2.0',
-              result: { content: [{ type: 'text', text: '{}' }] },
-              id: idBase
-            }
-          }
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.result).toBeDefined();
-        expect(response.body.error).toBeUndefined();
-        expect(response.body.id).toBe(idBase);
-      }
-    );
-  });
-
-  // ---------------------------------------------------------------------------
-  // 401 Unauthorized handling — all 8 tools
-  // ---------------------------------------------------------------------------
-  describe('401 Unauthorized handling — all tools', () => {
-    const authTools = [
-      { name: 'UteamupWorkforceCategoryList', args: {} },
-      { name: 'UteamupWorkforceCategoryGet', args: { id: 1 } },
-      { name: 'UteamupWorkforceCategoryCreate', args: { name: 'Test', colorCode: '#000000' } },
-      { name: 'UteamupWorkforceCategoryUpdate', args: { id: 1, name: 'Updated' } },
-      { name: 'UteamupWorkforceCategoryDelete', args: { id: 1 } },
-      { name: 'UteamupWorkforceCategoryGetMembers', args: { categoryId: 1 } },
-      { name: 'UteamupWorkforceCategoryAddMember', args: { categoryId: 1, userId: 'user-001', role: 'Member' } },
-      { name: 'UteamupWorkforceCategoryRemoveMember', args: { categoryId: 1, memberId: 10 } }
-    ];
-
-    test.each(authTools)(
-      '$name — 401 response from backend is surfaced correctly',
-      async ({ name, args }) => {
-        nock(BASE_URL)
-          .post('/mcp')
-          .reply(401, 'Unauthorized');
-
-        const statusCode = await new Promise((resolve, reject) => {
-          const data = JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: { name, arguments: args },
-            id: Math.floor(Math.random() * 9000) + 1000
-          });
-
-          const req = https.request(`${BASE_URL}/mcp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-            rejectUnauthorized: false
-          }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          });
-          req.on('error', reject);
-          req.write(data);
-          req.end();
-        });
-
-        expect(statusCode).toBe(401);
-      }
-    );
-  });
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
 });
