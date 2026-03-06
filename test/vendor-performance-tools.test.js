@@ -1,0 +1,316 @@
+/**
+ * Vendor Performance MCP tool tests
+ *
+ * Tests that Vendor Performance MCP tool calls are correctly formed as JSON-RPC 2.0
+ * requests and that the MCP proxy properly handles both successful and error
+ * responses from the backend /mcp endpoint.
+ *
+ * Tools under test:
+ *   UteamupVendorRatingSubmit(model)
+ *   UteamupVendorRatingList(vendorId, page, pageSize)
+ *   UteamupVendorRatingAggregate(vendorId)
+ *   UteamupVendorRatingFlag(ratingId, model)
+ *   UteamupVendorScorecardGet(vendorId)
+ *   UteamupVendorScorecardConfigGet(vendorId)
+ *
+ * Pattern mirrors labour-rate.test.js: raw nock-mocked HTTPS calls
+ * that simulate what the MCP proxy would forward to the backend.
+ */
+
+'use strict';
+
+const nock = require('nock');
+const https = require('https');
+const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
+
+describe('Vendor Performance MCP Tools', () => {
+  const BASE_URL = 'https://api.test.com';
+  const ACCESS_TOKEN = 'test_access_token_vendor_performance';
+
+  beforeEach(() => nock.cleanAll());
+  afterEach(() => nock.cleanAll());
+
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
+
+  // ---------------------------------------------------------------------------
+  // Shared mock data
+  // ---------------------------------------------------------------------------
+  const mockRating = {
+    id: 1,
+    vendorId: 1,
+    overallRating: 4.5,
+    qualityRating: 5,
+    timelinessRating: 4,
+    communicationRating: 4,
+    comment: 'Great work',
+    createdAt: '2026-03-01T10:00:00Z',
+    createdByUserId: 'user-guid-123'
+  };
+
+  const mockRatingList = {
+    items: [mockRating],
+    totalCount: 1,
+    page: 1,
+    pageSize: 10
+  };
+
+  const mockAggregate = {
+    vendorId: 1,
+    averageOverall: 4.5,
+    averageQuality: 4.8,
+    averageTimeliness: 4.2,
+    averageCommunication: 4.5,
+    totalRatings: 25,
+    ratingDistribution: { 5: 12, 4: 8, 3: 3, 2: 1, 1: 1 }
+  };
+
+  const mockScorecard = {
+    vendorId: 1,
+    vendorName: 'Acme Services',
+    overallScore: 87.5,
+    qualityScore: 90,
+    deliveryScore: 85,
+    complianceScore: 88,
+    costScore: 87,
+    lastUpdated: '2026-03-01T00:00:00Z',
+    trend: 'Improving'
+  };
+
+  const mockScorecardConfig = {
+    vendorId: 1,
+    qualityWeight: 30,
+    deliveryWeight: 25,
+    complianceWeight: 25,
+    costWeight: 20,
+    evaluationPeriodDays: 90,
+    minimumRatingsRequired: 5
+  };
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorRatingSubmit
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorRatingSubmit tool', () => {
+    test('submits rating successfully', async () => {
+      const response = await call(
+        'UteamupVendorRatingSubmit',
+        { model: { vendorId: 1, overallStars: 5, qualityStars: 5, comment: 'Great work' } },
+        successReply(mockRating)
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+      expect(response.body.error).toBeUndefined();
+
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.overallRating).toBe(4.5);
+      expect(data.vendorId).toBe(1);
+      expect(data.comment).toBe('Great work');
+    });
+
+    test('returns validation error when model is invalid', async () => {
+      const response = await call(
+        'UteamupVendorRatingSubmit',
+        { model: { vendorId: 0 } },
+        errorReply(-32602, 'VendorId must be greater than 0')
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('VendorId');
+    });
+
+    test('returns error when overallStars is out of range', async () => {
+      const response = await call(
+        'UteamupVendorRatingSubmit',
+        { model: { vendorId: 1, overallStars: 6 } },
+        errorReply(-32602, 'OverallStars must be between 1 and 5')
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('OverallStars');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorRatingList
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorRatingList tool', () => {
+    test('returns paginated ratings for a vendor', async () => {
+      const response = await call(
+        'UteamupVendorRatingList',
+        { vendorId: 1, page: 1, pageSize: 10 },
+        successReply(mockRatingList)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.items).toHaveLength(1);
+      expect(data.totalCount).toBe(1);
+      expect(data.page).toBe(1);
+    });
+
+    test('returns empty list when vendor has no ratings', async () => {
+      const emptyList = { items: [], totalCount: 0, page: 1, pageSize: 10 };
+
+      const response = await call(
+        'UteamupVendorRatingList',
+        { vendorId: 999, page: 1, pageSize: 10 },
+        successReply(emptyList)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.items).toHaveLength(0);
+      expect(data.totalCount).toBe(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorRatingAggregate
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorRatingAggregate tool', () => {
+    test('returns aggregate ratings for a vendor', async () => {
+      const response = await call(
+        'UteamupVendorRatingAggregate',
+        { vendorId: 1 },
+        successReply(mockAggregate)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.averageOverall).toBe(4.5);
+      expect(data.totalRatings).toBe(25);
+      expect(data.ratingDistribution).toBeDefined();
+    });
+
+    test('returns error when vendor not found', async () => {
+      const response = await call(
+        'UteamupVendorRatingAggregate',
+        { vendorId: 99999 },
+        errorReply(-32000, 'Vendor not found')
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Vendor not found');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorRatingFlag
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorRatingFlag tool', () => {
+    test('flags a rating for review successfully', async () => {
+      const flaggedRating = { ...mockRating, isFlagged: true, flagReason: 'Inappropriate content' };
+
+      const response = await call(
+        'UteamupVendorRatingFlag',
+        { ratingId: 1, model: { reason: 'Inappropriate content' } },
+        successReply(flaggedRating)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.isFlagged).toBe(true);
+      expect(data.flagReason).toBe('Inappropriate content');
+    });
+
+    test('returns error when rating not found', async () => {
+      const response = await call(
+        'UteamupVendorRatingFlag',
+        { ratingId: 99999, model: { reason: 'Spam' } },
+        errorReply(-32000, 'Rating not found')
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Rating not found');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorScorecardGet
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorScorecardGet tool', () => {
+    test('returns scorecard for a vendor', async () => {
+      const response = await call(
+        'UteamupVendorScorecardGet',
+        { vendorId: 1 },
+        successReply(mockScorecard)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.overallScore).toBe(87.5);
+      expect(data.vendorName).toBe('Acme Services');
+      expect(data.trend).toBe('Improving');
+    });
+
+    test('returns error when vendor not found', async () => {
+      const response = await call(
+        'UteamupVendorScorecardGet',
+        { vendorId: 99999 },
+        errorReply(-32000, 'Vendor not found')
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Vendor not found');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupVendorScorecardConfigGet
+  // ---------------------------------------------------------------------------
+  describe('UteamupVendorScorecardConfigGet tool', () => {
+    test('returns scorecard configuration for a vendor', async () => {
+      const response = await call(
+        'UteamupVendorScorecardConfigGet',
+        { vendorId: 1 },
+        successReply(mockScorecardConfig)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.qualityWeight).toBe(30);
+      expect(data.deliveryWeight).toBe(25);
+      expect(data.evaluationPeriodDays).toBe(90);
+      expect(data.minimumRatingsRequired).toBe(5);
+    });
+
+    test('returns default config when none is explicitly set', async () => {
+      const defaultConfig = {
+        vendorId: 1,
+        qualityWeight: 25,
+        deliveryWeight: 25,
+        complianceWeight: 25,
+        costWeight: 25,
+        evaluationPeriodDays: 30,
+        minimumRatingsRequired: 3
+      };
+
+      const response = await call(
+        'UteamupVendorScorecardConfigGet',
+        { vendorId: 1 },
+        successReply(defaultConfig)
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.qualityWeight + data.deliveryWeight + data.complianceWeight + data.costWeight).toBe(100);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shared error-handling tests (JSON-RPC, 401, 503)
+  // ---------------------------------------------------------------------------
+  const allTools = [
+    { name: 'UteamupVendorRatingSubmit', args: { model: { vendorId: 1, overallStars: 5 } } },
+    { name: 'UteamupVendorRatingList', args: { vendorId: 1, page: 1, pageSize: 10 } },
+    { name: 'UteamupVendorRatingAggregate', args: { vendorId: 1 } },
+    { name: 'UteamupVendorRatingFlag', args: { ratingId: 1, model: { reason: 'Spam' } } },
+    { name: 'UteamupVendorScorecardGet', args: { vendorId: 1 } },
+    { name: 'UteamupVendorScorecardConfigGet', args: { vendorId: 1 } }
+  ];
+
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(BASE_URL, allTools);
+  describe503ServiceUnavailable(BASE_URL, allTools);
+});
