@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `test/project-my-projects.test.js` — Jest coverage for the new `UteamupProjectMyProjects` MCP tool (proxies backend `GET /api/project/my-projects`). Covers happy path, empty list, `myWorkorderCount` shape, JSON-RPC error pass-through, and a regression guard asserting the tool accepts NO arguments (user identity must come from the Bearer token). Wires in the shared `describeJsonRpcCompliance`, `describe401Unauthorized`, and `describe503ServiceUnavailable` suites. 8 tests, all passing.
+- `MCPGuidelines.md` — New top-level guide documenting the generic-proxy architecture, configuration, tool-addition workflow (backend-first — NEVER edit `index.js` for a specific tool), test structure and required coverage per new tool, Release Please versioning, critical regression zones, and security rules.
 - `test/helpers/mcp-test-helpers.js` — Shared `callMcpTool`, `sendRawRequest`, `successReply`, `errorReply` utilities for all MCP tool tests
 - `test/helpers/mcp-error-tests.js` — Reusable test factories: `describeJsonRpcCompliance`, `describe401Unauthorized`, `describe503ServiceUnavailable`
 - 58 new error-handling tests from normalization (503 tests added to 4 files that lacked them; all 3 sections added to `labour-rate.test.js`)
