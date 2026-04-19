@@ -129,7 +129,12 @@ describe('Bugs & Features MCP Tools', () => {
   });
 
   // ── Shared error-path tests ──────────────────────────────────────────────
-  describeJsonRpcCompliance(call, 'UteamupBugsAndFeaturesList', {});
-  describe401Unauthorized(call, 'UteamupBugsAndFeaturesList', {});
-  describe503ServiceUnavailable(call, 'UteamupBugsAndFeaturesList', {});
+  // Helpers expect an array of tool descriptors; 401/503 also take BASE_URL
+  // (not the `call` fn) as their first argument. See test/helpers/mcp-error-tests.js.
+  const errorPathTools = [
+    { name: 'UteamupBugsAndFeaturesList', args: {} },
+  ];
+  describeJsonRpcCompliance(call, errorPathTools);
+  describe401Unauthorized(BASE_URL, errorPathTools);
+  describe503ServiceUnavailable(BASE_URL, errorPathTools);
 });
