@@ -128,6 +128,20 @@ describe('Bugs & Features MCP Tools', () => {
     });
   });
 
+  // ── Delete ───────────────────────────────────────────────────────────────
+  describe('UteamupBugsAndFeaturesDelete', () => {
+    test('hard-deletes a cluster by externalGuid', async () => {
+      const response = await call(
+        'UteamupBugsAndFeaturesDelete',
+        { externalGuid: bugRow.externalGuid },
+        successReply(true),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBe(true);
+    });
+  });
+
   // ── Shared error-path tests ──────────────────────────────────────────────
   // Helpers expect an array of tool descriptors; 401/503 also take BASE_URL
   // (not the `call` fn) as their first argument. See test/helpers/mcp-error-tests.js.
