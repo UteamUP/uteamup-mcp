@@ -216,6 +216,6 @@ describe('Per-tenant billing-gateway switcher MCP Tools', () => {
   ];
 
   describeJsonRpcCompliance(call, complianceTools);
-  describe401Unauthorized(call, complianceTools);
-  describe503ServiceUnavailable(call, complianceTools);
+  describe401Unauthorized(BASE_URL, complianceTools);
+  describe503ServiceUnavailable(BASE_URL, complianceTools);
 });
