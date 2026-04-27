@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Performance Auto-Monitoring (MCP).** Documented `PerformanceAuto` as a valid source filter for the `bugs.list` tool proxy. Added test coverage in `test/` to assert the proxied request payload handles the `PerformanceAuto` source correctly.
+
+### Added
 - **Two new MCP tools forwarded through the generic proxy: `uteamup_tenant_invite_defaults_get` and `uteamup_tenant_invite_defaults_set`.** Backend-declared via `TenantTools.UteamupTenantInviteDefaultsGet` / `UteamupTenantInviteDefaultsSet` with matching `GetTenantInviteDefaultsCommand` + `UpdateTenantInviteDefaultsCommand` handlers. No MCP server code changes needed — the proxy forwards tool calls generically. Dedicated Jest spec + `describeJsonRpcCompliance`/`401`/`503` harness tracked as a follow-up.
 
 - **Tests for the new `UteamupWorkorderQuickClose` MCP tool.** New file `test/quick-close.test.js` exercises the Quick Close tool over JSON-RPC 2.0 (nock-mocked HTTPS, mirrors the `bugs-and-features.test.js` pattern). 10 passing tests: happy path returning a created-and-closed workorder (`quickClosedAt` populated), idempotent replay returning the same workorder, optional `industryCodeGuid` + `performedAt` forwarded correctly, 403 (license / permission) / 422 (validation) / 429 (rate limit) / 404 (template gone / not quick-close) surfaced as RPC errors, plus the shared JSON-RPC 2.0 / 401 / 503 harness. No code changes to the MCP proxy itself needed — the tool is declared backend-side and forwarded generically.

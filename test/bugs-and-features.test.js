@@ -111,6 +111,17 @@ describe('Bugs & Features MCP Tools', () => {
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.items).toEqual([]);
     });
+
+    test('forwards the source filter parameter', async () => {
+      const response = await call(
+        'UteamupBugsAndFeaturesList',
+        { source: 'PerformanceAuto' },
+        successReply({ items: [bugRow], totalCount: 1, page: 1, pageSize: 50 }),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.items).toHaveLength(1);
+    });
   });
 
   // ── UpdateStatus ─────────────────────────────────────────────────────────
