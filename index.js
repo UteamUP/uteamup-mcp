@@ -172,7 +172,10 @@ async function getAccessToken() {
           });
 
           https.get(`${config.baseUrl}/oauth/authorize?${authParams}`, {
-            rejectUnauthorized: false, // Allow self-signed certs for dev
+            // UTEAMUP-SEC-2026-05-02-008: TLS verification is on by default;
+            // UTEAMUP_INSECURE_TLS=1 opts in for self-signed dev certs.
+            // Production host (api.uteamup.com) ignores the flag.
+            rejectUnauthorized: !config.insecureTLS,
             timeout: config.requestTimeout
           }, (res) => {
             const location = res.headers.location || '';
@@ -228,7 +231,8 @@ async function getAccessToken() {
               'Content-Type': 'application/x-www-form-urlencoded',
               'Content-Length': Buffer.byteLength(tokenData)
             },
-            rejectUnauthorized: false,
+            // UTEAMUP-SEC-2026-05-02-008: see authorize handler above.
+            rejectUnauthorized: !config.insecureTLS,
             timeout: config.requestTimeout
           }, (res) => {
             let data = '';
@@ -371,7 +375,8 @@ async function forwardRequest(request, requestId) {
               'Content-Length': Buffer.byteLength(data),
               'X-Request-ID': requestId
             },
-            rejectUnauthorized: false,
+            // UTEAMUP-SEC-2026-05-02-008: see authorize handler above.
+            rejectUnauthorized: !config.insecureTLS,
             timeout: config.requestTimeout
           }, (res) => {
             let responseData = '';
