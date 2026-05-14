@@ -275,6 +275,12 @@ describe('WorkorderWatcher MCP Tools', () => {
         req.write(data);
         req.end();
       })).rejects.toThrow();
+
+      // nock v14's @mswjs/interceptors emits replyWithError via setImmediate.
+      // Drain pending immediates so the error doesn't leak into the next test
+      // as an unhandled rejection (was flaking JSON-RPC compliance for the
+      // first tool in this file's `allTools` array, ~2/3 runs).
+      await new Promise(resolve => setImmediate(resolve));
     });
   });
 

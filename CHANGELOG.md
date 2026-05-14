@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Bumped `nock` 13.5.6 → 14.0.15, `jest` 30.4.1 → 30.4.2, `@types/node` 25.6.2 → 25.7.0.** nock 14 swaps its HTTP-interception engine to `@mswjs/interceptors`, which schedules `replyWithError` via `setImmediate`. The `'handles network timeout gracefully'` test in `test/workorder-watchlist.test.js` was racing with the next test (`describeJsonRpcCompliance` for `UteamupWorkorderWatchlistGet`) — the stale `setImmediate(ETIMEDOUT)` from the timeout test fired during the JSON-RPC compliance test as an unhandled error (2/3 failure rate). Added an explicit `await new Promise(resolve => setImmediate(resolve))` at the end of the timeout test to drain pending interceptor callbacks before the next test starts. Test suite is green 5/5 back-to-back runs after the fix.
+
 ### Added
+
 - **Performance Auto-Monitoring (MCP).** Documented `PerformanceAuto` as a valid source filter for the `bugs.list` tool proxy. Added test coverage in `test/` to assert the proxied request payload handles the `PerformanceAuto` source correctly.
 
 ### Added
+
 - **Two new MCP tools forwarded through the generic proxy: `uteamup_tenant_invite_defaults_get` and `uteamup_tenant_invite_defaults_set`.** Backend-declared via `TenantTools.UteamupTenantInviteDefaultsGet` / `UteamupTenantInviteDefaultsSet` with matching `GetTenantInviteDefaultsCommand` + `UpdateTenantInviteDefaultsCommand` handlers. No MCP server code changes needed — the proxy forwards tool calls generically. Dedicated Jest spec + `describeJsonRpcCompliance`/`401`/`503` harness tracked as a follow-up.
 
 - **Tests for the new `UteamupWorkorderQuickClose` MCP tool.** New file `test/quick-close.test.js` exercises the Quick Close tool over JSON-RPC 2.0 (nock-mocked HTTPS, mirrors the `bugs-and-features.test.js` pattern). 10 passing tests: happy path returning a created-and-closed workorder (`quickClosedAt` populated), idempotent replay returning the same workorder, optional `industryCodeGuid` + `performedAt` forwarded correctly, 403 (license / permission) / 422 (validation) / 429 (rate limit) / 404 (template gone / not quick-close) surfaced as RPC errors, plus the shared JSON-RPC 2.0 / 401 / 503 harness. No code changes to the MCP proxy itself needed — the tool is declared backend-side and forwarded generically.
@@ -25,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 7 IconName field tests in `workforce-categories.test.js`: create with icon, create without (backwards-compat), update, clear, list returns, get by id returns, create request params
 
 ### Changed
+
 - Extracted duplicated `callMcpTool` helper (~40 lines each) and error-handling describe blocks from 12 MCP tool test files into shared modules, reducing ~1,800 lines of duplication
 - All 12 MCP tool test files now use shared helpers and standardized error test factories
 - Test count: 714 → 772 tests (18 suites, all passing)
@@ -33,11 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **test/schedule-ai-tools.test.js** — Added tests for 3 previously uncovered `WorkforcePlanningTools`: `UteamupWorkforceSuggestAssignment`, `UteamupWorkforceGetCapacity`, `UteamupWorkforceGetAvailableTechnicians`. Updated JSON-RPC compliance and 401 unauthorized suites to cover all 7 workforce tools.
 
 ### Changed
+
 - Total test count increased from 70+ to 161 across 9 test suites (100% tool coverage for Schedule and WorkforcePlanning domains).
 
 ## [1.0.0-beta.7] - 2026-02-11
 
 ### Added
+
 - **Structured Logging:** Production-ready logging with Pino
   - Log levels: TRACE, DEBUG, INFO, WARN, ERROR (configurable via `UTEAMUP_LOG_LEVEL`)
   - JSON and text output formats (configurable via `UTEAMUP_LOG_FORMAT`)
@@ -73,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error handling tests
 
 ### Changed
+
 - Refactored codebase into modular structure (`lib/` directory)
   - `lib/logger.js`: Structured logging module
   - `lib/config.js`: Configuration validation module
@@ -83,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better backward compatibility with legacy `UTEAMUP_DEBUG` flag
 
 ### Dependencies
+
 - **Added:** `pino` (^9.6.0) - Structured logging
 - **Added:** `pino-pretty` (^12.0.0) - Pretty-printed logs for development
 - **Added:** `zod` (^3.25.0) - Runtime type validation
@@ -90,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Added (dev):** `@types/node` (^20.11.0) - Node.js type definitions
 
 ### Improved
+
 - Production-readiness: Meets industry standards for observability and reliability
 - Developer experience: Better debugging with structured logs and CLI utilities
 - Error recovery: Automatic retry on transient failures
@@ -98,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.6] - 2026-02-10
 
 ### Fixed
+
 - **Notification Handling:** Properly handle JSON-RPC notifications with empty responses
   - Backend returns HTTP 202 (Accepted) with empty body for notifications
   - Proxy now skips sending response for notifications (id: undefined)
@@ -107,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.5] - 2026-02-10
 
 ### Fixed
+
 - **CRITICAL:** Added Server-Sent Events (SSE) response parsing
   - Backend returns responses in `text/event-stream` format (SSE)
   - Proxy now correctly parses SSE format: extracts JSON from `data:` field
@@ -116,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.4] - 2026-02-10
 
 ### Fixed
+
 - **NPM Package:** Fixed bin field path from `index.js` to `./index.js` for proper npm installation
 - **Debug Logging:** Added comprehensive MCP response logging to help diagnose JSON-RPC format issues
   - Now logs raw response body
@@ -125,6 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.3] - 2026-02-10
 
 ### Fixed
+
 - **CRITICAL:** Added `Accept: application/json, text/event-stream` header to MCP requests
   - Backend requires both content types for HTTP transport compatibility
   - Fixes HTTP 406 "Not Acceptable" error
@@ -133,6 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.2] - 2026-02-10
 
 ### Fixed
+
 - **CRITICAL:** Token response parsing now accepts both `accessToken` (camelCase) and `access_token` (snake_case) formats
   - Backend returns `accessToken` but code only checked for `access_token`
   - This caused authentication to fail despite successful OAuth flow
@@ -141,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta.1] - 2026-02-10
 
 ### Added
+
 - Initial beta release
 - OAuth 2.0 Authorization Code + PKCE authentication flow
 - Automatic token caching with 7-day expiration
@@ -153,11 +171,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSDoc documentation for all public functions
 
 ### Fixed
+
 - Token response parsing to use OAuth 2.0 standard `access_token` field (was incorrectly expecting `accessToken`)
 - JSON-RPC 2.0 response format to always include request IDs
 - Error handling for 401/403 HTTP status codes with user-friendly messages
 
 ### Security
+
 - Single-use authorization codes enforced
 - PKCE S256 challenge method (SHA-256)
 - Token-only authentication (credentials never logged)
@@ -166,6 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
+
 - Automatic token refresh on expiration
 - Configurable token cache location
 - Additional error recovery strategies

@@ -49,11 +49,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "jest": "^30.4.1",
+    "jest": "^30.4.2",
     "eslint": "^10.3.0",
     "prettier": "^3.8.3",
-    "nock": "^13.5.0",
-    "@types/node": "^25.6.2"
+    "nock": "^14.0.15",
+    "@types/node": "^25.7.0"
   },
   "files": [
     "index.js",
