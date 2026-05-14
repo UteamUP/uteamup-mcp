@@ -27,6 +27,10 @@ dist/
 build/
 *.tgz
 
+# Stale local backups (never commit — security audit P1 UTEAMUP-SEC-2026-05-14-002)
+*.backup
+*.bak
+
 # Logs
 logs/
 *.log
