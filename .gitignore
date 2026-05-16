@@ -46,3 +46,5 @@ Thumbs.db
 
 # Jest
 jest-results.json
+
+*.lscache
