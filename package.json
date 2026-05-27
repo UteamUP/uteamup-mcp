@@ -1,6 +1,6 @@
 {
   "name": "@uteamup/mcp-server",
-  "version": "1.0.0-beta.9",
+  "version": "2.0.0-beta.9",
   "description": "MCP server client for UteamUP - enables Claude Desktop/Code integration with automatic OAuth 2.0 authentication",
   "main": "index.js",
   "bin": {

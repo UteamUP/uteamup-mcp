@@ -5,6 +5,111 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/1.0.0-beta.9...2.0.0-beta.9) (2026-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** bump zod 3 -> 4 (mcp)
+* **deps:** bump eslint 8 -> 10 (mcp)
+* **deps:** bump jest 29 -> 30 (mcp)
+* **deps:** bump pino 9 -> 10 + pino-pretty 12 -> 13 (mcp)
+* **deps:** bump @types/node 20 -> 25 (mcp)
+
+### Features
+
+* add external GUIDs to mock data for MyProjects MCP tool tests ([476364d](https://github.com/UteamUP/uteamup-mcp/commit/476364de7956df3966aa4be3a6d5e5536866bc88))
+* add full test coverage for Schedule and WorkforcePlanning MCP tools ([918cd1e](https://github.com/UteamUP/uteamup-mcp/commit/918cd1e350dd853bd46368fa310096bfe4894633))
+* Add integration tests for schedule assignment MCP tools, covering week schedule, assignment creation, update, deletion, auto-assignment, and availability. ([21b8063](https://github.com/UteamUP/uteamup-mcp/commit/21b80632f1940e351450f58139f49248f635e8b1))
+* add MCP tests for extension system and Customer Viewer tools ([8dce914](https://github.com/UteamUP/uteamup-mcp/commit/8dce914a6d0bc844fefeae5ab49f8f2bc7e20aae))
+* add tests for Document metadata and timeline MCP tools ([6e66e74](https://github.com/UteamUP/uteamup-mcp/commit/6e66e745ff841c5d9fbb1b8381fc1e6d7f4afa8e))
+* add tests for new Schedule AI / Workforce Planning MCP tools. ([7236780](https://github.com/UteamUP/uteamup-mcp/commit/723678005f324af0d50b5d31f520c932197cf758))
+* add tests for UteamupAssetGetAssignedStock MCP tool ([fb0b7ac](https://github.com/UteamUP/uteamup-mcp/commit/fb0b7ac4fe1d7b9a62e633652bc5a26e6411a431))
+* **dedicated-instance-integration:** add dedicated instance integration details and tool definitions ([f055003](https://github.com/UteamUP/uteamup-mcp/commit/f05500367ab24467cf2d5ea4b5a1a36cd0ffb425))
+* **deps:** bump @types/node 20 -&gt; 25 (mcp) ([84ed199](https://github.com/UteamUP/uteamup-mcp/commit/84ed1990667a1ad35684f81af79a94b87a27a76d))
+* **deps:** bump eslint 8 -&gt; 10 (mcp) ([aeb02c5](https://github.com/UteamUP/uteamup-mcp/commit/aeb02c570e731185b8da7fdcfbf0386eb429f7ee))
+* **deps:** bump jest 29 -&gt; 30 (mcp) ([930a9e7](https://github.com/UteamUP/uteamup-mcp/commit/930a9e7bcf91bee40901e5517bac69d35ed97b70))
+* **deps:** bump pino 9 -&gt; 10 + pino-pretty 12 -&gt; 13 (mcp) ([5628151](https://github.com/UteamUP/uteamup-mcp/commit/5628151c8ee75bc7c8e00635b392f731fbc44432))
+* **deps:** bump zod 3 -&gt; 4 (mcp) ([cb88055](https://github.com/UteamUP/uteamup-mcp/commit/cb88055d6655a36fb6a465ecab0a93738f770ee7))
+* implement OAuth 2.0 + PKCE and package structure for npm publishing ([d2224d4](https://github.com/UteamUP/uteamup-mcp/commit/d2224d47aab502e6b1868fce601efc6105123eff))
+* Implement retry logic with exponential backoff and fixed delay ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* **journal-code-linking:** Add MCP tests for journal-code linking tools ([6d33be6](https://github.com/UteamUP/uteamup-mcp/commit/6d33be66a408a24b7f4a370c76e4e1585d0e4063))
+* **test:** add shared MCP test helper and error factory modules ([e77fd3c](https://github.com/UteamUP/uteamup-mcp/commit/e77fd3c1db45e0f1938636aa45bba86451aad23a))
+
+
+### Bug Fixes
+
+* **ci:** correct release-please-action SHA to v4.4.0 ([8004f04](https://github.com/UteamUP/uteamup-mcp/commit/8004f0414f6c4710bbee2648a70b15305df4450a))
+* lint non-blocking, unit tests only ([db4d093](https://github.com/UteamUP/uteamup-mcp/commit/db4d093b94618e5e2a6e37a838485dd7c7acc4b0))
+* make lint non-blocking ([90fbb74](https://github.com/UteamUP/uteamup-mcp/commit/90fbb745630559ff9b2651d11c7c0aeb43e8dde0))
+* **security:** gate MCP TLS-verification bypass behind explicit opt-in (UTEAMUP-SEC-2026-05-02-008) ([43e3027](https://github.com/UteamUP/uteamup-mcp/commit/43e30276b9bf636ff7fe40cf7e73a6b314d42642))
+
+
+### Miscellaneous
+
+* add rules to ignore stale local backup files ([2adbe8c](https://github.com/UteamUP/uteamup-mcp/commit/2adbe8c2291fc0f1e222340fc3522c6fd14603c0))
+* commit pending changes ([706e890](https://github.com/UteamUP/uteamup-mcp/commit/706e89022260959407349f795c326b499dd14cdc))
+* **deps:** bump nock 13.5.6 -&gt; 14.0.15, jest 30.4.1 -&gt; 30.4.2, @types/node 25.6.2 -&gt; 25.7.0 ([da2a2b0](https://github.com/UteamUP/uteamup-mcp/commit/da2a2b09097ae405892e2d315564b3805084fc21))
+* **deps:** update prettier to version 3.8.3 in devDependencies ([a876a10](https://github.com/UteamUP/uteamup-mcp/commit/a876a10a4372fd77bd7c7ffd337cb9820eb3242f))
+* **release:** bump version to 1.0.0-beta.8 and include lib directory in package files ([b4871ea](https://github.com/UteamUP/uteamup-mcp/commit/b4871eae46777f13dbe48eb79e2d0facd5b304d0))
+* **release:** bump version to 1.0.0-beta.9 and update logging configuration ([e3680e4](https://github.com/UteamUP/uteamup-mcp/commit/e3680e4efe2608fb8b388723f0732c96163ecb78))
+* **release:** update to version 1.0.0-beta.6 with SSE response parsing and improved notification handling ([d8e1297](https://github.com/UteamUP/uteamup-mcp/commit/d8e1297e225c30be812be4a3119ed5416f0c2b74))
+* remove backup index.js file ([d81c64e](https://github.com/UteamUP/uteamup-mcp/commit/d81c64ea69af2fd5b41c7e69ab1a499868d91377))
+
+
+### Code Refactoring
+
+* **test:** extract shared helpers from schedule test files ([12eb76a](https://github.com/UteamUP/uteamup-mcp/commit/12eb76a6f2d49591b7258eb3f178ac90f2dbfdfd))
+* **test:** extract shared helpers from shift test files ([b65acfc](https://github.com/UteamUP/uteamup-mcp/commit/b65acfcf34cda550f7f1b128e9f66bb5eddb8ac2))
+* **test:** extract shared helpers from workforce/tenant/labour test files ([e93ce79](https://github.com/UteamUP/uteamup-mcp/commit/e93ce791921cc2004aaca1b4b3f17fc0f5c593f1))
+
+
+### Documentation
+
+* add comprehensive README with installation, configuration, and troubleshooting ([24286e2](https://github.com/UteamUP/uteamup-mcp/commit/24286e2670d8384a9448e7cd49e3739d2c551d44))
+* add links section with npm package, documentation, issues, and support information ([adce428](https://github.com/UteamUP/uteamup-mcp/commit/adce4282d79e5cd4a918017c2cdb08b0fcc3bdb9))
+* add test deduplication design and implementation plan ([9ac6f25](https://github.com/UteamUP/uteamup-mcp/commit/9ac6f2581abc7310a653c8df312c8cab7f755814))
+* note new tenant invite-defaults tools route via generic proxy ([c883417](https://github.com/UteamUP/uteamup-mcp/commit/c883417b1cc1e0208ffbddc88e45c2cd68bab3a5))
+* update CHANGELOG with group members and assignment proxy tests ([440b70f](https://github.com/UteamUP/uteamup-mcp/commit/440b70f2c8f9b5bc7472c5c6f41e7c7d848d27e8))
+* update CHANGELOG with labour rate MCP test coverage ([f96f9e6](https://github.com/UteamUP/uteamup-mcp/commit/f96f9e611873fb78fe61c5b516abeae6fedee748))
+* update CHANGELOG with test deduplication work ([e7fe256](https://github.com/UteamUP/uteamup-mcp/commit/e7fe25641b297c6e8b5ea891a8abc94a2f666588))
+
+
+### Tests
+
+* add 36 MCP tool tests for maintenance analytics suite ([54cf92b](https://github.com/UteamUP/uteamup-mcp/commit/54cf92b3d48a44a9194d18ab8454dc3ee70b3f34))
+* Add configuration validation tests ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* add Jest suite for UserUiState MCP tools ([da1ce8f](https://github.com/UteamUP/uteamup-mcp/commit/da1ce8f94fd58018a1d5a3d7e569769bea725d1d))
+* Add logger tests for sensitive data redaction ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* add MCP proxy tests for group members and work order assignment tools ([b553b8d](https://github.com/UteamUP/uteamup-mcp/commit/b553b8da0a8a5d588652a5127e6db64409610b46))
+* add MCP tests for labour rate modifier and effective-rate tools ([110cf40](https://github.com/UteamUP/uteamup-mcp/commit/110cf4007c3574993c9f6bfc6996ed2abf4bdcf5))
+* add MCP tests for workforce group IconName field ([b521459](https://github.com/UteamUP/uteamup-mcp/commit/b521459645de1f0ad37339feba73329a7e6f5a84))
+* Add retry logic tests ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* add WorkorderWatcher MCP tool tests for JSON-RPC compliance and error handling ([92a37f3](https://github.com/UteamUP/uteamup-mcp/commit/92a37f36e747c22bc5e6d8816b9fbd854e7c30c0))
+* **billing-gateway-switcher:** add tests for per-tenant billing-gateway switcher MCP tools ([4822e75](https://github.com/UteamUP/uteamup-mcp/commit/4822e7597f438f7891c7b8097cade59425b763bb))
+* **billing-gateway-switcher:** fix 401/503 helper wiring ([68a8877](https://github.com/UteamUP/uteamup-mcp/commit/68a887714ac59ce48d01e264638f214b2f11bfca))
+* **bugs-and-features:** add test for PerformanceAuto source filter in UteamupBugsAndFeaturesList tool ([ee10fa5](https://github.com/UteamUP/uteamup-mcp/commit/ee10fa530baff33d94190d94364d5aee5436f363))
+* **bugsandfeatures:** add Jest tests for the 4 new MCP tools ([1ede0ef](https://github.com/UteamUP/uteamup-mcp/commit/1ede0efb972b179b91869670ad3641974cd48c52))
+* **bugsandfeatures:** add test for UteamupBugsAndFeaturesDelete tool ([ba2daea](https://github.com/UteamUP/uteamup-mcp/commit/ba2daea0e4c5a6abb702866b13a8c11dc2a2403d))
+* **changelog:** add tests for UteamupWorkorderQuickClose MCP tool ([e1def96](https://github.com/UteamUP/uteamup-mcp/commit/e1def9668f86aff4a7c6349467c9263103cd36ba))
+* Create integration tests for OAuth flow and MCP request forwarding ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* Create metrics tracking tests ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* Create SSE parser tests ([b5452ae](https://github.com/UteamUP/uteamup-mcp/commit/b5452ae2826cc83177160862854ecde9f41758f7))
+* **mcp:** add project_my_projects tool test and MCPGuidelines.md ([18484b2](https://github.com/UteamUP/uteamup-mcp/commit/18484b2b00d66e633816ea7e94faa269f9dc14a3))
+* **mcp:** cover 5 new image/document import tools with 11 Jest tests ([16b475e](https://github.com/UteamUP/uteamup-mcp/commit/16b475ebd4685e97a5d2b79d1bd80edc88447bad))
+* **meter-reading-schedule:** add comprehensive tests for Meter Reading Schedule MCP tools ([a3cdf88](https://github.com/UteamUP/uteamup-mcp/commit/a3cdf88b726e6e3f21f70177695b58dc069a6d84))
+* **quick-close:** add tests for UteamupWorkorderQuickClose tool ([1329e9e](https://github.com/UteamUP/uteamup-mcp/commit/1329e9e7d4fab46fb909a92b90063d4a1df3bad2))
+* **vendor:** add 113 MCP tool tests for vendor portal ([a2d7b86](https://github.com/UteamUP/uteamup-mcp/commit/a2d7b8693f4f3b1e702f0d007ece55aff1764130))
+* **workorder-template:** jest spec for UteamupWorkorderTemplateRunScheduleNow ([5537a6e](https://github.com/UteamUP/uteamup-mcp/commit/5537a6e4225552ff4f2d5c1941cf39d29f57db4e))
+
+
+### CI/CD
+
+* add CI/CD ([2e34349](https://github.com/UteamUP/uteamup-mcp/commit/2e3434950f5a0e8ace3648be07a9377d112e7142))
+* add CODEOWNERS ([3f7e48a](https://github.com/UteamUP/uteamup-mcp/commit/3f7e48a9b488c544525238be08c04670c273e94f))
+* add Dependabot ([7c455ff](https://github.com/UteamUP/uteamup-mcp/commit/7c455ffc3011ef3baa71c441aad1c597eda213ff))
+* add Release Please automated versioning ([7399e96](https://github.com/UteamUP/uteamup-mcp/commit/7399e9672953846312ec1907b7dfb36843379f10))
+
 ## [Unreleased]
 
 ### Changed
