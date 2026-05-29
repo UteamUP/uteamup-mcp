@@ -118,6 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`UteamupMeterscheduleCreateWorkorder` tool** — force-create a work order from a meter reading schedule (proxied to the backend `POST /api/meter-reading-schedules/{guid}/create-workorder`), optionally seeded from a workorder template (`useScheduleTemplate` / `workorderTemplateGuid` args). Backend Command + Handler + Tool method added; Jest coverage in `test/meter-reading-schedule.test.js` (no-template / explicit-template / unknown-schedule / permission-denied + JSON-RPC 2.0 / 401 / 503 compliance) — 30 passing.
+
 - **Performance Auto-Monitoring (MCP).** Documented `PerformanceAuto` as a valid source filter for the `bugs.list` tool proxy. Added test coverage in `test/` to assert the proxied request payload handles the `PerformanceAuto` source correctly.
 
 ### Added

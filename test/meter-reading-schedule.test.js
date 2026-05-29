@@ -91,6 +91,14 @@ describe('Meter Reading Schedule MCP Tools', () => {
     isCompleted: true
   };
 
+  const SCHEDULE_GUID = '99999999-8888-7777-6666-555555555555';
+  const TEMPLATE_GUID = 'cccccccc-dddd-eeee-ffff-000000000000';
+  const createdWorkorder = {
+    workorderGuid: '12121212-3434-5656-7878-909090909090',
+    ticketId: 'MET-0000000042',
+    name: 'Trip Count reading — SEL-751'
+  };
+
   // -------------------------------------------------------------------------
   // UteamupMeterscheduleCreateByGuid — preferred Guid-keyed variant
   // -------------------------------------------------------------------------
@@ -296,6 +304,86 @@ describe('Meter Reading Schedule MCP Tools', () => {
   });
 
   // -------------------------------------------------------------------------
+  // UteamupMeterscheduleCreateWorkorder — force-create a workorder from a schedule
+  // -------------------------------------------------------------------------
+  describe('UteamupMeterscheduleCreateWorkorder tool', () => {
+    test('force-creates a generic MET workorder (no template)', async () => {
+      const response = await call(
+        'UteamupMeterscheduleCreateWorkorder',
+        { scheduleGuid: SCHEDULE_GUID, useScheduleTemplate: false },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(createdWorkorder) }] },
+            id: 9
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const wo = JSON.parse(response.body.result.content[0].text);
+      expect(wo.workorderGuid).toBeDefined();
+      expect(wo.ticketId).toMatch(/^MET-/);
+    });
+
+    test('seeds the workorder from an explicit template Guid', async () => {
+      const response = await call(
+        'UteamupMeterscheduleCreateWorkorder',
+        { scheduleGuid: SCHEDULE_GUID, useScheduleTemplate: true, workorderTemplateGuid: TEMPLATE_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify({ ...createdWorkorder, ticketId: 'WT-7', name: 'From Template' }) }] },
+            id: 10
+          }
+        }
+      );
+
+      const wo = JSON.parse(response.body.result.content[0].text);
+      expect(wo.name).toBe('From Template');
+    });
+
+    test('returns an error when the schedule Guid is unknown', async () => {
+      const response = await call(
+        'UteamupMeterscheduleCreateWorkorder',
+        { scheduleGuid: '00000000-0000-0000-0000-000000000000' },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32602, message: 'Meter reading schedule not found in tenant.' },
+            id: 11
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('returns 403 when WorkOrder.Create permission is missing', async () => {
+      const response = await call(
+        'UteamupMeterscheduleCreateWorkorder',
+        { scheduleGuid: SCHEDULE_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Permission denied: WorkOrder.Create required' },
+            id: 12
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('WorkOrder.Create');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // JSON-RPC 2.0 + 401 + 503 compliance helpers (every tool MUST cover these)
   // -------------------------------------------------------------------------
   const allTools = [
@@ -312,6 +400,10 @@ describe('Meter Reading Schedule MCP Tools', () => {
     {
       name: 'UteamupMeterscheduleRecordWorkorder',
       args: { workorderId: 789, attributeDefinitionId: 5, readingValue: 45230 }
+    },
+    {
+      name: 'UteamupMeterscheduleCreateWorkorder',
+      args: { scheduleGuid: SCHEDULE_GUID }
     }
   ];
 
