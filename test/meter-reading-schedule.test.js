@@ -131,6 +131,78 @@ describe('Meter Reading Schedule MCP Tools', () => {
       expect(schedule.guid).toBeDefined();
     });
 
+    test('creates a weekly calendar-anchored schedule (recurrence args relayed)', async () => {
+      const weeklySchedule = {
+        ...createdSchedule,
+        intervalSeconds: 0,
+        recurrenceType: 'weekly',
+        daysOfWeek: [1, 4],
+        scheduleLabel: 'Weekly switchgear check'
+      };
+
+      const response = await call(
+        'UteamupMeterscheduleCreateByGuid',
+        {
+          assetGuid: ASSET_GUID,
+          attributeDefinitionGuid: ATTR_GUID,
+          intervalSeconds: 0,
+          recurrenceType: 'weekly',
+          daysOfWeek: [1, 4],
+          scheduleLabel: 'Weekly switchgear check'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(weeklySchedule) }] },
+            id: 13
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const schedule = JSON.parse(response.body.result.content[0].text);
+      expect(schedule.recurrenceType).toBe('weekly');
+      expect(schedule.daysOfWeek).toEqual([1, 4]);
+      expect(schedule.intervalSeconds).toBe(0);
+    });
+
+    test('creates a yearly schedule with month + when-in-month', async () => {
+      const yearlySchedule = {
+        ...createdSchedule,
+        intervalSeconds: 0,
+        recurrenceType: 'yearly',
+        monthOfYear: 3,
+        dayOfMonthMode: 'firstWorkday'
+      };
+
+      const response = await call(
+        'UteamupMeterscheduleCreateByGuid',
+        {
+          assetGuid: ASSET_GUID,
+          attributeDefinitionGuid: ATTR_GUID,
+          intervalSeconds: 0,
+          recurrenceType: 'yearly',
+          monthOfYear: 3,
+          dayOfMonthMode: 'firstWorkday'
+        },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(yearlySchedule) }] },
+            id: 14
+          }
+        }
+      );
+
+      const schedule = JSON.parse(response.body.result.content[0].text);
+      expect(schedule.recurrenceType).toBe('yearly');
+      expect(schedule.monthOfYear).toBe(3);
+      expect(schedule.dayOfMonthMode).toBe('firstWorkday');
+    });
+
     test('rejects an interval below 5 minutes (300 seconds)', async () => {
       const response = await call(
         'UteamupMeterscheduleCreateByGuid',
