@@ -99,6 +99,34 @@ describe('Meter Reading Schedule MCP Tools', () => {
     name: 'Trip Count reading — SEL-751'
   };
 
+  // Two distinct open meter-reading workorders for the SAME asset+meter — the case the
+  // compliance summary collapses to one but this tool surfaces in full.
+  const openWorkorderList = [
+    {
+      workorderGuid: '6989790a-d395-4226-b2a0-e309cf696af3',
+      workorderTicketId: 'MET-0000000001',
+      name: 'Trip Count reading — SEL-751',
+      attributeDefinitionGuid: ATTR_GUID,
+      attributeDefinitionId: 5,
+      assetId: 42,
+      attributeName: 'Trip Count',
+      unit: 'count',
+      isOverdue: true,
+      overdueBySeconds: 7200
+    },
+    {
+      workorderGuid: '4b362084-3657-4537-a841-587af48d54a9',
+      workorderTicketId: 'MET-0000000002',
+      name: 'Trip Count reading — SEL-751',
+      attributeDefinitionGuid: ATTR_GUID,
+      attributeDefinitionId: 5,
+      assetId: 42,
+      attributeName: 'Trip Count',
+      unit: 'count',
+      isOverdue: false
+    }
+  ];
+
   // -------------------------------------------------------------------------
   // UteamupMeterscheduleCreateByGuid — preferred Guid-keyed variant
   // -------------------------------------------------------------------------
@@ -456,6 +484,71 @@ describe('Meter Reading Schedule MCP Tools', () => {
   });
 
   // -------------------------------------------------------------------------
+  // UteamupMeterscheduleGetOpenWorkorders — all open meter-reading workorders for an asset
+  // -------------------------------------------------------------------------
+  describe('UteamupMeterscheduleGetOpenWorkorders tool', () => {
+    test('returns every open meter-reading workorder for the asset', async () => {
+      const response = await call(
+        'UteamupMeterscheduleGetOpenWorkorders',
+        { assetGuid: ASSET_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(openWorkorderList) }] },
+            id: 15
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const list = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(list)).toBe(true);
+      expect(list).toHaveLength(2);
+      expect(list.map((w) => w.workorderTicketId)).toEqual(['MET-0000000001', 'MET-0000000002']);
+      expect(list[0].attributeDefinitionGuid).toBe(ATTR_GUID);
+      expect(list[0].isOverdue).toBe(true);
+    });
+
+    test('returns an empty array when the asset has no open meter-reading workorders', async () => {
+      const response = await call(
+        'UteamupMeterscheduleGetOpenWorkorders',
+        { assetGuid: ASSET_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: '[]' }] },
+            id: 16
+          }
+        }
+      );
+
+      const list = JSON.parse(response.body.result.content[0].text);
+      expect(list).toEqual([]);
+    });
+
+    test('returns 403 when MeterReading.View permission is missing', async () => {
+      const response = await call(
+        'UteamupMeterscheduleGetOpenWorkorders',
+        { assetGuid: ASSET_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Permission denied: MeterReading.View required' },
+            id: 17
+          }
+        }
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('MeterReading.View');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // JSON-RPC 2.0 + 401 + 503 compliance helpers (every tool MUST cover these)
   // -------------------------------------------------------------------------
   const allTools = [
@@ -476,6 +569,10 @@ describe('Meter Reading Schedule MCP Tools', () => {
     {
       name: 'UteamupMeterscheduleCreateWorkorder',
       args: { scheduleGuid: SCHEDULE_GUID }
+    },
+    {
+      name: 'UteamupMeterscheduleGetOpenWorkorders',
+      args: { assetGuid: ASSET_GUID }
     }
   ];
 
