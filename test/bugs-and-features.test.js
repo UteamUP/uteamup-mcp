@@ -126,6 +126,30 @@ describe('Bugs & Features MCP Tools', () => {
     });
   });
 
+  // ── My reports (reporter-facing list of the caller's own reports) ─────────
+  describe('UteamupBugsAndFeaturesMine', () => {
+    test('returns the caller\'s own reports as a slim list', async () => {
+      const reports = [
+        {
+          externalGuid: bugRow.externalGuid,
+          type: 'Bug',
+          status: 'Validated',
+          severity: 'Low',
+          title: 'Example bug',
+          createdAtUtc: '2026-06-03T10:00:00Z',
+          lastActivityAtUtc: '2026-06-03T11:00:00Z',
+          sharedCommentCount: 2,
+        },
+      ];
+      const response = await call('UteamupBugsAndFeaturesMine', {}, successReply(reports));
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data[0].externalGuid).toBe(bugRow.externalGuid);
+      expect(data[0].sharedCommentCount).toBe(2);
+    });
+  });
+
   // ── List ─────────────────────────────────────────────────────────────────
   describe('UteamupBugsAndFeaturesList', () => {
     test('returns a paginated list of submissions', async () => {
