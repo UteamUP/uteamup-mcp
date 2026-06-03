@@ -87,6 +87,45 @@ describe('Bugs & Features MCP Tools', () => {
     });
   });
 
+  // ── Conversation (reporter-facing read) ───────────────────────────────────
+  describe('UteamupBugsAndFeaturesConversation', () => {
+    test('returns the reporter conversation (report + timeline + shared comments)', async () => {
+      const conversation = {
+        externalGuid: bugRow.externalGuid,
+        type: 'Bug',
+        status: 'Validated',
+        title: 'Example bug',
+        description: 'Something broke',
+        createdAtUtc: '2026-06-03T10:00:00Z',
+        statusTimeline: [
+          { fromStatus: 'New', toStatus: 'Validated', note: 'Looks valid', changedAtUtc: '2026-06-03T11:00:00Z' },
+        ],
+        comments: [
+          {
+            externalGuid: '33333333-3333-3333-3333-333333333333',
+            bodyHtml: '<p>We are on it</p>',
+            authorDisplayName: 'Support',
+            isVisibleToReporter: true,
+            isFromReporter: false,
+            createdAt: '2026-06-03T11:05:00Z',
+            mentions: [],
+            replies: [],
+          },
+        ],
+      };
+      const response = await call(
+        'UteamupBugsAndFeaturesConversation',
+        { bugExternalGuid: bugRow.externalGuid },
+        successReply(conversation),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.externalGuid).toBe(bugRow.externalGuid);
+      expect(data.statusTimeline).toHaveLength(1);
+      expect(data.comments[0].isVisibleToReporter).toBe(true);
+    });
+  });
+
   // ── List ─────────────────────────────────────────────────────────────────
   describe('UteamupBugsAndFeaturesList', () => {
     test('returns a paginated list of submissions', async () => {
