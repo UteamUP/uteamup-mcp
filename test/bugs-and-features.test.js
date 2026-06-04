@@ -200,6 +200,31 @@ describe('Bugs & Features MCP Tools', () => {
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.status).toBe('Validated');
     });
+
+    test('parks a report New → WaitList', async () => {
+      // Backend serializes the enum camelCase, so WaitList comes back as "waitList".
+      const updated = { ...bugRow, status: 'waitList' };
+      const response = await call(
+        'UteamupBugsAndFeaturesUpdateStatus',
+        { externalGuid: bugRow.externalGuid, toStatus: 'WaitList' },
+        successReply(updated),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.status).toBe('waitList');
+    });
+
+    test('returns a parked report WaitList → New', async () => {
+      const updated = { ...bugRow, status: 'New' };
+      const response = await call(
+        'UteamupBugsAndFeaturesUpdateStatus',
+        { externalGuid: bugRow.externalGuid, toStatus: 'New' },
+        successReply(updated),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.status).toBe('New');
+    });
   });
 
   // ── Delete ───────────────────────────────────────────────────────────────
