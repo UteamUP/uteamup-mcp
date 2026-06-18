@@ -71,6 +71,21 @@ describe('Reseller MCP Tools', () => {
     accruedAt: '2026-06-10T00:00:00Z'
   };
 
+  const mockProgramDefaults = {
+    defaultCommissionRate: 0.15,
+    defaultCommissionBase: 'netOfDiscount',
+    defaultType: 'resellerVar',
+    defaultSettlementModel: 'netRevenueShare',
+    defaultSettlementMethod: 'cash',
+    defaultPayoutMethod: 'manualOffline',
+    defaultVatTreatment: 'standard',
+    defaultSelfBilling: false,
+    defaultPayoutCurrency: 'USD',
+    defaultPayoutCadence: 'Monthly',
+    defaultMinPayoutThreshold: 100.0,
+    defaultTier: 'Standard'
+  };
+
   describe('UteamupResellerList tool', () => {
     test('returns the reseller directory', async () => {
       const response = await call('UteamupResellerList', {}, successReply([mockReseller]));
@@ -143,6 +158,18 @@ describe('Reseller MCP Tools', () => {
     });
   });
 
+  describe('UteamupResellerProgramDefaultsGet tool', () => {
+    test('returns the global program defaults new resellers inherit', async () => {
+      const response = await call('UteamupResellerProgramDefaultsGet', {}, successReply(mockProgramDefaults));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.defaultPayoutCurrency).toBe('USD');
+      expect(data.defaultCommissionRate).toBe(0.15);
+      expect(data.defaultSettlementModel).toBe('netRevenueShare');
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -151,7 +178,8 @@ describe('Reseller MCP Tools', () => {
     { name: 'UteamupResellerGet', args: { resellerGuid: RESELLER_GUID } },
     { name: 'UteamupResellerApplicationsList', args: {} },
     { name: 'UteamupResellerTenantsList', args: { resellerGuid: RESELLER_GUID } },
-    { name: 'UteamupResellerEarningsList', args: { resellerGuid: RESELLER_GUID, skip: 0, take: 50 } }
+    { name: 'UteamupResellerEarningsList', args: { resellerGuid: RESELLER_GUID, skip: 0, take: 50 } },
+    { name: 'UteamupResellerProgramDefaultsGet', args: {} }
   ];
 
   describeJsonRpcCompliance(call, allTools);
