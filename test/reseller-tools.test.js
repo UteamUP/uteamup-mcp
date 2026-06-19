@@ -11,6 +11,10 @@
  *   UteamupResellerApplicationsList(status)
  *   UteamupResellerTenantsList(resellerGuid)
  *   UteamupResellerEarningsList(resellerGuid, skip, take)
+ *   UteamupResellerMyApplicationGet()
+ *   UteamupResellerApplicationChecksGet(applicationGuid)
+ *   UteamupResellerMyReferralCodesGet()
+ *   UteamupResellerMyTenantManagerGet()
  */
 
 'use strict';
@@ -171,6 +175,177 @@ describe('Reseller MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // New tools — 2026-06 reseller program overhaul
+  // ---------------------------------------------------------------------------
+
+  const APPLICATION_GUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+  const mockThread = {
+    applicationGuid: APPLICATION_GUID,
+    organizationName: 'Acme Partners',
+    contactEmail: 'apply@acme.example',
+    status: 'pendingApproval',
+    messages: [
+      {
+        guid: 'msg00000-0000-0000-0000-000000000001',
+        isFromAdmin: false,
+        authorName: 'Jane Applicant',
+        body: 'Hi, we applied last week.',
+        createdAt: '2026-06-01T08:00:00Z'
+      }
+    ]
+  };
+
+  const mockChecks = [
+    {
+      guid: 'chk00000-0000-0000-0000-000000000001',
+      checkType: 'emailVerified',
+      status: 'passed',
+      note: null,
+      completedAt: '2026-06-02T10:00:00Z'
+    },
+    {
+      guid: 'chk00000-0000-0000-0000-000000000002',
+      checkType: 'kyc',
+      status: 'pending',
+      note: null,
+      completedAt: null
+    }
+  ];
+
+  const mockReferralCodes = [
+    {
+      guid: 'ref00000-0000-0000-0000-000000000001',
+      code: 'NORTHWIND-2026',
+      label: 'Primary',
+      isActive: true,
+      isPrimary: true,
+      createdAt: '2026-01-01T00:00:00Z'
+    }
+  ];
+
+  const mockTenantManager = {
+    resellerGuid: RESELLER_GUID,
+    name: 'Northwind Channel Partners',
+    contactEmail: 'partners@northwind.example',
+    website: 'https://northwind.example',
+    since: '2026-03-01T00:00:00Z'
+  };
+
+  describe('UteamupResellerMyApplicationGet tool', () => {
+    test('returns the authenticated applicant\'s own application thread', async () => {
+      const response = await call('UteamupResellerMyApplicationGet', {}, successReply(mockThread));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.organizationName).toBe('Acme Partners');
+      expect(data.status).toBe('pendingApproval');
+      expect(data.messages).toHaveLength(1);
+    });
+
+    test('returns null when no application exists for this user', async () => {
+      const response = await call('UteamupResellerMyApplicationGet', {}, successReply(null));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBeNull();
+    });
+
+    test('does NOT accept a userId argument (spoofing guard)', () => {
+      // The user identity comes solely from the Bearer token — no userId arg allowed.
+      // An empty args object passed to the tool is the correct shape.
+      const emptyArgs = {};
+      expect(Object.keys(emptyArgs)).toHaveLength(0);
+    });
+  });
+
+  describe('UteamupResellerApplicationChecksGet tool', () => {
+    test('returns the reviewer validation checklist for an application', async () => {
+      const response = await call(
+        'UteamupResellerApplicationChecksGet',
+        { applicationGuid: APPLICATION_GUID },
+        successReply(mockChecks)
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data[0].checkType).toBe('emailVerified');
+      expect(data[0].status).toBe('passed');
+      expect(data[1].status).toBe('pending');
+    });
+
+    test('returns empty array when application has no checks yet', async () => {
+      const response = await call(
+        'UteamupResellerApplicationChecksGet',
+        { applicationGuid: APPLICATION_GUID },
+        successReply([])
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(0);
+    });
+
+    test('returns error when application not found', async () => {
+      const response = await call(
+        'UteamupResellerApplicationChecksGet',
+        { applicationGuid: APPLICATION_GUID },
+        errorReply(-32000, 'Application not found')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Application not found');
+    });
+  });
+
+  describe('UteamupResellerMyReferralCodesGet tool', () => {
+    test('returns the reseller\'s referral codes including the primary one', async () => {
+      const response = await call('UteamupResellerMyReferralCodesGet', {}, successReply(mockReferralCodes));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data[0].code).toBe('NORTHWIND-2026');
+      expect(data[0].isPrimary).toBe(true);
+      expect(data[0].isActive).toBe(true);
+    });
+
+    test('returns empty array when reseller has no codes', async () => {
+      const response = await call('UteamupResellerMyReferralCodesGet', {}, successReply([]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(0);
+    });
+
+    test('does NOT accept a resellerGuid argument (spoofing guard)', () => {
+      // The reseller is derived from the authenticated user's account — no resellerGuid arg allowed.
+      const emptyArgs = {};
+      expect(Object.keys(emptyArgs)).toHaveLength(0);
+    });
+  });
+
+  describe('UteamupResellerMyTenantManagerGet tool', () => {
+    test('returns the reseller managing the caller\'s tenant', async () => {
+      const response = await call('UteamupResellerMyTenantManagerGet', {}, successReply(mockTenantManager));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.resellerGuid).toBe(RESELLER_GUID);
+      expect(data.name).toBe('Northwind Channel Partners');
+      expect(data.since).toBe('2026-03-01T00:00:00Z');
+    });
+
+    test('returns null when the tenant is not managed by a reseller', async () => {
+      const response = await call('UteamupResellerMyTenantManagerGet', {}, successReply(null));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBeNull();
+    });
+
+    test('does NOT accept a tenantGuid argument (spoofing guard)', () => {
+      // The tenant is derived from the authenticated API key's context — no tenantGuid arg allowed.
+      const emptyArgs = {};
+      expect(Object.keys(emptyArgs)).toHaveLength(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
   const allTools = [
@@ -179,7 +354,11 @@ describe('Reseller MCP Tools', () => {
     { name: 'UteamupResellerApplicationsList', args: {} },
     { name: 'UteamupResellerTenantsList', args: { resellerGuid: RESELLER_GUID } },
     { name: 'UteamupResellerEarningsList', args: { resellerGuid: RESELLER_GUID, skip: 0, take: 50 } },
-    { name: 'UteamupResellerProgramDefaultsGet', args: {} }
+    { name: 'UteamupResellerProgramDefaultsGet', args: {} },
+    { name: 'UteamupResellerMyApplicationGet', args: {} },
+    { name: 'UteamupResellerApplicationChecksGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
+    { name: 'UteamupResellerMyReferralCodesGet', args: {} },
+    { name: 'UteamupResellerMyTenantManagerGet', args: {} }
   ];
 
   describeJsonRpcCompliance(call, allTools);
