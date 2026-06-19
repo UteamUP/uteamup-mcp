@@ -224,6 +224,20 @@ describe('Reseller MCP Tools', () => {
     }
   ];
 
+  const mockMeetings = [
+    {
+      guid: 'mtg00000-0000-0000-0000-000000000001',
+      subject: 'Reseller intro call',
+      notes: 'Discuss the reseller program',
+      scheduledStartUtc: '2026-06-20T14:00:00Z',
+      scheduledEndUtc: '2026-06-20T14:30:00Z',
+      teamsJoinUrl: 'https://teams.microsoft.com/l/meetup-join/abc',
+      teamsMeetingStatus: 'Created',
+      status: 'scheduled',
+      createdAt: '2026-06-19T10:00:00Z'
+    }
+  ];
+
   const mockTenantManager = {
     resellerGuid: RESELLER_GUID,
     name: 'Northwind Channel Partners',
@@ -295,6 +309,43 @@ describe('Reseller MCP Tools', () => {
     });
   });
 
+  describe('UteamupResellerApplicationMeetingsGet tool', () => {
+    test('returns the meetings scheduled on an application', async () => {
+      const response = await call(
+        'UteamupResellerApplicationMeetingsGet',
+        { applicationGuid: APPLICATION_GUID },
+        successReply(mockMeetings)
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data[0].subject).toBe('Reseller intro call');
+      expect(data[0].teamsJoinUrl).toContain('teams.microsoft.com');
+      expect(data[0].status).toBe('scheduled');
+    });
+
+    test('returns empty array when the application has no meetings', async () => {
+      const response = await call(
+        'UteamupResellerApplicationMeetingsGet',
+        { applicationGuid: APPLICATION_GUID },
+        successReply([])
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(0);
+    });
+
+    test('returns error when application not found', async () => {
+      const response = await call(
+        'UteamupResellerApplicationMeetingsGet',
+        { applicationGuid: APPLICATION_GUID },
+        errorReply(-32000, 'Application not found')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Application not found');
+    });
+  });
+
   describe('UteamupResellerMyReferralCodesGet tool', () => {
     test('returns the reseller\'s referral codes including the primary one', async () => {
       const response = await call('UteamupResellerMyReferralCodesGet', {}, successReply(mockReferralCodes));
@@ -357,6 +408,7 @@ describe('Reseller MCP Tools', () => {
     { name: 'UteamupResellerProgramDefaultsGet', args: {} },
     { name: 'UteamupResellerMyApplicationGet', args: {} },
     { name: 'UteamupResellerApplicationChecksGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
+    { name: 'UteamupResellerApplicationMeetingsGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
     { name: 'UteamupResellerMyReferralCodesGet', args: {} },
     { name: 'UteamupResellerMyTenantManagerGet', args: {} }
   ];
