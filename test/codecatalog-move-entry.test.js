@@ -46,6 +46,11 @@ describe('UteamupCodingsystemMoveEntryByGuid MCP tool', () => {
     isActive: true,
     isCustom: true,
     isStandard: false,
+    // Profile-image fields added to code-catalog read responses — the generic
+    // proxy must pass both through untouched (string|null). imageUrl is the
+    // code's own image; effectiveImageUrl is the resolved thumbnail.
+    imageUrl: 'https://blob.uteamup.com/codes/fol-kro.png',
+    effectiveImageUrl: 'https://blob.uteamup.com/codes/fol-kro-thumb.png',
   };
 
   it('returns the reparented entry with the recomputed DisplayCode', async () => {
@@ -58,6 +63,10 @@ describe('UteamupCodingsystemMoveEntryByGuid MCP tool', () => {
     expect(data.externalGuid).toBe(ENTRY_GUID);
     expect(data.parentEntryGuid).toBe(PARENT_GUID);
     expect(data.displayCode).toBe('FOL KRO');
+    // imageUrl + effectiveImageUrl (code-catalog read response image fields)
+    // survive the proxy.
+    expect(data.imageUrl).toBe('https://blob.uteamup.com/codes/fol-kro.png');
+    expect(data.effectiveImageUrl).toBe('https://blob.uteamup.com/codes/fol-kro-thumb.png');
   });
 
   it('surfaces a duplicate-DisplayCode conflict as a JSON-RPC error', async () => {

@@ -43,6 +43,9 @@ describe('UteamupAssetDuplicate MCP tool', () => {
     locationId: 7,
     locationName: 'Substation A',
     tenantId: 3,
+    // Profile image added to asset read responses — the generic proxy must
+    // pass it through untouched (string|null).
+    imageUrl: 'https://blob.uteamup.com/assets/ge0102-profile.png',
     codeAssignment: {
       codeGuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
       displayCode: 'GE0102',
@@ -61,6 +64,8 @@ describe('UteamupAssetDuplicate MCP tool', () => {
     expect(data.externalGuid).toBe(newGuid);
     expect(data.name).toBe('SEL-751 Protection Relay GE0102');
     expect(data.codeAssignment.displayCode).toBe('GE0102');
+    // imageUrl (profile image on asset read responses) survives the proxy.
+    expect(data.imageUrl).toBe('https://blob.uteamup.com/assets/ge0102-profile.png');
   });
 
   // ---- null response (source not found / no code assignment) -----------
