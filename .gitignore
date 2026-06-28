@@ -39,8 +39,8 @@ logs/
 Thumbs.db
 .DS_Store
 
-# Temporary files
-*.tmp
+# Temporary files (any name containing "tmp")
+*tmp*
 *.temp
 .cache/
 
