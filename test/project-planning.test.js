@@ -4,6 +4,7 @@
  * Covers the project-management planning surface exposed via MCP:
  *   - Stages:        UteamupProjectStageList / UteamupProjectStageCreate
  *   - Risk register: UteamupProjectRiskCreate
+ *   - BOM:           UteamupProjectBomList / UteamupProjectBomCreate
  *   - Insights:      UteamupProjectPortfolio / UteamupProjectConflicts
  *   - AI planning:   UteamupProjectSuggestWbs / UteamupProjectApplyWbs /
  *                    UteamupProjectLessonsLearned
@@ -228,6 +229,157 @@ describe('Project Planning MCP Tools', () => {
       expect(response.body.error).toBeDefined();
       expect(response.body.error.code).toBe(-32602);
       expect(response.body.error.message).toContain('Probability');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bill of materials
+  // ---------------------------------------------------------------------------
+  describe('UteamupProjectBomList tool', () => {
+    const ITEM_GUID = 'cccccccc-1111-2222-3333-444444444444';
+    const partLine = {
+      guid: 'dddddddd-1111-2222-3333-444444444444',
+      projectGuid: PROJECT_GUID,
+      itemType: 'Part',
+      itemGuid: ITEM_GUID,
+      itemName: 'Bearing 6205-2RS',
+      stockItemGuid: 'eeeeeeee-1111-2222-3333-444444444444',
+      quantityRequired: 12,
+      quantityActual: 4,
+      isConsumed: false,
+      createdAt: '2026-06-01T09:00:00Z',
+      updatedAt: '2026-06-10T09:00:00Z',
+    };
+
+    test('returns the project BOM lines with GUID-keyed identity', async () => {
+      const response = await call(
+        'UteamupProjectBomList',
+        { projectGuid: PROJECT_GUID },
+        successReply([partLine]),
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(1);
+      expect(data[0].itemType).toBe('Part');
+      expect(data[0].quantityRequired).toBe(12);
+      // GUIDs-in/integer-ids-out: line identity + referenced item are GUIDs
+      expect(data[0].guid).toBe('dddddddd-1111-2222-3333-444444444444');
+      expect(data[0].projectGuid).toBe(PROJECT_GUID);
+      expect(data[0].itemGuid).toBe(ITEM_GUID);
+      expect(data[0].stockItemGuid).toBe('eeeeeeee-1111-2222-3333-444444444444');
+    });
+
+    test('returns empty list for a project with no BOM lines', async () => {
+      const response = await call(
+        'UteamupProjectBomList',
+        { projectGuid: PROJECT_GUID },
+        successReply([]),
+      );
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual([]);
+    });
+
+    test('handles backend error responses in JSON-RPC error shape', async () => {
+      const response = await call(
+        'UteamupProjectBomList',
+        { projectGuid: PROJECT_GUID },
+        errorReply(-32603, 'UnauthorizedAccessException: Permission denied: ProjectBom.View required'),
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32603);
+      expect(response.body.error.message).toContain('ProjectBom.View');
+    });
+  });
+
+  describe('UteamupProjectBomCreate tool', () => {
+    test('forwards the BOM line model verbatim and returns the created line', async () => {
+      const model = {
+        itemType: 'Part',
+        itemGuid: 'cccccccc-1111-2222-3333-444444444444',
+        quantityRequired: 12,
+      };
+
+      let forwardedParams = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.method === 'tools/call' && body.params?.name === 'UteamupProjectBomCreate') {
+            forwardedParams = body.params.arguments;
+            return true;
+          }
+          return false;
+        })
+        .reply(200, JSON.stringify({
+          jsonrpc: '2.0',
+          result: {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                guid: 'dddddddd-1111-2222-3333-444444444444',
+                projectGuid: PROJECT_GUID,
+                itemType: 'Part',
+                itemGuid: 'cccccccc-1111-2222-3333-444444444444',
+                itemName: 'Bearing 6205-2RS',
+                stockItemGuid: 'eeeeeeee-1111-2222-3333-444444444444',
+                quantityRequired: 12,
+                quantityActual: 0,
+                isConsumed: false,
+              }),
+            }],
+          },
+          id: 1,
+        }), { 'Content-Type': 'application/json' });
+
+      const https = require('https');
+      const request = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: 'UteamupProjectBomCreate', arguments: { projectGuid: PROJECT_GUID, model } },
+        id: 1,
+      };
+      const response = await new Promise((resolve, reject) => {
+        const data = JSON.stringify(request);
+        const req = https.request(`${BASE_URL}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data),
+          },
+          rejectUnauthorized: false,
+        }, (res) => {
+          let responseData = '';
+          res.on('data', chunk => responseData += chunk);
+          res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(responseData) }));
+        });
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+      });
+
+      expect(response.status).toBe(200);
+      // The proxy must forward args verbatim — no renaming, no int ids
+      expect(forwardedParams.projectGuid).toBe(PROJECT_GUID);
+      expect(forwardedParams.model).toEqual(model);
+
+      const created = JSON.parse(response.body.result.content[0].text);
+      expect(created.guid).toBe('dddddddd-1111-2222-3333-444444444444');
+      expect(created.itemGuid).toBe('cccccccc-1111-2222-3333-444444444444');
+      expect(created.quantityActual).toBe(0);
+    });
+
+    test('surfaces an unresolved item GUID as a JSON-RPC error', async () => {
+      const response = await call(
+        'UteamupProjectBomCreate',
+        { projectGuid: PROJECT_GUID, model: { itemType: 'Part', itemGuid: 'ffffffff-1111-2222-3333-444444444444', quantityRequired: 1 } },
+        errorReply(-32603, 'KeyNotFoundException: Referenced Part not found in tenant.'),
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32603);
+      expect(response.body.error.message).toContain('not found');
     });
   });
 
@@ -486,6 +638,8 @@ describe('Project Planning MCP Tools', () => {
     { name: 'UteamupProjectStageList', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectStageCreate', args: { projectGuid: PROJECT_GUID, model: { name: 'Design', order: 1 } } },
     { name: 'UteamupProjectRiskCreate', args: { projectGuid: PROJECT_GUID, model: { title: 'Risk', probability: 3, impact: 3 } } },
+    { name: 'UteamupProjectBomList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectBomCreate', args: { projectGuid: PROJECT_GUID, model: { itemType: 'Part', itemGuid: 'cccccccc-1111-2222-3333-444444444444', quantityRequired: 5 } } },
     { name: 'UteamupProjectPortfolio', args: { page: 1, pageSize: 50 } },
     { name: 'UteamupProjectConflicts', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectSuggestWbs', args: { projectGuid: PROJECT_GUID } },
