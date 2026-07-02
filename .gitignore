@@ -48,3 +48,6 @@ Thumbs.db
 jest-results.json
 
 *.lscache
+
+# Exclude session logs (temporary working files)
+SESSION_LOG_*.md
