@@ -630,6 +630,93 @@ describe('Project Planning MCP Tools', () => {
     });
   });
 
+  describe('UteamupProjectEstimate tool', () => {
+    test('returns the estimate, inputs and similar-project summary with the AI quota envelope', async () => {
+      const response = await call(
+        'UteamupProjectEstimate',
+        { projectGuid: PROJECT_GUID },
+        successReply({
+          estimatedDurationDays: 45,
+          estimatedCostLikely: 52000,
+          estimatedCostLow: 44000,
+          estimatedCostHigh: 68000,
+          confidence: 'medium',
+          rationale: 'Grounded in 12 workorders and 3 comparable overhauls.',
+          assumptions: ['No long-lead parts delay'],
+          inputs: { workorderCount: 12, stageCount: 4, workorderEstimatedMinutes: 5760, workorderEstimatedCost: 30000, plannedStartDate: '2026-08-01T00:00:00Z', plannedEndDate: null },
+          similarProjects: { count: 3, averageDurationDays: 41.5, averageActualCost: 50500, examples: [{ projectGuid: PROJECT_GUID, name: 'Prior overhaul', durationDays: 40, actualCost: 49000 }] },
+          provider: 'googleai',
+          creditsCharged: 10,
+          remaining: 940,
+          quotaBlockedReason: null,
+          warnings: [],
+          error: null,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const estimate = JSON.parse(response.body.result.content[0].text);
+      expect(estimate.estimatedDurationDays).toBe(45);
+      expect(estimate.estimatedCostLikely).toBe(52000);
+      expect(estimate.confidence).toBe('medium');
+      expect(estimate.inputs.workorderCount).toBe(12);
+      expect(estimate.similarProjects.count).toBe(3);
+      expect(estimate.similarProjects.averageActualCost).toBe(50500);
+      expect(estimate.creditsCharged).toBe(10);
+    });
+
+    test('quota-blocked estimate still carries the free similar-project averages', async () => {
+      const response = await call(
+        'UteamupProjectEstimate',
+        { projectGuid: PROJECT_GUID },
+        successReply({
+          estimatedDurationDays: 0,
+          estimatedCostLikely: 0,
+          estimatedCostLow: 0,
+          estimatedCostHigh: 0,
+          confidence: 'low',
+          rationale: null,
+          assumptions: [],
+          inputs: { workorderCount: 12, stageCount: 4, workorderEstimatedMinutes: 5760, workorderEstimatedCost: 30000, plannedStartDate: null, plannedEndDate: null },
+          similarProjects: { count: 3, averageDurationDays: 41.5, averageActualCost: 50500, examples: [] },
+          provider: null,
+          creditsCharged: 0,
+          remaining: 0,
+          quotaBlockedReason: 'QuotaExceeded',
+          warnings: [],
+          error: null,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const estimate = JSON.parse(response.body.result.content[0].text);
+      expect(estimate.quotaBlockedReason).toBe('QuotaExceeded');
+      expect(estimate.estimatedDurationDays).toBe(0);
+      expect(estimate.similarProjects.averageActualCost).toBe(50500); // free benchmark still present
+    });
+  });
+
+  describe('UteamupProjectApplyEstimate tool', () => {
+    test('writes the reviewed cost + end date and reports what was applied', async () => {
+      const response = await call(
+        'UteamupProjectApplyEstimate',
+        { projectGuid: PROJECT_GUID, estimate: { estimatedDurationDays: 45, estimatedCost: 52000, applyDuration: true, applyCost: true } },
+        successReply({
+          durationApplied: true,
+          costApplied: true,
+          newEndDate: '2026-09-15T00:00:00Z',
+          newEstimatedCost: 52000,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.durationApplied).toBe(true);
+      expect(result.costApplied).toBe(true);
+      expect(result.newEstimatedCost).toBe(52000);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Reusable error suites (JSON-RPC compliance, 401, 503) — one representative
   // tool per family
@@ -645,6 +732,8 @@ describe('Project Planning MCP Tools', () => {
     { name: 'UteamupProjectSuggestWbs', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectApplyWbs', args: { projectGuid: PROJECT_GUID, stages: [{ name: 'Design', order: 1, tasks: [] }] } },
     { name: 'UteamupProjectLessonsLearned', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectEstimate', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectApplyEstimate', args: { projectGuid: PROJECT_GUID, estimate: { estimatedDurationDays: 30, estimatedCost: 5000, applyDuration: true, applyCost: true } } },
   ];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
