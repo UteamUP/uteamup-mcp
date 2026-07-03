@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.0.0-beta.9...2.1.0-beta.9) (2026-07-03)
+
+
+### Features
+
+* **meter-reading-schedule:** add UteamupMeterscheduleCreateWorkorder tool with tests for work order creation ([29ea2ad](https://github.com/UteamUP/uteamup-mcp/commit/29ea2ad431b92f2299a87ce2ff547479d7d2e598))
+
+
+### Bug Fixes
+
+* **.gitignore:** refine temporary files pattern to match any name containing "tmp" ([94e4977](https://github.com/UteamUP/uteamup-mcp/commit/94e4977805065884f534512931178b6b57a61dcd))
+
+
+### Miscellaneous
+
+* **gitignore:** add exclusion for session log files ([82f6a2c](https://github.com/UteamUP/uteamup-mcp/commit/82f6a2ca84a5e4a3cc5bcabd0159b2bf5605b1e5))
+* **session-log:** remove outdated session log for notification-pref MCP tests ([6686585](https://github.com/UteamUP/uteamup-mcp/commit/66865851c4da7d466556375bdf6834c9d3dec846))
+
+
+### Documentation
+
+* create session log for ChatGPT mobile MCP review findings ([c7d9ac6](https://github.com/UteamUP/uteamup-mcp/commit/c7d9ac6667c7315d9c3ce9bef87d89a7798b2cd0))
+
+
+### Tests
+
+* add reseller MCP tool tests ([8028cce](https://github.com/UteamUP/uteamup-mcp/commit/8028cce6df91c836c464b5cf053cb8d552ed6259))
+* **asset-aggregated-documents:** add tests for UteamupAssetGetAggregatedDocuments tool ([3e3155c](https://github.com/UteamUP/uteamup-mcp/commit/3e3155c0462b85876120f8e31ecd9d47f68cacfa))
+* **asset-duplicate:** add profile image field to asset read responses ([c7d9ac6](https://github.com/UteamUP/uteamup-mcp/commit/c7d9ac6667c7315d9c3ce9bef87d89a7798b2cd0))
+* **asset-duplicate:** add tests for UteamupAssetDuplicate MCP tool ([f5de991](https://github.com/UteamUP/uteamup-mcp/commit/f5de9915ca0d0556f22a79618cc4e2780c6bc67d))
+* **asset-edit-code-assignment:** add tests for UteamupAssetEditCodeAssignment MCP tool ([37b5ca2](https://github.com/UteamUP/uteamup-mcp/commit/37b5ca25245ab53572681191c61f09b1aee893a9))
+* **billing:** cover the AI-credit packages MCP tool ([fe8d5f5](https://github.com/UteamUP/uteamup-mcp/commit/fe8d5f5c7e20e9f6ed7b5ce1d165e5a30ef6ed28))
+* **bugs:** add Jest coverage for Bugs & Features WaitList status transitions ([5bd60ac](https://github.com/UteamUP/uteamup-mcp/commit/5bd60acfa35cc4f7cdfc0d3f08d1fadd4186be3d))
+* **bugs:** add MCP coverage for the bug reporter conversation read tool ([0fd58d5](https://github.com/UteamUP/uteamup-mcp/commit/0fd58d57e2ef1f08fac0a1617edb2f8899a80e43))
+* **bugs:** add tests for UteamupBugsAndFeaturesMine to verify caller's own reports ([dfbeebf](https://github.com/UteamUP/uteamup-mcp/commit/dfbeebf1ffb1f7a586dd879a7e1746a71ea0dcfc))
+* **code-catalog:** add tests for UteamupCodingsystemMoveEntryByGuid MCP tool ([3d98d10](https://github.com/UteamUP/uteamup-mcp/commit/3d98d10c4f343df422e0c475dd2428601d7622f9))
+* **codecatalog-move-entry:** include profile image fields in code-catalog read responses ([c7d9ac6](https://github.com/UteamUP/uteamup-mcp/commit/c7d9ac6667c7315d9c3ce9bef87d89a7798b2cd0))
+* **knowledge-ai:** add tests for UteamupKnowledgeAiTranslate and UteamupKnowledgeAiGenerateFromText tools ([c5827d1](https://github.com/UteamUP/uteamup-mcp/commit/c5827d1dc2b52c1cb41a6e062632f70cba0d4ba8))
+* **knowledge-entity-links:** add Jest tests for UteamupKnowledgeArticleGetLinked, LinkEntity, and UnlinkEntity tools ([14cc12b](https://github.com/UteamUP/uteamup-mcp/commit/14cc12b43689e1277fd29ea3bb02fcd2e3c2bfd9))
+* **mcp:** cover UteamupNotificationPreferenceGet/Set tools ([185972a](https://github.com/UteamUP/uteamup-mcp/commit/185972a573671f6f9ff7c7eea09f1718d5d50a59))
+* **mcp:** document findings and proof of production MCP functionality ([942f445](https://github.com/UteamUP/uteamup-mcp/commit/942f445b670da7bf0665f3bf8bf00729622a843a))
+* **meter-reading-schedule:** add tests for UteamupMeterscheduleGetOpenWorkorders tool ([dc247c2](https://github.com/UteamUP/uteamup-mcp/commit/dc247c2c69ba1a721c010ee765d11ff25e367f7c))
+* **meter-reading-schedule:** add tests for weekly and yearly schedule creation ([4af7e65](https://github.com/UteamUP/uteamup-mcp/commit/4af7e65dd444d62c5604a19b518c3e882a6192e0))
+* **notification-pref:** add Jest tests for UteamupNotificationPreferenceGet/Set tools ([780049c](https://github.com/UteamUP/uteamup-mcp/commit/780049c808da97088bdd46f806da3cfb8a3d010a))
+* **notification-pref:** add session log for Jest tests on new MCP tools ([14e7c8a](https://github.com/UteamUP/uteamup-mcp/commit/14e7c8a9c35fd4d23d2925fd7093ec2ca37477c9))
+* **plans:** cover the 5 new plan-management MCP tools ([8c2cf79](https://github.com/UteamUP/uteamup-mcp/commit/8c2cf79e9f8a64678e0aef8a1194d5bc3497c747))
+* **project:** cover UPMate estimate + apply MCP tools ([f4c5284](https://github.com/UteamUP/uteamup-mcp/commit/f4c5284c957cea4e1c7e1937bbdbdf2a6f45dfa7))
+* **reseller:** add tests for new reseller tools in MCP ([e1df9e6](https://github.com/UteamUP/uteamup-mcp/commit/e1df9e6b0506166fca6b1a42c25f4806f4b43514))
+* **reseller:** cover the application-meetings read tool ([2a9b633](https://github.com/UteamUP/uteamup-mcp/commit/2a9b633eb71b36767775b667eb9dce888139cf92))
+* **reseller:** MCP Jest coverage for program-defaults read tool ([70d2736](https://github.com/UteamUP/uteamup-mcp/commit/70d2736e3d5f8c597057a5b22310cebe38d9cbfa))
+* **responsible-owners:** add tests for UteamupAssetSetResponsibleOwners and UteamupCodecatalogSetResponsibleOwners tools ([30a47f6](https://github.com/UteamUP/uteamup-mcp/commit/30a47f6c4f87f9f75c52a2dde3184e0f814c9fca))
+* **session-log:** remove outdated session log for ChatGPT mobile MCP review ([c00e704](https://github.com/UteamUP/uteamup-mcp/commit/c00e70407ef16304452b58566d5f79768d54bc26))
+* **stock-enterprise-tools:** add tests for Stock enterprise MCP tools ([7c0ef24](https://github.com/UteamUP/uteamup-mcp/commit/7c0ef24e7b5b5da538c1da4ed7133d53c5e50262))
+* **stock:** add MCP count-from-photo tool Jest test ([52d1285](https://github.com/UteamUP/uteamup-mcp/commit/52d12851f3101d1d93f91cd65f60b83935e6bddf))
+* **wholesaler-tools:** add Jest tests for UteamupWholesaler tools including listing, retrieval, applications, and catalog ([087487d](https://github.com/UteamUP/uteamup-mcp/commit/087487de10d73874eb29c0dcc722ec6760be8b80))
+
 ## [2.0.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/1.0.0-beta.9...2.0.0-beta.9) (2026-05-27)
 
 
