@@ -25,6 +25,8 @@ describe('Marketplace MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_marketplace';
   const LISTING_GUID = '11111111-2222-3333-4444-555555555555';
+  const MESSAGE_GUID = '77777777-8888-9999-aaaa-bbbbbbbbbbbb';
+  const TRANSACTION_GUID = 'eeeeeeee-1111-2222-3333-444444444444';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -358,6 +360,141 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  const mockMessage = {
+    guid: MESSAGE_GUID,
+    listingGuid: LISTING_GUID,
+    transactionGuid: null,
+    parentMessageGuid: null,
+    senderKind: 'Buyer',
+    senderTenantName: 'Reykjavik Metals',
+    body: 'Is the Grundfos pump still available?',
+    isRead: false,
+    readAt: null,
+    createdAt: '2026-07-03T09:00:00Z',
+    isMine: true
+  };
+
+  const mockReply = {
+    ...mockMessage,
+    guid: '88888888-8888-9999-aaaa-bbbbbbbbbbbb',
+    parentMessageGuid: MESSAGE_GUID,
+    senderKind: 'Seller',
+    senderTenantName: 'Solid Energy',
+    body: 'Yes, ready to ship.',
+    isMine: false
+  };
+
+  describe('UteamupMarketplaceMessageSend tool (C1 write)', () => {
+    test('sending a listing message returns the created message', async () => {
+      const response = await call(
+        'UteamupMarketplaceMessageSend',
+        { listingGuid: LISTING_GUID, body: 'Is the Grundfos pump still available?' },
+        successReply(mockMessage)
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.guid).toBe(MESSAGE_GUID);
+      expect(data.senderKind).toBe('Buyer');
+      expect(data.isMine).toBe(true);
+    });
+
+    test('forwards guid/body/context args verbatim, carrying NO tenant/user identity args', async () => {
+      // Sender identity is derived from the authenticated API key on the backend — never a tool argument.
+      let capturedArgs = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.params?.name === 'UteamupMarketplaceMessageSend') {
+            capturedArgs = body.params.arguments;
+          }
+          return body.params?.name === 'UteamupMarketplaceMessageSend';
+        })
+        .reply(200, JSON.stringify(successReply(mockMessage).body), { 'Content-Type': 'application/json' });
+
+      const args = { listingGuid: LISTING_GUID, body: 'Hello seller' };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceMessageSend', args);
+
+      expect(capturedArgs).toEqual(args);
+      for (const forbidden of ['tenantGuid', 'tenantId', 'userId', 'senderUserId', 'senderKind']) {
+        expect(capturedArgs[forbidden]).toBeUndefined();
+      }
+    });
+
+    test('a wholesaler-sourced transaction surfaces a validation error', async () => {
+      const response = await call(
+        'UteamupMarketplaceMessageSend',
+        { transactionGuid: TRANSACTION_GUID, body: 'Hi' },
+        errorReply(-32000, 'Messaging is not available for wholesaler-sourced transactions.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('wholesaler-sourced');
+    });
+
+    test('messaging your own listing surfaces a forbidden error', async () => {
+      const response = await call(
+        'UteamupMarketplaceMessageSend',
+        { listingGuid: LISTING_GUID, body: 'Hi' },
+        errorReply(-32000, 'You cannot message on this listing.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('cannot message');
+    });
+
+    test('an unavailable listing surfaces a not-found error', async () => {
+      const response = await call(
+        'UteamupMarketplaceMessageSend',
+        { listingGuid: LISTING_GUID, body: 'Hi' },
+        errorReply(-32000, 'Listing, transaction, or thread not found or not available for messaging.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+  });
+
+  describe('UteamupMarketplaceMessagesList tool', () => {
+    test('lists the caller\'s message threads on a listing', async () => {
+      const response = await call('UteamupMarketplaceMessagesList', { listingGuid: LISTING_GUID }, successReply([mockMessage]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(1);
+      expect(data[0].listingGuid).toBe(LISTING_GUID);
+    });
+
+    test('lists the flat message thread for a transaction', async () => {
+      const response = await call('UteamupMarketplaceMessagesList', { transactionGuid: TRANSACTION_GUID }, successReply([mockMessage, mockReply]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(2);
+      expect(data[1].senderKind).toBe('Seller');
+    });
+
+    test('returns error on permission denial', async () => {
+      const response = await call(
+        'UteamupMarketplaceMessagesList',
+        { listingGuid: LISTING_GUID },
+        errorReply(-32000, 'Permission denied: MarketplaceCommunication.View required')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Permission denied');
+    });
+  });
+
+  describe('UteamupMarketplaceMessageThreadGet tool', () => {
+    test('returns the root plus replies in order', async () => {
+      const response = await call('UteamupMarketplaceMessageThreadGet', { rootMessageGuid: MESSAGE_GUID }, successReply([mockMessage, mockReply]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(2);
+      expect(data[0].guid).toBe(MESSAGE_GUID);
+      expect(data[0].parentMessageGuid).toBeNull();
+      expect(data[1].parentMessageGuid).toBe(MESSAGE_GUID);
+    });
+
+    test('a non-participant probe yields an empty thread', async () => {
+      const response = await call('UteamupMarketplaceMessageThreadGet', { rootMessageGuid: MESSAGE_GUID }, successReply([]));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(0);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -368,7 +505,10 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceMyOffersList', args: {} },
     { name: 'UteamupMarketplaceTransactionsList', args: { page: 1, pageSize: 20 } },
     { name: 'UteamupMarketplaceSettingsGet', args: {} },
-    { name: 'UteamupMarketplaceListingReport', args: { guid: LISTING_GUID, reasonCode: 'Illegal' } }
+    { name: 'UteamupMarketplaceListingReport', args: { guid: LISTING_GUID, reasonCode: 'Illegal' } },
+    { name: 'UteamupMarketplaceMessageSend', args: { listingGuid: LISTING_GUID, body: 'Hi' } },
+    { name: 'UteamupMarketplaceMessagesList', args: { listingGuid: LISTING_GUID } },
+    { name: 'UteamupMarketplaceMessageThreadGet', args: { rootMessageGuid: MESSAGE_GUID } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
