@@ -12,12 +12,13 @@
  *   UteamupMarketplaceMyOffersList()
  *   UteamupMarketplaceTransactionsList(page, pageSize)
  *   UteamupMarketplaceSettingsGet()
+ *   UteamupMarketplaceListingReport(guid, reasonCode, details?)   ← C14 write tool
  */
 
 'use strict';
 
 const nock = require('nock');
-const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { callMcpTool: _callMcpTool, sendRawRequest, successReply, errorReply } = require('./helpers/mcp-test-helpers');
 const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
 describe('Marketplace MCP Tools', () => {
@@ -281,6 +282,82 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  describe('UteamupMarketplaceListingReport tool (C14 write)', () => {
+    test('filing a report returns true', async () => {
+      const response = await call(
+        'UteamupMarketplaceListingReport',
+        { guid: LISTING_GUID, reasonCode: 'Misleading' },
+        successReply(true)
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBe(true);
+    });
+
+    test('details is optional — a report without details still succeeds', async () => {
+      const response = await call(
+        'UteamupMarketplaceListingReport',
+        { guid: LISTING_GUID, reasonCode: 'Offensive' },
+        successReply(true)
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBe(true);
+    });
+
+    test('forwards guid, reasonCode and details verbatim, carrying NO tenant/user identity args', async () => {
+      // Reporter identity is derived from the authenticated API key's Bearer token on the backend —
+      // never from a tool argument. Adding a tenantGuid/userId arg would invite report spoofing.
+      let capturedArgs = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.params?.name === 'UteamupMarketplaceListingReport') {
+            capturedArgs = body.params.arguments;
+          }
+          return body.params?.name === 'UteamupMarketplaceListingReport';
+        })
+        .reply(200, JSON.stringify(successReply(true).body), { 'Content-Type': 'application/json' });
+
+      const args = { guid: LISTING_GUID, reasonCode: 'Illegal', details: 'Counterfeit safety part' };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceListingReport', args);
+
+      expect(capturedArgs).toEqual(args);
+      for (const forbidden of ['tenantGuid', 'tenantId', 'userId', 'reporterUserId', 'reporterTenantGuid']) {
+        expect(capturedArgs[forbidden]).toBeUndefined();
+      }
+    });
+
+    test('already-reported surfaces a conflict error without crashing the proxy', async () => {
+      const response = await call(
+        'UteamupMarketplaceListingReport',
+        { guid: LISTING_GUID, reasonCode: 'Other' },
+        errorReply(-32000, 'You have already reported this listing.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('already reported');
+    });
+
+    test('an unavailable / hidden listing surfaces a not-found error', async () => {
+      const response = await call(
+        'UteamupMarketplaceListingReport',
+        { guid: LISTING_GUID, reasonCode: 'Illegal' },
+        errorReply(-32000, 'Listing not found or not available for reporting.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('an invalid reason code surfaces a validation error', async () => {
+      const response = await call(
+        'UteamupMarketplaceListingReport',
+        { guid: LISTING_GUID, reasonCode: 'Bogus' },
+        errorReply(-32000, 'Invalid report reason.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Invalid report reason');
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -290,7 +367,8 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceRequirementsList', args: {} },
     { name: 'UteamupMarketplaceMyOffersList', args: {} },
     { name: 'UteamupMarketplaceTransactionsList', args: { page: 1, pageSize: 20 } },
-    { name: 'UteamupMarketplaceSettingsGet', args: {} }
+    { name: 'UteamupMarketplaceSettingsGet', args: {} },
+    { name: 'UteamupMarketplaceListingReport', args: { guid: LISTING_GUID, reasonCode: 'Illegal' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);

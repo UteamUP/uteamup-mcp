@@ -1,20 +1,20 @@
 /**
- * Reseller MCP tool tests
+ * Partner MCP tool tests
  *
- * Tests that Reseller / channel-partner MCP tool calls are correctly formed as JSON-RPC 2.0
+ * Tests that Partner / channel-partner MCP tool calls are correctly formed as JSON-RPC 2.0
  * requests and that the MCP proxy properly handles both successful and error responses from the
  * backend /mcp endpoint. Mirrors contractor-tools.test.js (nock-mocked HTTPS).
  *
  * Tools under test:
- *   UteamupResellerList(status, search)
- *   UteamupResellerGet(resellerGuid)
- *   UteamupResellerApplicationsList(status)
- *   UteamupResellerTenantsList(resellerGuid)
- *   UteamupResellerEarningsList(resellerGuid, skip, take)
- *   UteamupResellerMyApplicationGet()
- *   UteamupResellerApplicationChecksGet(applicationGuid)
- *   UteamupResellerMyReferralCodesGet()
- *   UteamupResellerMyTenantManagerGet()
+ *   UteamupPartnerList(status, search)
+ *   UteamupPartnerGet(partnerGuid)
+ *   UteamupPartnerApplicationsList(status)
+ *   UteamupPartnerTenantsList(partnerGuid)
+ *   UteamupPartnerEarningsList(partnerGuid, skip, take)
+ *   UteamupPartnerMyApplicationGet()
+ *   UteamupPartnerApplicationChecksGet(applicationGuid)
+ *   UteamupPartnerMyReferralCodesGet()
+ *   UteamupPartnerMyTenantManagerGet()
  */
 
 'use strict';
@@ -23,9 +23,9 @@ const nock = require('nock');
 const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
 const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 
-describe('Reseller MCP Tools', () => {
+describe('Partner MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
-  const ACCESS_TOKEN = 'test_access_token_reseller';
+  const ACCESS_TOKEN = 'test_access_token_partner';
   const RESELLER_GUID = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(() => nock.cleanAll());
@@ -33,12 +33,12 @@ describe('Reseller MCP Tools', () => {
 
   const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
-  const mockReseller = {
+  const mockPartner = {
     guid: RESELLER_GUID,
     name: 'Northwind Channel Partners',
     contactEmail: 'partners@northwind.example',
     status: 'active',
-    type: 'resellerVar',
+    type: 'partnerVar',
     settlementModel: 'netRevenueShare',
     payoutCurrency: 'USD',
     tier: 'Gold',
@@ -49,14 +49,14 @@ describe('Reseller MCP Tools', () => {
     guid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     organizationName: 'Acme Partners',
     contactEmail: 'apply@acme.example',
-    requestedType: 'resellerVar',
+    requestedType: 'partnerVar',
     status: 'pendingApproval',
     createdAt: '2026-06-01T08:00:00Z'
   };
 
   const mockTenantLink = {
     guid: 'tttttttt-1111-2222-3333-444444444444',
-    resellerGuid: RESELLER_GUID,
+    partnerGuid: RESELLER_GUID,
     tenantGuid: 'cccccccc-1111-2222-3333-444444444444',
     acquisitionChannel: 'DirectSale',
     isActive: true,
@@ -65,7 +65,7 @@ describe('Reseller MCP Tools', () => {
 
   const mockEarning = {
     guid: 'eeeeeeee-1111-2222-3333-444444444444',
-    resellerGuid: RESELLER_GUID,
+    partnerGuid: RESELLER_GUID,
     tenantName: 'Solid Energy',
     grossAmount: 800.0,
     commissionRate: 0.15,
@@ -78,7 +78,7 @@ describe('Reseller MCP Tools', () => {
   const mockProgramDefaults = {
     defaultCommissionRate: 0.15,
     defaultCommissionBase: 'netOfDiscount',
-    defaultType: 'resellerVar',
+    defaultType: 'partnerVar',
     defaultSettlementModel: 'netRevenueShare',
     defaultSettlementMethod: 'cash',
     defaultPayoutMethod: 'manualOffline',
@@ -90,9 +90,9 @@ describe('Reseller MCP Tools', () => {
     defaultTier: 'Standard'
   };
 
-  describe('UteamupResellerList tool', () => {
-    test('returns the reseller directory', async () => {
-      const response = await call('UteamupResellerList', {}, successReply([mockReseller]));
+  describe('UteamupPartnerList tool', () => {
+    test('returns the partner directory', async () => {
+      const response = await call('UteamupPartnerList', {}, successReply([mockPartner]));
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
@@ -102,69 +102,69 @@ describe('Reseller MCP Tools', () => {
     });
 
     test('filters by status', async () => {
-      const response = await call('UteamupResellerList', { status: 'Active' }, successReply([mockReseller]));
+      const response = await call('UteamupPartnerList', { status: 'Active' }, successReply([mockPartner]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data[0].status).toBe('active');
     });
 
     test('returns empty list when none exist', async () => {
-      const response = await call('UteamupResellerList', {}, successReply([]));
+      const response = await call('UteamupPartnerList', {}, successReply([]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toHaveLength(0);
     });
   });
 
-  describe('UteamupResellerGet tool', () => {
-    test('returns a single reseller by guid', async () => {
-      const response = await call('UteamupResellerGet', { resellerGuid: RESELLER_GUID }, successReply(mockReseller));
+  describe('UteamupPartnerGet tool', () => {
+    test('returns a single partner by guid', async () => {
+      const response = await call('UteamupPartnerGet', { partnerGuid: RESELLER_GUID }, successReply(mockPartner));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.guid).toBe(RESELLER_GUID);
       expect(data.tier).toBe('Gold');
     });
 
-    test('returns error when reseller not found', async () => {
-      const response = await call('UteamupResellerGet', { resellerGuid: RESELLER_GUID }, errorReply(-32000, 'Reseller not found'));
+    test('returns error when partner not found', async () => {
+      const response = await call('UteamupPartnerGet', { partnerGuid: RESELLER_GUID }, errorReply(-32000, 'Partner not found'));
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('Reseller not found');
+      expect(response.body.error.message).toContain('Partner not found');
     });
   });
 
-  describe('UteamupResellerApplicationsList tool', () => {
+  describe('UteamupPartnerApplicationsList tool', () => {
     test('returns the application inbox', async () => {
-      const response = await call('UteamupResellerApplicationsList', { status: 'PendingApproval' }, successReply([mockApplication]));
+      const response = await call('UteamupPartnerApplicationsList', { status: 'PendingApproval' }, successReply([mockApplication]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data[0].organizationName).toBe('Acme Partners');
       expect(data[0].status).toBe('pendingApproval');
     });
   });
 
-  describe('UteamupResellerTenantsList tool', () => {
-    test('returns managed tenants for a reseller', async () => {
-      const response = await call('UteamupResellerTenantsList', { resellerGuid: RESELLER_GUID }, successReply([mockTenantLink]));
+  describe('UteamupPartnerTenantsList tool', () => {
+    test('returns managed tenants for a partner', async () => {
+      const response = await call('UteamupPartnerTenantsList', { partnerGuid: RESELLER_GUID }, successReply([mockTenantLink]));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data[0].resellerGuid).toBe(RESELLER_GUID);
+      expect(data[0].partnerGuid).toBe(RESELLER_GUID);
       expect(data[0].isActive).toBe(true);
     });
   });
 
-  describe('UteamupResellerEarningsList tool', () => {
+  describe('UteamupPartnerEarningsList tool', () => {
     test('returns the commission ledger', async () => {
-      const response = await call('UteamupResellerEarningsList', { resellerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([mockEarning]));
+      const response = await call('UteamupPartnerEarningsList', { partnerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([mockEarning]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data[0].earningAmount).toBe(120.0);
       expect(data[0].currency).toBe('USD');
     });
 
     test('returns empty ledger when none exist', async () => {
-      const response = await call('UteamupResellerEarningsList', { resellerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([]));
+      const response = await call('UteamupPartnerEarningsList', { partnerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toHaveLength(0);
     });
   });
 
-  describe('UteamupResellerProgramDefaultsGet tool', () => {
-    test('returns the global program defaults new resellers inherit', async () => {
-      const response = await call('UteamupResellerProgramDefaultsGet', {}, successReply(mockProgramDefaults));
+  describe('UteamupPartnerProgramDefaultsGet tool', () => {
+    test('returns the global program defaults new partners inherit', async () => {
+      const response = await call('UteamupPartnerProgramDefaultsGet', {}, successReply(mockProgramDefaults));
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
@@ -175,7 +175,7 @@ describe('Reseller MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // New tools — 2026-06 reseller program overhaul
+  // New tools — 2026-06 partner program overhaul
   // ---------------------------------------------------------------------------
 
   const APPLICATION_GUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -227,8 +227,8 @@ describe('Reseller MCP Tools', () => {
   const mockMeetings = [
     {
       guid: 'mtg00000-0000-0000-0000-000000000001',
-      subject: 'Reseller intro call',
-      notes: 'Discuss the reseller program',
+      subject: 'Partner intro call',
+      notes: 'Discuss the partner program',
       scheduledStartUtc: '2026-06-20T14:00:00Z',
       scheduledEndUtc: '2026-06-20T14:30:00Z',
       teamsJoinUrl: 'https://teams.microsoft.com/l/meetup-join/abc',
@@ -239,16 +239,16 @@ describe('Reseller MCP Tools', () => {
   ];
 
   const mockTenantManager = {
-    resellerGuid: RESELLER_GUID,
+    partnerGuid: RESELLER_GUID,
     name: 'Northwind Channel Partners',
     contactEmail: 'partners@northwind.example',
     website: 'https://northwind.example',
     since: '2026-03-01T00:00:00Z'
   };
 
-  describe('UteamupResellerMyApplicationGet tool', () => {
+  describe('UteamupPartnerMyApplicationGet tool', () => {
     test('returns the authenticated applicant\'s own application thread', async () => {
-      const response = await call('UteamupResellerMyApplicationGet', {}, successReply(mockThread));
+      const response = await call('UteamupPartnerMyApplicationGet', {}, successReply(mockThread));
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
@@ -258,7 +258,7 @@ describe('Reseller MCP Tools', () => {
     });
 
     test('returns null when no application exists for this user', async () => {
-      const response = await call('UteamupResellerMyApplicationGet', {}, successReply(null));
+      const response = await call('UteamupPartnerMyApplicationGet', {}, successReply(null));
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toBeNull();
@@ -272,10 +272,10 @@ describe('Reseller MCP Tools', () => {
     });
   });
 
-  describe('UteamupResellerApplicationChecksGet tool', () => {
+  describe('UteamupPartnerApplicationChecksGet tool', () => {
     test('returns the reviewer validation checklist for an application', async () => {
       const response = await call(
-        'UteamupResellerApplicationChecksGet',
+        'UteamupPartnerApplicationChecksGet',
         { applicationGuid: APPLICATION_GUID },
         successReply(mockChecks)
       );
@@ -290,7 +290,7 @@ describe('Reseller MCP Tools', () => {
 
     test('returns empty array when application has no checks yet', async () => {
       const response = await call(
-        'UteamupResellerApplicationChecksGet',
+        'UteamupPartnerApplicationChecksGet',
         { applicationGuid: APPLICATION_GUID },
         successReply([])
       );
@@ -300,7 +300,7 @@ describe('Reseller MCP Tools', () => {
 
     test('returns error when application not found', async () => {
       const response = await call(
-        'UteamupResellerApplicationChecksGet',
+        'UteamupPartnerApplicationChecksGet',
         { applicationGuid: APPLICATION_GUID },
         errorReply(-32000, 'Application not found')
       );
@@ -309,10 +309,10 @@ describe('Reseller MCP Tools', () => {
     });
   });
 
-  describe('UteamupResellerApplicationMeetingsGet tool', () => {
+  describe('UteamupPartnerApplicationMeetingsGet tool', () => {
     test('returns the meetings scheduled on an application', async () => {
       const response = await call(
-        'UteamupResellerApplicationMeetingsGet',
+        'UteamupPartnerApplicationMeetingsGet',
         { applicationGuid: APPLICATION_GUID },
         successReply(mockMeetings)
       );
@@ -320,14 +320,14 @@ describe('Reseller MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
       expect(Array.isArray(data)).toBe(true);
-      expect(data[0].subject).toBe('Reseller intro call');
+      expect(data[0].subject).toBe('Partner intro call');
       expect(data[0].teamsJoinUrl).toContain('teams.microsoft.com');
       expect(data[0].status).toBe('scheduled');
     });
 
     test('returns empty array when the application has no meetings', async () => {
       const response = await call(
-        'UteamupResellerApplicationMeetingsGet',
+        'UteamupPartnerApplicationMeetingsGet',
         { applicationGuid: APPLICATION_GUID },
         successReply([])
       );
@@ -337,7 +337,7 @@ describe('Reseller MCP Tools', () => {
 
     test('returns error when application not found', async () => {
       const response = await call(
-        'UteamupResellerApplicationMeetingsGet',
+        'UteamupPartnerApplicationMeetingsGet',
         { applicationGuid: APPLICATION_GUID },
         errorReply(-32000, 'Application not found')
       );
@@ -346,9 +346,9 @@ describe('Reseller MCP Tools', () => {
     });
   });
 
-  describe('UteamupResellerMyReferralCodesGet tool', () => {
-    test('returns the reseller\'s referral codes including the primary one', async () => {
-      const response = await call('UteamupResellerMyReferralCodesGet', {}, successReply(mockReferralCodes));
+  describe('UteamupPartnerMyReferralCodesGet tool', () => {
+    test('returns the partner\'s referral codes including the primary one', async () => {
+      const response = await call('UteamupPartnerMyReferralCodesGet', {}, successReply(mockReferralCodes));
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
@@ -358,32 +358,32 @@ describe('Reseller MCP Tools', () => {
       expect(data[0].isActive).toBe(true);
     });
 
-    test('returns empty array when reseller has no codes', async () => {
-      const response = await call('UteamupResellerMyReferralCodesGet', {}, successReply([]));
+    test('returns empty array when partner has no codes', async () => {
+      const response = await call('UteamupPartnerMyReferralCodesGet', {}, successReply([]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toHaveLength(0);
     });
 
-    test('does NOT accept a resellerGuid argument (spoofing guard)', () => {
-      // The reseller is derived from the authenticated user's account — no resellerGuid arg allowed.
+    test('does NOT accept a partnerGuid argument (spoofing guard)', () => {
+      // The partner is derived from the authenticated user's account — no partnerGuid arg allowed.
       const emptyArgs = {};
       expect(Object.keys(emptyArgs)).toHaveLength(0);
     });
   });
 
-  describe('UteamupResellerMyTenantManagerGet tool', () => {
-    test('returns the reseller managing the caller\'s tenant', async () => {
-      const response = await call('UteamupResellerMyTenantManagerGet', {}, successReply(mockTenantManager));
+  describe('UteamupPartnerMyTenantManagerGet tool', () => {
+    test('returns the partner managing the caller\'s tenant', async () => {
+      const response = await call('UteamupPartnerMyTenantManagerGet', {}, successReply(mockTenantManager));
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.resellerGuid).toBe(RESELLER_GUID);
+      expect(data.partnerGuid).toBe(RESELLER_GUID);
       expect(data.name).toBe('Northwind Channel Partners');
       expect(data.since).toBe('2026-03-01T00:00:00Z');
     });
 
-    test('returns null when the tenant is not managed by a reseller', async () => {
-      const response = await call('UteamupResellerMyTenantManagerGet', {}, successReply(null));
+    test('returns null when the tenant is not managed by a partner', async () => {
+      const response = await call('UteamupPartnerMyTenantManagerGet', {}, successReply(null));
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toBeNull();
@@ -400,17 +400,17 @@ describe('Reseller MCP Tools', () => {
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
   const allTools = [
-    { name: 'UteamupResellerList', args: {} },
-    { name: 'UteamupResellerGet', args: { resellerGuid: RESELLER_GUID } },
-    { name: 'UteamupResellerApplicationsList', args: {} },
-    { name: 'UteamupResellerTenantsList', args: { resellerGuid: RESELLER_GUID } },
-    { name: 'UteamupResellerEarningsList', args: { resellerGuid: RESELLER_GUID, skip: 0, take: 50 } },
-    { name: 'UteamupResellerProgramDefaultsGet', args: {} },
-    { name: 'UteamupResellerMyApplicationGet', args: {} },
-    { name: 'UteamupResellerApplicationChecksGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
-    { name: 'UteamupResellerApplicationMeetingsGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
-    { name: 'UteamupResellerMyReferralCodesGet', args: {} },
-    { name: 'UteamupResellerMyTenantManagerGet', args: {} }
+    { name: 'UteamupPartnerList', args: {} },
+    { name: 'UteamupPartnerGet', args: { partnerGuid: RESELLER_GUID } },
+    { name: 'UteamupPartnerApplicationsList', args: {} },
+    { name: 'UteamupPartnerTenantsList', args: { partnerGuid: RESELLER_GUID } },
+    { name: 'UteamupPartnerEarningsList', args: { partnerGuid: RESELLER_GUID, skip: 0, take: 50 } },
+    { name: 'UteamupPartnerProgramDefaultsGet', args: {} },
+    { name: 'UteamupPartnerMyApplicationGet', args: {} },
+    { name: 'UteamupPartnerApplicationChecksGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
+    { name: 'UteamupPartnerApplicationMeetingsGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
+    { name: 'UteamupPartnerMyReferralCodesGet', args: {} },
+    { name: 'UteamupPartnerMyTenantManagerGet', args: {} }
   ];
 
   describeJsonRpcCompliance(call, allTools);
