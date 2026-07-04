@@ -233,6 +233,57 @@ describe('Project Planning MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Workorder links (stage assign + risk mitigation links)
+  // ---------------------------------------------------------------------------
+  describe('UteamupProjectRiskLinkWorkorder tool', () => {
+    const RISK_GUID = '44444444-4444-4444-4444-444444444444';
+    const WORKORDER_GUID = '55555555-5555-5555-5555-555555555555';
+
+    test('links a workorder to a risk and returns true', async () => {
+      const response = await call(
+        'UteamupProjectRiskLinkWorkorder',
+        { projectGuid: PROJECT_GUID, riskGuid: RISK_GUID, workorderGuid: WORKORDER_GUID },
+        successReply(true),
+      );
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.result.content[0].text)).toBe(true);
+    });
+
+    test('surfaces the workorder-not-in-project conflict as JSON-RPC error', async () => {
+      const response = await call(
+        'UteamupProjectRiskLinkWorkorder',
+        { projectGuid: PROJECT_GUID, riskGuid: RISK_GUID, workorderGuid: WORKORDER_GUID },
+        errorReply(-32603, 'InvalidOperationException: The workorder must be added to the project before it can be linked to a risk.'),
+      );
+
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe(-32603);
+      expect(response.body.error.message).toContain('must be added to the project');
+    });
+  });
+
+  describe('UteamupProjectRiskListWorkorders tool', () => {
+    const RISK_GUID = '44444444-4444-4444-4444-444444444444';
+
+    test('returns the GUID-keyed linked workorders', async () => {
+      const response = await call(
+        'UteamupProjectRiskListWorkorders',
+        { projectGuid: PROJECT_GUID, riskGuid: RISK_GUID },
+        successReply([
+          { guid: '55555555-5555-5555-5555-555555555555', title: 'Order transformer early', status: 'InProgress' },
+        ]),
+      );
+
+      expect(response.status).toBe(200);
+      const workorders = JSON.parse(response.body.result.content[0].text);
+      expect(workorders).toHaveLength(1);
+      // GUIDs-in/integer-ids-out: workorder identity is a GUID at the boundary
+      expect(workorders[0].guid).toBe('55555555-5555-5555-5555-555555555555');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Bill of materials
   // ---------------------------------------------------------------------------
   describe('UteamupProjectBomList tool', () => {
