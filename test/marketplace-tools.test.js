@@ -582,6 +582,39 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  const mockScorecard = {
+    sellerTenantGuid: 'aaaaaaaa-1111-2222-3333-444444444444',
+    sellerName: 'Solid Energy',
+    sellerCountry: 'IS',
+    ratingAverage: 4.5,
+    ratingCount: 12,
+    totalTransactions: 20,
+    completedTransactions: 18,
+    cancelledTransactions: 1,
+    completionRatePercent: 90.0,
+    activeListings: 7,
+    avgResponseMinutes: 42.5
+  };
+
+  describe('UteamupMarketplaceSellerScorecard tool (H3)', () => {
+    test('returns the seller trust scorecard', async () => {
+      const response = await call('UteamupMarketplaceSellerScorecard', { sellerGuid: mockScorecard.sellerTenantGuid }, successReply(mockScorecard));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.sellerName).toBe('Solid Energy');
+      expect(data.completionRatePercent).toBe(90.0);
+      expect(data.avgResponseMinutes).toBe(42.5);
+    });
+
+    test('an unavailable / frozen seller yields a null scorecard, not an error', async () => {
+      const response = await call('UteamupMarketplaceSellerScorecard', { sellerGuid: mockScorecard.sellerTenantGuid }, successReply(null));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBeNull();
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -598,7 +631,8 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceMessageThreadGet', args: { rootMessageGuid: MESSAGE_GUID } },
     { name: 'UteamupMarketplaceSavedSearchesList', args: {} },
     { name: 'UteamupMarketplaceSaveSearch', args: { name: 'Good tools', filtersJson: '{}', notifyOnNewMatch: true } },
-    { name: 'UteamupMarketplaceDeleteSavedSearch', args: { guid: '12121212-3434-5656-7878-9a9a9a9a9a9a' } }
+    { name: 'UteamupMarketplaceDeleteSavedSearch', args: { guid: '12121212-3434-5656-7878-9a9a9a9a9a9a' } },
+    { name: 'UteamupMarketplaceSellerScorecard', args: { sellerGuid: 'aaaaaaaa-1111-2222-3333-444444444444' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
