@@ -3,7 +3,7 @@
  *
  * Tests that cross-tenant marketplace MCP tool calls are correctly formed as JSON-RPC 2.0
  * requests and that the MCP proxy properly handles both successful and error responses from
- * the backend /mcp endpoint. Mirrors reseller-tools.test.js (nock-mocked HTTPS).
+ * the backend /mcp endpoint. Mirrors partner-tools.test.js (nock-mocked HTTPS).
  *
  * Tools under test:
  *   UteamupMarketplaceBrowse(search, itemType, condition, sourceKind, page, pageSize)

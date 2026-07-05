@@ -2,8 +2,8 @@
  * Wholesaler MCP tool tests
  *
  * Tests that Wholesaler-program MCP tool calls (goods suppliers — distinct from the license
- * Reseller program) are correctly formed as JSON-RPC 2.0 requests and that the MCP proxy
- * properly handles both successful and error responses. Mirrors reseller-tools.test.js
+ * Partner program) are correctly formed as JSON-RPC 2.0 requests and that the MCP proxy
+ * properly handles both successful and error responses. Mirrors partner-tools.test.js
  * (nock-mocked HTTPS).
  *
  * Tools under test:

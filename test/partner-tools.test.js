@@ -26,7 +26,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Partner MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_partner';
-  const RESELLER_GUID = '11111111-2222-3333-4444-555555555555';
+  const PARTNER_GUID = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -34,7 +34,7 @@ describe('Partner MCP Tools', () => {
   const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   const mockPartner = {
-    guid: RESELLER_GUID,
+    guid: PARTNER_GUID,
     name: 'Northwind Channel Partners',
     contactEmail: 'partners@northwind.example',
     status: 'active',
@@ -56,7 +56,7 @@ describe('Partner MCP Tools', () => {
 
   const mockTenantLink = {
     guid: 'tttttttt-1111-2222-3333-444444444444',
-    partnerGuid: RESELLER_GUID,
+    partnerGuid: PARTNER_GUID,
     tenantGuid: 'cccccccc-1111-2222-3333-444444444444',
     acquisitionChannel: 'DirectSale',
     isActive: true,
@@ -65,7 +65,7 @@ describe('Partner MCP Tools', () => {
 
   const mockEarning = {
     guid: 'eeeeeeee-1111-2222-3333-444444444444',
-    partnerGuid: RESELLER_GUID,
+    partnerGuid: PARTNER_GUID,
     tenantName: 'Solid Energy',
     grossAmount: 800.0,
     commissionRate: 0.15,
@@ -116,14 +116,14 @@ describe('Partner MCP Tools', () => {
 
   describe('UteamupPartnerGet tool', () => {
     test('returns a single partner by guid', async () => {
-      const response = await call('UteamupPartnerGet', { partnerGuid: RESELLER_GUID }, successReply(mockPartner));
+      const response = await call('UteamupPartnerGet', { partnerGuid: PARTNER_GUID }, successReply(mockPartner));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.guid).toBe(RESELLER_GUID);
+      expect(data.guid).toBe(PARTNER_GUID);
       expect(data.tier).toBe('Gold');
     });
 
     test('returns error when partner not found', async () => {
-      const response = await call('UteamupPartnerGet', { partnerGuid: RESELLER_GUID }, errorReply(-32000, 'Partner not found'));
+      const response = await call('UteamupPartnerGet', { partnerGuid: PARTNER_GUID }, errorReply(-32000, 'Partner not found'));
       expect(response.body.error).toBeDefined();
       expect(response.body.error.message).toContain('Partner not found');
     });
@@ -140,23 +140,23 @@ describe('Partner MCP Tools', () => {
 
   describe('UteamupPartnerTenantsList tool', () => {
     test('returns managed tenants for a partner', async () => {
-      const response = await call('UteamupPartnerTenantsList', { partnerGuid: RESELLER_GUID }, successReply([mockTenantLink]));
+      const response = await call('UteamupPartnerTenantsList', { partnerGuid: PARTNER_GUID }, successReply([mockTenantLink]));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data[0].partnerGuid).toBe(RESELLER_GUID);
+      expect(data[0].partnerGuid).toBe(PARTNER_GUID);
       expect(data[0].isActive).toBe(true);
     });
   });
 
   describe('UteamupPartnerEarningsList tool', () => {
     test('returns the commission ledger', async () => {
-      const response = await call('UteamupPartnerEarningsList', { partnerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([mockEarning]));
+      const response = await call('UteamupPartnerEarningsList', { partnerGuid: PARTNER_GUID, skip: 0, take: 50 }, successReply([mockEarning]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data[0].earningAmount).toBe(120.0);
       expect(data[0].currency).toBe('USD');
     });
 
     test('returns empty ledger when none exist', async () => {
-      const response = await call('UteamupPartnerEarningsList', { partnerGuid: RESELLER_GUID, skip: 0, take: 50 }, successReply([]));
+      const response = await call('UteamupPartnerEarningsList', { partnerGuid: PARTNER_GUID, skip: 0, take: 50 }, successReply([]));
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data).toHaveLength(0);
     });
@@ -239,7 +239,7 @@ describe('Partner MCP Tools', () => {
   ];
 
   const mockTenantManager = {
-    partnerGuid: RESELLER_GUID,
+    partnerGuid: PARTNER_GUID,
     name: 'Northwind Channel Partners',
     contactEmail: 'partners@northwind.example',
     website: 'https://northwind.example',
@@ -377,7 +377,7 @@ describe('Partner MCP Tools', () => {
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.partnerGuid).toBe(RESELLER_GUID);
+      expect(data.partnerGuid).toBe(PARTNER_GUID);
       expect(data.name).toBe('Northwind Channel Partners');
       expect(data.since).toBe('2026-03-01T00:00:00Z');
     });
@@ -401,10 +401,10 @@ describe('Partner MCP Tools', () => {
   // ---------------------------------------------------------------------------
   const allTools = [
     { name: 'UteamupPartnerList', args: {} },
-    { name: 'UteamupPartnerGet', args: { partnerGuid: RESELLER_GUID } },
+    { name: 'UteamupPartnerGet', args: { partnerGuid: PARTNER_GUID } },
     { name: 'UteamupPartnerApplicationsList', args: {} },
-    { name: 'UteamupPartnerTenantsList', args: { partnerGuid: RESELLER_GUID } },
-    { name: 'UteamupPartnerEarningsList', args: { partnerGuid: RESELLER_GUID, skip: 0, take: 50 } },
+    { name: 'UteamupPartnerTenantsList', args: { partnerGuid: PARTNER_GUID } },
+    { name: 'UteamupPartnerEarningsList', args: { partnerGuid: PARTNER_GUID, skip: 0, take: 50 } },
     { name: 'UteamupPartnerProgramDefaultsGet', args: {} },
     { name: 'UteamupPartnerMyApplicationGet', args: {} },
     { name: 'UteamupPartnerApplicationChecksGet', args: { applicationGuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } },
