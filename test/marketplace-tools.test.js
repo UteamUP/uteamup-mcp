@@ -639,6 +639,33 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  const mockBuyerReputation = {
+    buyerTenantGuid: 'ffffffff-1111-2222-3333-444444444444',
+    buyerTenantName: 'Reykjavik Metals',
+    completedPurchases: 8,
+    totalTransactions: 10,
+    isVerified: true,
+    memberSince: '2025-01-15T00:00:00Z'
+  };
+
+  describe('UteamupMarketplaceBuyerReputation tool (H13)', () => {
+    test('returns the buyer reputation with verified badge', async () => {
+      const response = await call('UteamupMarketplaceBuyerReputation', { buyerGuid: mockBuyerReputation.buyerTenantGuid }, successReply(mockBuyerReputation));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.completedPurchases).toBe(8);
+      expect(data.isVerified).toBe(true);
+    });
+
+    test('an unknown buyer yields a null reputation, not an error', async () => {
+      const response = await call('UteamupMarketplaceBuyerReputation', { buyerGuid: mockBuyerReputation.buyerTenantGuid }, successReply(null));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBeNull();
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -657,7 +684,8 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceSaveSearch', args: { name: 'Good tools', filtersJson: '{}', notifyOnNewMatch: true } },
     { name: 'UteamupMarketplaceDeleteSavedSearch', args: { guid: '12121212-3434-5656-7878-9a9a9a9a9a9a' } },
     { name: 'UteamupMarketplaceSellerScorecard', args: { sellerGuid: 'aaaaaaaa-1111-2222-3333-444444444444' } },
-    { name: 'UteamupMarketplaceFacets', args: { search: 'drill' } }
+    { name: 'UteamupMarketplaceFacets', args: { search: 'drill' } },
+    { name: 'UteamupMarketplaceBuyerReputation', args: { buyerGuid: 'ffffffff-1111-2222-3333-444444444444' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
