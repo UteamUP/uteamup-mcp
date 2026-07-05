@@ -495,6 +495,93 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  const mockSavedSearch = {
+    guid: '12121212-3434-5656-7878-9a9a9a9a9a9a',
+    name: 'Good tools under 200',
+    filtersJson: '{"itemType":"Tool","condition":"Good","maxPrice":200}',
+    notifyOnNewMatch: true,
+    createdAt: '2026-07-04T10:00:00Z',
+    lastNotifiedAt: null
+  };
+
+  describe('UteamupMarketplaceSavedSearchesList tool (H1)', () => {
+    test("returns the caller's saved searches", async () => {
+      const response = await call('UteamupMarketplaceSavedSearchesList', {}, successReply([mockSavedSearch]));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(1);
+      expect(data[0].name).toBe('Good tools under 200');
+      expect(data[0].notifyOnNewMatch).toBe(true);
+    });
+
+    test('an empty list is returned cleanly', async () => {
+      const response = await call('UteamupMarketplaceSavedSearchesList', {}, successReply([]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(0);
+    });
+  });
+
+  describe('UteamupMarketplaceSaveSearch tool (H1 write)', () => {
+    test('saving a search returns the created record', async () => {
+      const response = await call(
+        'UteamupMarketplaceSaveSearch',
+        { name: 'Good tools under 200', filtersJson: '{"itemType":"Tool","maxPrice":200}', notifyOnNewMatch: true },
+        successReply(mockSavedSearch)
+      );
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.guid).toBe(mockSavedSearch.guid);
+      expect(data.name).toBe('Good tools under 200');
+    });
+
+    test('a name-only save succeeds (filtersJson defaults to {}, notify defaults on)', async () => {
+      const response = await call(
+        'UteamupMarketplaceSaveSearch',
+        { name: 'Everything' },
+        successReply({ ...mockSavedSearch, name: 'Everything', filtersJson: '{}' })
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.filtersJson).toBe('{}');
+    });
+
+    test('forwards name/filtersJson/notify verbatim, carrying NO tenant/user identity args', async () => {
+      // Owner identity is the authenticated API key's user on the backend — never a tool argument.
+      let capturedArgs = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.params?.name === 'UteamupMarketplaceSaveSearch') {
+            capturedArgs = body.params.arguments;
+          }
+          return body.params?.name === 'UteamupMarketplaceSaveSearch';
+        })
+        .reply(200, JSON.stringify(successReply(mockSavedSearch).body), { 'Content-Type': 'application/json' });
+
+      const args = { name: 'Good tools under 200', filtersJson: '{"itemType":"Tool"}', notifyOnNewMatch: true };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceSaveSearch', args);
+
+      expect(capturedArgs).toEqual(args);
+      for (const forbidden of ['tenantGuid', 'tenantId', 'userId', 'ownerUserId']) {
+        expect(capturedArgs[forbidden]).toBeUndefined();
+      }
+    });
+  });
+
+  describe('UteamupMarketplaceDeleteSavedSearch tool (H1 write)', () => {
+    test('deleting an own search returns true', async () => {
+      const response = await call('UteamupMarketplaceDeleteSavedSearch', { guid: mockSavedSearch.guid }, successReply(true));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBe(true);
+    });
+
+    test('deleting a non-existent / foreign search returns false without crashing', async () => {
+      const response = await call('UteamupMarketplaceDeleteSavedSearch', { guid: mockSavedSearch.guid }, successReply(false));
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toBe(false);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -508,7 +595,10 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceListingReport', args: { guid: LISTING_GUID, reasonCode: 'Illegal' } },
     { name: 'UteamupMarketplaceMessageSend', args: { listingGuid: LISTING_GUID, body: 'Hi' } },
     { name: 'UteamupMarketplaceMessagesList', args: { listingGuid: LISTING_GUID } },
-    { name: 'UteamupMarketplaceMessageThreadGet', args: { rootMessageGuid: MESSAGE_GUID } }
+    { name: 'UteamupMarketplaceMessageThreadGet', args: { rootMessageGuid: MESSAGE_GUID } },
+    { name: 'UteamupMarketplaceSavedSearchesList', args: {} },
+    { name: 'UteamupMarketplaceSaveSearch', args: { name: 'Good tools', filtersJson: '{}', notifyOnNewMatch: true } },
+    { name: 'UteamupMarketplaceDeleteSavedSearch', args: { guid: '12121212-3434-5656-7878-9a9a9a9a9a9a' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
