@@ -615,6 +615,30 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  const mockFacets = {
+    itemTypes: [{ value: 'Tool', count: 12 }, { value: 'Part', count: 5 }],
+    conditions: [{ value: 'Good', count: 9 }, { value: 'New', count: 8 }],
+    priceBands: [{ value: '0-100', count: 4 }, { value: '100-500', count: 10 }, { value: '1000+', count: 3 }]
+  };
+
+  describe('UteamupMarketplaceFacets tool (H4)', () => {
+    test('returns item-type, condition, and price-band facet counts', async () => {
+      const response = await call('UteamupMarketplaceFacets', { search: 'drill' }, successReply(mockFacets));
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.itemTypes[0].value).toBe('Tool');
+      expect(data.itemTypes[0].count).toBe(12);
+      expect(data.priceBands).toHaveLength(3);
+    });
+
+    test('works with no search term (facets across all browsable listings)', async () => {
+      const response = await call('UteamupMarketplaceFacets', {}, successReply(mockFacets));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.conditions.length).toBeGreaterThan(0);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
@@ -632,7 +656,8 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceSavedSearchesList', args: {} },
     { name: 'UteamupMarketplaceSaveSearch', args: { name: 'Good tools', filtersJson: '{}', notifyOnNewMatch: true } },
     { name: 'UteamupMarketplaceDeleteSavedSearch', args: { guid: '12121212-3434-5656-7878-9a9a9a9a9a9a' } },
-    { name: 'UteamupMarketplaceSellerScorecard', args: { sellerGuid: 'aaaaaaaa-1111-2222-3333-444444444444' } }
+    { name: 'UteamupMarketplaceSellerScorecard', args: { sellerGuid: 'aaaaaaaa-1111-2222-3333-444444444444' } },
+    { name: 'UteamupMarketplaceFacets', args: { search: 'drill' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
