@@ -25,11 +25,53 @@ describe('AI-credit packages MCP Tools', () => {
 
   const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
-  // Bronze/Silver/Gold, smallest bundle first — the shape the handler returns (PlanResponseModel[]).
+  // Bronze/Silver/Gold, smallest bundle first — the customer-facing AiCreditPackageResponseModel[] shape.
   const packagesPayload = [
-    { guid: '11111111-1111-1111-1111-111111111111', name: 'Bronze AI Credits', sku: 'AIC-BRONZE', planType: 'AiCredits', aiCreditsBundleSize: 25000, aiCreditsBundlePriceCents: 2500, aiCreditsBundlePriceEurCents: 2300, aiCreditsBundlePriceIsk: 3500, annualDiscountPercentage: 10, bestOffer: false, isActive: true },
-    { guid: '22222222-2222-2222-2222-222222222222', name: 'Silver AI Credits', sku: 'AIC-SILVER', planType: 'AiCredits', aiCreditsBundleSize: 75000, aiCreditsBundlePriceCents: 5000, aiCreditsBundlePriceEurCents: 4600, aiCreditsBundlePriceIsk: 7000, annualDiscountPercentage: 15, bestOffer: true, isActive: true },
-    { guid: '33333333-3333-3333-3333-333333333333', name: 'Gold AI Credits', sku: 'AIC-GOLD', planType: 'AiCredits', aiCreditsBundleSize: 175000, aiCreditsBundlePriceCents: 10000, aiCreditsBundlePriceEurCents: 9200, aiCreditsBundlePriceIsk: 14000, annualDiscountPercentage: 20, bestOffer: false, isActive: true }
+    {
+      guid: '11111111-1111-1111-1111-111111111111',
+      name: 'Bronze AI Credits',
+      sku: 'AIC-BRONZE',
+      credits: 25000,
+      priceCentsUsd: 2500,
+      priceCentsEur: 2300,
+      priceIsk: 3500,
+      annualDiscountPercentage: 10,
+      bestOffer: false,
+      activePromotion: null
+    },
+    {
+      guid: '22222222-2222-2222-2222-222222222222',
+      name: 'Silver AI Credits',
+      sku: 'AIC-SILVER',
+      credits: 75000,
+      priceCentsUsd: 5000,
+      priceCentsEur: 4600,
+      priceIsk: 7000,
+      annualDiscountPercentage: 15,
+      bestOffer: true,
+      activePromotion: {
+        guid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        name: 'Launch credits',
+        description: 'Intro discount',
+        discountType: 'percentage',
+        discountValue: 15,
+        currency: null,
+        minBundleCount: 1,
+        redeemableUntil: null
+      }
+    },
+    {
+      guid: '33333333-3333-3333-3333-333333333333',
+      name: 'Gold AI Credits',
+      sku: 'AIC-GOLD',
+      credits: 175000,
+      priceCentsUsd: 10000,
+      priceCentsEur: 9200,
+      priceIsk: 14000,
+      annualDiscountPercentage: 20,
+      bestOffer: false,
+      activePromotion: null
+    }
   ];
 
   describe('Happy path', () => {
