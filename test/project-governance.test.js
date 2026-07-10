@@ -25,30 +25,30 @@ describe('Project governance MCP tools', () => {
     callTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   const tools = [
-    { name: 'uteamup_project_members_list', args: { project_guid: PROJECT_GUID } },
-    { name: 'uteamup_project_members_add', args: { project_guid: PROJECT_GUID, model: { userGuid: RESOURCE_GUID, role: 2, allocationPercent: 50, startDate: '2026-07-09' } } },
-    { name: 'uteamup_project_members_update', args: { project_guid: PROJECT_GUID, member_guid: RESOURCE_GUID, model: { role: 1, allocationPercent: 75, startDate: '2026-07-09', isActive: true } } },
-    { name: 'uteamup_project_members_remove', args: { project_guid: PROJECT_GUID, member_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_dependencies_list', args: { project_guid: PROJECT_GUID } },
-    { name: 'uteamup_project_dependencies_add', args: { project_guid: PROJECT_GUID, model: { predecessorWorkorderGuid: RESOURCE_GUID, successorWorkorderGuid: '33333333-3333-3333-3333-333333333333', dependencyType: 0, lagMinutes: 0 } } },
-    { name: 'uteamup_project_dependencies_remove', args: { project_guid: PROJECT_GUID, dependency_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_activity_list', args: { project_guid: PROJECT_GUID, limit: 100 } },
-    { name: 'uteamup_project_comments_list', args: { project_guid: PROJECT_GUID } },
-    { name: 'uteamup_project_comments_add', args: { project_guid: PROJECT_GUID, model: { text: 'Decision recorded', isDecision: true, mentionedUserGuids: [] } } },
-    { name: 'uteamup_project_comments_update', args: { project_guid: PROJECT_GUID, comment_guid: RESOURCE_GUID, model: { text: 'Updated decision', isDecision: true, mentionedUserGuids: [] } } },
-    { name: 'uteamup_project_comments_remove', args: { project_guid: PROJECT_GUID, comment_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_baselines_list', args: { project_guid: PROJECT_GUID } },
-    { name: 'uteamup_project_baselines_capture', args: { project_guid: PROJECT_GUID, model: { label: 'Approved plan' } } },
-    { name: 'uteamup_project_variance_get', args: { project_guid: PROJECT_GUID, baseline_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_change_requests_list', args: { project_guid: PROJECT_GUID } },
-    { name: 'uteamup_project_change_requests_create', args: { project_guid: PROJECT_GUID, model: { summary: 'Move finish date', reason: 'Supplier delay', proposedChanges: { endDate: '2026-09-01' } } } },
-    { name: 'uteamup_project_change_requests_submit', args: { project_guid: PROJECT_GUID, request_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_change_requests_approve', args: { project_guid: PROJECT_GUID, request_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_change_requests_reject', args: { project_guid: PROJECT_GUID, request_guid: RESOURCE_GUID } },
-    { name: 'uteamup_project_change_requests_apply', args: { project_guid: PROJECT_GUID, request_guid: RESOURCE_GUID } },
+    { name: 'UteamupProjectMembersList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectMembersAdd', args: { projectGuid: PROJECT_GUID, model: { userGuid: RESOURCE_GUID, role: 2, allocationPercent: 50, startDate: '2026-07-09' } } },
+    { name: 'UteamupProjectMembersUpdate', args: { projectGuid: PROJECT_GUID, memberGuid: RESOURCE_GUID, model: { role: 1, allocationPercent: 75, startDate: '2026-07-09', isActive: true } } },
+    { name: 'UteamupProjectMembersRemove', args: { projectGuid: PROJECT_GUID, memberGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectDependenciesList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectDependenciesAdd', args: { projectGuid: PROJECT_GUID, model: { predecessorWorkorderGuid: RESOURCE_GUID, successorWorkorderGuid: '33333333-3333-3333-3333-333333333333', dependencyType: 0, lagMinutes: 0 } } },
+    { name: 'UteamupProjectDependenciesRemove', args: { projectGuid: PROJECT_GUID, dependencyGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectActivityList', args: { projectGuid: PROJECT_GUID, limit: 100 } },
+    { name: 'UteamupProjectCommentsList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectCommentsAdd', args: { projectGuid: PROJECT_GUID, model: { text: 'Decision recorded', isDecision: true, mentionedUserGuids: [] } } },
+    { name: 'UteamupProjectCommentsUpdate', args: { projectGuid: PROJECT_GUID, commentGuid: RESOURCE_GUID, model: { text: 'Updated decision', isDecision: true, mentionedUserGuids: [] } } },
+    { name: 'UteamupProjectCommentsRemove', args: { projectGuid: PROJECT_GUID, commentGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectBaselinesList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectBaselinesCapture', args: { projectGuid: PROJECT_GUID, model: { label: 'Approved plan' } } },
+    { name: 'UteamupProjectVarianceGet', args: { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectChangeRequestsList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectChangeRequestsCreate', args: { projectGuid: PROJECT_GUID, model: { summary: 'Move finish date', reason: 'Supplier delay', proposedChanges: { endDate: '2026-09-01' } } } },
+    { name: 'UteamupProjectChangeRequestsSubmit', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectChangeRequestsApprove', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectChangeRequestsReject', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectChangeRequestsApply', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
   ];
 
-  const listTools = tools.filter(({ name }) => name.endsWith('_list'));
+  const listTools = tools.filter(({ name }) => name.endsWith('List'));
 
   test.each(tools)('$name forwards arguments and returns a success result', async ({ name, args }) => {
     const response = await call(name, args, successReply({ ok: true }));
