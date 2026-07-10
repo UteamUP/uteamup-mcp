@@ -644,7 +644,7 @@ describe('Marketplace MCP Tools', () => {
     buyerTenantName: 'Reykjavik Metals',
     completedPurchases: 8,
     totalTransactions: 10,
-    isVerified: true,
+    isEstablished: true,
     memberSince: '2025-01-15T00:00:00Z'
   };
 
@@ -655,7 +655,7 @@ describe('Marketplace MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.completedPurchases).toBe(8);
-      expect(data.isVerified).toBe(true);
+      expect(data.isEstablished).toBe(true);
     });
 
     test('an unknown buyer yields a null reputation, not an error', async () => {
