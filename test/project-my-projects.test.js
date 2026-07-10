@@ -37,7 +37,6 @@ describe('Project MyProjects MCP Tool', () => {
   // ---------------------------------------------------------------------------
   const turbineOverhaul = {
     externalGuid: '11111111-1111-1111-1111-111111111111',
-    id: 5,
     name: 'Turbine Overhaul',
     projectCode: 'TO-5',
     description: 'Annual turbine maintenance',
@@ -51,7 +50,6 @@ describe('Project MyProjects MCP Tool', () => {
 
   const boilerInspection = {
     externalGuid: '22222222-2222-2222-2222-222222222222',
-    id: 2,
     name: 'Boiler Inspection',
     projectCode: 'BI-2',
     description: null,
@@ -87,6 +85,8 @@ describe('Project MyProjects MCP Tool', () => {
       // public boundary (regression guard for bug bd8f19a6).
       expect(data[0].externalGuid).toBe('11111111-1111-1111-1111-111111111111');
       expect(data[1].externalGuid).toBe('22222222-2222-2222-2222-222222222222');
+      expect(data[0]).not.toHaveProperty('id');
+      expect(data[1]).not.toHaveProperty('id');
     });
 
     test('returns empty list when user has no assigned workorders', async () => {
