@@ -143,6 +143,13 @@ describe('Stock enterprise MCP tools', () => {
       const captured = await captureCall('UteamupStockSearchItems', args);
       expect(captured.params.arguments).toEqual(args);
     });
+
+    it('forwards the condition grade filter verbatim', async () => {
+      const args = { q: 'bearing', condition: 'Used', page: 1, pageSize: 50 };
+      const captured = await captureCall('UteamupStockSearchItems', args);
+      expect(captured.params.arguments).toEqual(args);
+      expect(captured.params.arguments.condition).toBe('Used');
+    });
   });
 
   // ---------------------------------------------------------------------------
