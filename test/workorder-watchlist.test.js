@@ -247,7 +247,8 @@ describe('WorkorderWatcher MCP Tools', () => {
     test('handles network timeout gracefully', async () => {
       nock(BASE_URL)
         .post('/mcp', body => body.method === 'tools/call' && body.params?.name === 'UteamupWorkorderWatcherAdd')
-        .replyWithError('ETIMEDOUT');
+        .delay(100)
+        .reply(200, successReply({}).body);
 
       const request = {
         jsonrpc: '2.0',
@@ -274,13 +275,12 @@ describe('WorkorderWatcher MCP Tools', () => {
         req.on('error', reject);
         req.write(data);
         req.end();
+        setImmediate(() => {
+          const error = new Error('Request timed out');
+          error.code = 'ETIMEDOUT';
+          req.destroy(error);
+        });
       })).rejects.toThrow();
-
-      // nock v14's @mswjs/interceptors emits replyWithError via setImmediate.
-      // Drain pending immediates so the error doesn't leak into the next test
-      // as an unhandled rejection (was flaking JSON-RPC compliance for the
-      // first tool in this file's `allTools` array, ~2/3 runs).
-      await new Promise(resolve => setImmediate(resolve));
     });
   });
 

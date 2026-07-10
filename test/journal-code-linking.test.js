@@ -557,7 +557,8 @@ describe('Journal Code Linking MCP Tools', () => {
           body.method === 'tools/call' &&
           body.params?.name === 'UteamupJournalCreateWithCodeMentions'
         )
-        .replyWithError('ECONNRESET');
+        .delay(100)
+        .reply(200, successReply({}).body);
 
       const request = {
         jsonrpc: '2.0',
@@ -592,6 +593,11 @@ describe('Journal Code Linking MCP Tools', () => {
         req.on('error', reject);
         req.write(data);
         req.end();
+        setImmediate(() => {
+          const error = new Error('Connection reset');
+          error.code = 'ECONNRESET';
+          req.destroy(error);
+        });
       })).rejects.toThrow();
     });
   });

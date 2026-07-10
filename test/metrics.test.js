@@ -18,13 +18,14 @@ describe('Metrics Tracking', () => {
   });
 
   describe('startTimer', () => {
-    test('should measure elapsed time', async () => {
+    test('should measure elapsed time', () => {
+      jest.useFakeTimers();
       const stopTimer = startTimer('test');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      jest.advanceTimersByTime(100);
       const elapsed = stopTimer();
+      jest.useRealTimers();
 
-      expect(elapsed).toBeGreaterThanOrEqual(100);
-      expect(elapsed).toBeLessThan(150); // Allow some variance
+      expect(elapsed).toBe(100);
     });
 
     test('should return different times for different timers', async () => {

@@ -20,7 +20,6 @@
 'use strict';
 
 const nock = require('nock');
-const https = require('https');
 const { callMcpTool: _callMcpTool } = require('./helpers/mcp-test-helpers');
 const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUnavailable } = require('./helpers/mcp-error-tests');
 

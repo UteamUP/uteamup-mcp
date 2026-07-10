@@ -16,7 +16,6 @@ const {
   errorReply,
 } = require('./helpers/mcp-test-helpers');
 const {
-  describeJsonRpcCompliance,
   describe401Unauthorized,
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');

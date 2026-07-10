@@ -16,8 +16,8 @@
 
 const https = require('https');
 const crypto = require('crypto');
-const { loadConfig, validateConfig, printConfigSummary } = require('./lib/config');
-const { trace, debug, info, warn, error } = require('./lib/logger');
+const { loadConfig, printConfigSummary } = require('./lib/config');
+const { trace, debug, info, error } = require('./lib/logger');
 const { startTimer, recordOAuthAttempt, recordRequest, recordCacheHit, recordCacheMiss, printMetrics } = require('./lib/metrics');
 const { retryWithBackoff } = require('./lib/retry');
 

@@ -15,7 +15,6 @@ const nock = require('nock');
 const {
   callMcpTool: _callMcpTool,
   successReply,
-  errorReply,
 } = require('./helpers/mcp-test-helpers');
 const {
   describeJsonRpcCompliance,

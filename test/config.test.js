@@ -2,7 +2,7 @@
  * Configuration validation tests
  */
 
-const { loadConfig, validateConfig, configSchema } = require('../lib/config');
+const { loadConfig, validateConfig } = require('../lib/config');
 
 describe('Configuration Validation', () => {
   let originalEnv;

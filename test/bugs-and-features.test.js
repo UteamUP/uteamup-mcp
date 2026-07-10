@@ -14,7 +14,7 @@
 'use strict';
 
 const nock = require('nock');
-const { callMcpTool: _callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
+const { callMcpTool: _callMcpTool, successReply } = require('./helpers/mcp-test-helpers');
 const {
   describeJsonRpcCompliance,
   describe401Unauthorized,
