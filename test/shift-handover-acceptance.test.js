@@ -6,7 +6,9 @@
  * and error responses from the backend /mcp endpoint.
  *
  * Tools under test:
+ *   UteamupShiftHandoverStartReview(handoverGuid)
  *   UteamupShiftHandoverAccept(handoverGuid, notes?)
+ *   UteamupShiftHandoverComplete(handoverGuid)
  *   UteamupShiftHandoverDeclineAcceptance(handoverGuid, notes?)
  *   UteamupShiftHandoverGetPendingAcceptances()
  *   UteamupShiftHandoverCreate(..., shiftInstanceId?, journalId?, journalGenerationType?, journalName?)
@@ -47,7 +49,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     shiftId: 1,
     shiftName: 'Morning Shift',
     shiftDate: '2026-03-01T00:00:00Z',
-    status: 'ReadyForReview',
+    status: 'Reviewed',
     outgoingOperatorId: 'user-alice-001',
     outgoingOperatorName: 'Alice Smith',
     incomingOperatorId: 'user-bob-002',
@@ -67,7 +69,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     incomingOperatorStatus: 'Accepted',
     incomingOperatorRespondedAt: '2026-03-01T08:05:00Z',
     incomingOperatorNotes: 'Handover accepted, all items noted.',
-    status: 'Completed'
+    status: 'Accepted'
   };
 
   const declinedHandover = {
@@ -75,7 +77,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     incomingOperatorStatus: 'Declined',
     incomingOperatorRespondedAt: '2026-03-01T08:05:00Z',
     incomingOperatorNotes: 'Missing critical information.',
-    status: 'ReadyForReview'
+    status: 'Reviewed'
   };
 
   const pendingAcceptances = [handover];
@@ -84,7 +86,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // UteamupShiftHandoverAccept
   // ---------------------------------------------------------------------------
   describe('UteamupShiftHandoverAccept tool', () => {
-    test('happy path: accepting a handover sets incomingOperatorStatus to Accepted and status to Completed', async () => {
+    test('happy path: accepting a reviewed handover moves it to Accepted, not Completed', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
         { handoverGuid: HANDOVER_GUID, notes: 'Handover accepted, all items noted.' },
@@ -105,7 +107,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const result = JSON.parse(response.body.result.content[0].text);
       expect(result.id).toBe(10);
       expect(result.incomingOperatorStatus).toBe('Accepted');
-      expect(result.status).toBe('Completed');
+      expect(result.status).toBe('Accepted');
     });
 
     test('accept with notes stores notes in incomingOperatorNotes field', async () => {
@@ -298,7 +300,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.incomingOperatorNotes).toBe('Missing critical information.');
     });
 
-    test('status remains ReadyForReview after decline — handover is not completed', async () => {
+    test('status remains Reviewed after decline — handover is not completed', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
@@ -313,7 +315,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       );
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.status).toBe('ReadyForReview');
+      expect(result.status).toBe('Reviewed');
       expect(result.status).not.toBe('Completed');
     });
 
@@ -403,7 +405,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.body.id).toBe(16);
     });
 
-    test('handover must be in ReadyForReview status to be declined — error when already Completed', async () => {
+    test('handover must be Reviewed to be declined — error when already Completed', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
         { handoverGuid: HANDOVER_GUID, notes: 'Trying to decline a completed handover.' },
@@ -413,7 +415,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
             jsonrpc: '2.0',
             error: {
               code: -32602,
-              message: "Cannot decline handover 10: current status is 'Completed', expected 'ReadyForReview'"
+              message: "Cannot decline handover 10: current status is 'Completed', expected 'Reviewed'"
             },
             id: 17
           }
@@ -422,7 +424,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('ReadyForReview');
+      expect(response.body.error.message).toContain('Reviewed');
     });
 
     test('incomingOperatorRespondedAt is set upon decline', async () => {
@@ -977,10 +979,57 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Explicit review and completion transitions
+  // ---------------------------------------------------------------------------
+  describe('explicit handover lifecycle transitions', () => {
+    test('start review moves a submitted handover to Reviewed', async () => {
+      const reviewed = { ...handover, status: 'Reviewed' };
+      const response = await call(
+        'UteamupShiftHandoverStartReview',
+        { handoverGuid: HANDOVER_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(reviewed) }] },
+            id: 70
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.status).toBe('Reviewed');
+      expect(result.incomingOperatorStatus).toBe('PendingAcceptance');
+    });
+
+    test('complete moves an accepted handover to Completed', async () => {
+      const completed = { ...acceptedHandover, status: 'Completed' };
+      const response = await call(
+        'UteamupShiftHandoverComplete',
+        { handoverGuid: HANDOVER_GUID },
+        {
+          status: 200,
+          body: {
+            jsonrpc: '2.0',
+            result: { content: [{ type: 'text', text: JSON.stringify(completed) }] },
+            id: 71
+          }
+        }
+      );
+
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.status).toBe('Completed');
+      expect(result.incomingOperatorStatus).toBe('Accepted');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
   const allTools = [
+    { name: 'UteamupShiftHandoverStartReview', args: { handoverGuid: HANDOVER_GUID } },
     { name: 'UteamupShiftHandoverAccept', args: { handoverGuid: HANDOVER_GUID, notes: 'Accepted.' } },
+    { name: 'UteamupShiftHandoverComplete', args: { handoverGuid: HANDOVER_GUID } },
     { name: 'UteamupShiftHandoverDeclineAcceptance', args: { handoverGuid: HANDOVER_GUID, notes: 'Declined.' } },
     { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
     { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
@@ -994,7 +1043,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // Accept / Decline mutual exclusion — state machine correctness
   // ---------------------------------------------------------------------------
   describe('Accept/Decline state machine correctness', () => {
-    test('accepted handover has status Completed, declined handover retains ReadyForReview', async () => {
+    test('accepted handover remains Accepted, declined handover retains Reviewed', async () => {
       const acceptResponse = await call(
         'UteamupShiftHandoverAccept',
         { handoverGuid: HANDOVER_GUID, notes: 'All good.' },
@@ -1009,7 +1058,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       );
 
       const acceptedResult = JSON.parse(acceptResponse.body.result.content[0].text);
-      expect(acceptedResult.status).toBe('Completed');
+      expect(acceptedResult.status).toBe('Accepted');
 
       const declineResponse = await call(
         'UteamupShiftHandoverDeclineAcceptance',
@@ -1025,7 +1074,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       );
 
       const declinedResult = JSON.parse(declineResponse.body.result.content[0].text);
-      expect(declinedResult.status).toBe('ReadyForReview');
+      expect(declinedResult.status).toBe('Reviewed');
     });
 
     test('attempting to accept a declined handover returns an error', async () => {

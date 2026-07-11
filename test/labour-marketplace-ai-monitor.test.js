@@ -13,6 +13,11 @@ describe('Labour marketplace AI MCP tools', () => {
   const ACCESS_TOKEN = 'test_access_token_labour_ai_monitor';
   const monitorGuid = '11111111-1111-4111-8111-111111111111';
   const providerPartyGuid = '22222222-2222-4222-8222-222222222222';
+  const jobGuid = '33333333-3333-4333-8333-333333333333';
+  const revisionGuids = [
+    '44444444-4444-4444-8444-444444444444',
+    '55555555-5555-4555-8555-555555555555'
+  ];
   const call = (name, args, reply) => proxyCall(BASE_URL, ACCESS_TOKEN, name, args, reply);
 
   beforeEach(() => nock.cleanAll());
@@ -135,10 +140,49 @@ describe('Labour marketplace AI MCP tools', () => {
     });
   });
 
+  test('previews and returns an advisory offer comparison without selecting a provider', async () => {
+    const cost = await call('UteamupLabourMarketplaceOfferComparisonCost', {}, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({ expectedCredits: 4, remaining: 12, canRun: true }) }] },
+        id: 9
+      }
+    });
+    expect(JSON.parse(cost.body.result.content[0].text).expectedCredits).toBe(4);
+
+    const args = { jobGuid, revisionGuids, language: 'English' };
+    const comparison = await call('UteamupLabourMarketplaceOfferComparison', args, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          jobGuid,
+          hasMixedCurrencies: true,
+          offers: revisionGuids.map((revisionGuid, index) => ({
+            revisionGuid,
+            currencyCode: index === 0 ? 'USD' : 'EUR'
+          })),
+          summary: 'Resolve scope and currency differences before deciding.',
+          creditsCharged: 4,
+          disclaimer: 'Advisory only; no provider was selected or ranked.'
+        }) }] },
+        id: 10
+      }
+    });
+    const body = JSON.parse(comparison.body.result.content[0].text);
+    expect(body.jobGuid).toBe(jobGuid);
+    expect(body.offers.map(offer => offer.revisionGuid)).toEqual(revisionGuids);
+    expect(body.hasMixedCurrencies).toBe(true);
+    expect(body).not.toHaveProperty('selectedRevisionGuid');
+  });
+
   const createArgs = { providerPartyGuid, name: 'Power jobs', maxCreditsPerRun: 2, monthlyCreditBudget: 20 };
   const tools = [
     { name: 'UteamupLabourMarketplaceBuyerJobDraftCost', args: {} },
     { name: 'UteamupLabourMarketplaceBuyerJobDraftCreate', args: { description: 'Four fitters for a planned outage.', currencyCode: 'USD' } },
+    { name: 'UteamupLabourMarketplaceOfferComparisonCost', args: {} },
+    { name: 'UteamupLabourMarketplaceOfferComparison', args: { jobGuid, revisionGuids, language: 'English' } },
     { name: 'UteamupLabourMarketplaceAiJobMonitorsList', args: {} },
     { name: 'UteamupLabourMarketplaceAiJobMonitorCost', args: {} },
     { name: 'UteamupLabourMarketplaceAiJobMonitorCreate', args: createArgs },
