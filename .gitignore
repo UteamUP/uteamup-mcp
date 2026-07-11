@@ -51,3 +51,5 @@ jest-results.json
 
 # Exclude session logs (temporary working files)
 SESSION_LOG_*.md
+# MSBuild binary logs
+*.binlog
