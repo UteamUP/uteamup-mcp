@@ -6,8 +6,8 @@
  * and error responses from the backend /mcp endpoint.
  *
  * Tools under test:
- *   UteamupShiftHandoverAccept(id, notes?)
- *   UteamupShiftHandoverDeclineAcceptance(id, notes?)
+ *   UteamupShiftHandoverAccept(handoverGuid, notes?)
+ *   UteamupShiftHandoverDeclineAcceptance(handoverGuid, notes?)
  *   UteamupShiftHandoverGetPendingAcceptances()
  *   UteamupShiftHandoverCreate(..., shiftInstanceId?, journalId?, journalGenerationType?, journalName?)
  *
@@ -25,6 +25,9 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Shift Handover Acceptance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_shift_handover_acceptance';
+  const HANDOVER_GUID = '11111111-1111-4111-8111-111111111111';
+  const SECOND_HANDOVER_GUID = '22222222-2222-4222-8222-222222222222';
+  const UNKNOWN_HANDOVER_GUID = '99999999-9999-4999-8999-999999999999';
 
   beforeEach(() => {
     nock.cleanAll();
@@ -84,7 +87,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('happy path: accepting a handover sets incomingOperatorStatus to Accepted and status to Completed', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Handover accepted, all items noted.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Handover accepted, all items noted.' },
         {
           status: 200,
           body: {
@@ -108,7 +111,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('accept with notes stores notes in incomingOperatorNotes field', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Handover accepted, all items noted.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Handover accepted, all items noted.' },
         {
           status: 200,
           body: {
@@ -128,7 +131,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10 },
+        { handoverGuid: HANDOVER_GUID },
         {
           status: 200,
           body: {
@@ -144,10 +147,10 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.incomingOperatorNotes).toBeNull();
     });
 
-    test('returns error when handover with given id is not found', async () => {
+    test('returns error when handover with given GUID is not found', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 999999, notes: 'Accepted.' },
+        { handoverGuid: UNKNOWN_HANDOVER_GUID, notes: 'Accepted.' },
         {
           status: 200,
           body: {
@@ -169,7 +172,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('returns error when handover has already been accepted', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Accept again.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Accept again.' },
         {
           status: 200,
           body: {
@@ -191,7 +194,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('returns permission denied when current user is not the incoming operator', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Accepted.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Accepted.' },
         {
           status: 200,
           body: {
@@ -212,7 +215,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Handover accepted, all items noted.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Handover accepted, all items noted.' },
         {
           status: 200,
           body: {
@@ -233,7 +236,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('incomingOperatorRespondedAt is set to a non-null timestamp upon acceptance', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Handover accepted, all items noted.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Handover accepted, all items noted.' },
         {
           status: 200,
           body: {
@@ -258,7 +261,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('declining a handover sets incomingOperatorStatus to Declined', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Missing critical information.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
         {
           status: 200,
           body: {
@@ -280,7 +283,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('decline with notes stores notes in incomingOperatorNotes field', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Missing critical information.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
         {
           status: 200,
           body: {
@@ -298,7 +301,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('status remains ReadyForReview after decline — handover is not completed', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Missing critical information.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
         {
           status: 200,
           body: {
@@ -314,10 +317,10 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.status).not.toBe('Completed');
     });
 
-    test('returns error when handover with given id is not found', async () => {
+    test('returns error when handover with given GUID is not found', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 999999, notes: 'Declined.' },
+        { handoverGuid: UNKNOWN_HANDOVER_GUID, notes: 'Declined.' },
         {
           status: 200,
           body: {
@@ -339,7 +342,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('returns error when handover has already been declined', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Decline again.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Decline again.' },
         {
           status: 200,
           body: {
@@ -361,7 +364,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('returns permission denied when current user is not the incoming operator', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Declined.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Declined.' },
         {
           status: 200,
           body: {
@@ -382,7 +385,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('JSON-RPC 2.0 compliance — success response has id and result, no error', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Missing critical information.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
         {
           status: 200,
           body: {
@@ -403,7 +406,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('handover must be in ReadyForReview status to be declined — error when already Completed', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Trying to decline a completed handover.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Trying to decline a completed handover.' },
         {
           status: 200,
           body: {
@@ -425,7 +428,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('incomingOperatorRespondedAt is set upon decline', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Missing critical information.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Missing critical information.' },
         {
           status: 200,
           body: {
@@ -977,8 +980,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // Shared tool definitions for error-handling factories
   // ---------------------------------------------------------------------------
   const allTools = [
-    { name: 'UteamupShiftHandoverAccept', args: { id: 10, notes: 'Accepted.' } },
-    { name: 'UteamupShiftHandoverDeclineAcceptance', args: { id: 10, notes: 'Declined.' } },
+    { name: 'UteamupShiftHandoverAccept', args: { handoverGuid: HANDOVER_GUID, notes: 'Accepted.' } },
+    { name: 'UteamupShiftHandoverDeclineAcceptance', args: { handoverGuid: HANDOVER_GUID, notes: 'Declined.' } },
     { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
     { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
   ];
@@ -994,7 +997,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('accepted handover has status Completed, declined handover retains ReadyForReview', async () => {
       const acceptResponse = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'All good.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'All good.' },
         {
           status: 200,
           body: {
@@ -1010,7 +1013,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
       const declineResponse = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 11, notes: 'Issues found.' },
+        { handoverGuid: SECOND_HANDOVER_GUID, notes: 'Issues found.' },
         {
           status: 200,
           body: {
@@ -1028,7 +1031,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('attempting to accept a declined handover returns an error', async () => {
       const response = await call(
         'UteamupShiftHandoverAccept',
-        { id: 10, notes: 'Trying to accept a declined handover.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Trying to accept a declined handover.' },
         {
           status: 200,
           body: {
@@ -1049,7 +1052,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('attempting to decline an accepted handover returns an error', async () => {
       const response = await call(
         'UteamupShiftHandoverDeclineAcceptance',
-        { id: 10, notes: 'Trying to decline an accepted handover.' },
+        { handoverGuid: HANDOVER_GUID, notes: 'Trying to decline an accepted handover.' },
         {
           status: 200,
           body: {
