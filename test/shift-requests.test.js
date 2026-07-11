@@ -8,7 +8,7 @@
  * Tools under test:
  *   UteamupShiftRequestList(status?, userId?)
  *   UteamupShiftRequestGet(id)
- *   UteamupShiftRequestCreate(requestType, requestedDate, shiftId, reason)
+ *   UteamupShiftRequestCreate(requestType, requestedDate, shiftGuid, reason)
  *   UteamupShiftRequestUpdate(id, reason)
  *   UteamupShiftRequestDelete(id)
  *   UteamupShiftRequestApprove(id, notes)
@@ -38,17 +38,17 @@ describe('Shift Request MCP Tools', () => {
   // Mock data
   // ---------------------------------------------------------------------------
   const shiftRequest = {
-    id: 1,
-    userId: 'user-alice-001',
+    externalGuid: '11111111-1111-4111-8111-111111111111',
+    userGuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     userName: 'Alice Smith',
-    shiftId: 1,
+    shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     shiftName: 'Morning Shift',
-    workforceCategoryId: null,
+    workforceGroupGuid: null,
     requestType: 'DateRequest',
     requestedDate: '2026-03-01T00:00:00Z',
     reason: 'Need to work this day',
     status: 'Pending',
-    reviewedByUserId: null,
+    reviewedByUserGuid: null,
     reviewedAt: null,
     reviewNotes: null
   };
@@ -56,7 +56,7 @@ describe('Shift Request MCP Tools', () => {
   const approvedRequest = {
     ...shiftRequest,
     status: 'Approved',
-    reviewedByUserId: 'user-manager-001',
+    reviewedByUserGuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     reviewedAt: '2026-02-25T10:00:00Z',
     reviewNotes: 'Approved as requested'
   };
@@ -64,7 +64,7 @@ describe('Shift Request MCP Tools', () => {
   const deniedRequest = {
     ...shiftRequest,
     status: 'Denied',
-    reviewedByUserId: 'user-manager-001',
+    reviewedByUserGuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     reviewedAt: '2026-02-25T10:05:00Z',
     reviewNotes: 'Not enough staff available'
   };
@@ -75,8 +75,8 @@ describe('Shift Request MCP Tools', () => {
   describe('UteamupShiftRequestList tool', () => {
     test('list all pending requests — returns requests with Pending status', async () => {
       const pendingRequests = [
-        { ...shiftRequest, id: 1 },
-        { ...shiftRequest, id: 2, userId: 'user-bob-002', userName: 'Bob Jones', requestedDate: '2026-03-02T00:00:00Z' }
+        { ...shiftRequest },
+        { ...shiftRequest, externalGuid: '22222222-2222-4222-8222-222222222222', userGuid: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', userName: 'Bob Jones', requestedDate: '2026-03-02T00:00:00Z' }
       ];
 
       const response = await call(
@@ -118,7 +118,7 @@ describe('Shift Request MCP Tools', () => {
 
       const requests = JSON.parse(response.body.result.content[0].text);
       expect(requests.length).toBe(1);
-      expect(requests[0].userId).toBe('user-alice-001');
+      expect(requests[0].userGuid).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     });
 
     test('empty list — no requests matching filters returns empty array', async () => {
@@ -148,9 +148,9 @@ describe('Shift Request MCP Tools', () => {
 
     test('list all with no filter — returns requests of any status', async () => {
       const mixed = [
-        { ...shiftRequest, id: 1, status: 'Pending' },
-        { ...approvedRequest, id: 2 },
-        { ...deniedRequest, id: 3 }
+        { ...shiftRequest, status: 'Pending' },
+        { ...approvedRequest, externalGuid: '22222222-2222-4222-8222-222222222222' },
+        { ...deniedRequest, externalGuid: '33333333-3333-4333-8333-333333333333' }
       ];
 
       const response = await call(
@@ -223,7 +223,7 @@ describe('Shift Request MCP Tools', () => {
 
       const requests = JSON.parse(response.body.result.content[0].text);
       expect(requests.length).toBe(1);
-      expect(requests[0].userId).toBe('user-alice-001');
+      expect(requests[0].userGuid).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
       expect(requests[0].status).toBe('Pending');
     });
   });
@@ -244,8 +244,8 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const request = JSON.parse(response.body.result.content[0].text);
-      expect(request.id).toBe(1);
-      expect(request.userId).toBe('user-alice-001');
+      expect(request.externalGuid).toBe('11111111-1111-4111-8111-111111111111');
+      expect(request.userGuid).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
       expect(request.shiftName).toBe('Morning Shift');
       expect(request.requestType).toBe('DateRequest');
       expect(request.status).toBe('Pending');
@@ -277,7 +277,7 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
     });
 
-    test('approved request — includes reviewedByUserId, reviewedAt, and reviewNotes', async () => {
+    test('approved request — includes reviewedByUserGuid, reviewedAt, and reviewNotes', async () => {
       const response = await call(
         'UteamupShiftRequestGet',
         { id: 2 },
@@ -286,12 +286,12 @@ describe('Shift Request MCP Tools', () => {
 
       const request = JSON.parse(response.body.result.content[0].text);
       expect(request.status).toBe('Approved');
-      expect(request.reviewedByUserId).toBe('user-manager-001');
+      expect(request.reviewedByUserGuid).toBe('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
       expect(request.reviewedAt).toBeDefined();
       expect(request.reviewNotes).toBe('Approved as requested');
     });
 
-    test('pending request — reviewedByUserId, reviewedAt and reviewNotes are null', async () => {
+    test('pending request — reviewedByUserGuid, reviewedAt and reviewNotes are null', async () => {
       const response = await call(
         'UteamupShiftRequestGet',
         { id: 1 },
@@ -299,7 +299,7 @@ describe('Shift Request MCP Tools', () => {
       );
 
       const request = JSON.parse(response.body.result.content[0].text);
-      expect(request.reviewedByUserId).toBeNull();
+      expect(request.reviewedByUserGuid).toBeNull();
       expect(request.reviewedAt).toBeNull();
       expect(request.reviewNotes).toBeNull();
     });
@@ -403,7 +403,7 @@ describe('Shift Request MCP Tools', () => {
     test('success — creates DateRequest and returns full request object', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'Need to work this day' },
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'Need to work this day' },
         successReply(shiftRequest, 20)
       );
 
@@ -412,17 +412,17 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const created = JSON.parse(response.body.result.content[0].text);
-      expect(created.id).toBe(1);
+      expect(created.externalGuid).toBe('11111111-1111-4111-8111-111111111111');
       expect(created.requestType).toBe('DateRequest');
       expect(created.status).toBe('Pending');
-      expect(created.shiftId).toBe(1);
+      expect(created.shiftGuid).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
       expect(created.reason).toBe('Need to work this day');
     });
 
     test('invalid date — requestedDate is not a valid date returns error', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: 'not-a-date', shiftId: 1, reason: 'test' },
+        { requestType: 'DateRequest', requestedDate: 'not-a-date', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         errorReply(-32602, 'RequestedDate must be a valid date string in YYYY-MM-DD format', 21)
       );
 
@@ -434,7 +434,7 @@ describe('Shift Request MCP Tools', () => {
     test('missing reason — empty reason returns validation error', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: '' },
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: '' },
         errorReply(-32602, 'Reason must not be empty', 22)
       );
 
@@ -442,11 +442,11 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error.message).toContain('Reason');
     });
 
-    test('shift not found — shiftId does not exist returns error', async () => {
+    test('shift not found — shiftGuid does not exist returns error', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 99999, reason: 'test' },
-        errorReply(-32602, 'Shift 99999 not found', 23)
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: '99999999-9999-4999-8999-999999999999', reason: 'test' },
+        errorReply(-32602, 'Selected shift not found', 23)
       );
 
       expect(response.body.error).toBeDefined();
@@ -457,7 +457,7 @@ describe('Shift Request MCP Tools', () => {
       const id = 24;
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         successReply(shiftRequest, id)
       );
 
@@ -470,7 +470,7 @@ describe('Shift Request MCP Tools', () => {
     test('permission denied — returns permission error', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         errorReply(-32600, 'Permission denied: ShiftRequest.Create required', 25)
       );
 
@@ -497,7 +497,7 @@ describe('Shift Request MCP Tools', () => {
         method: 'tools/call',
         params: {
           name: 'UteamupShiftRequestCreate',
-          arguments: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'Need to work this day' }
+          arguments: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'Need to work this day' }
         },
         id: 26
       };
@@ -524,7 +524,7 @@ describe('Shift Request MCP Tools', () => {
       expect(capturedBody).not.toBeNull();
       expect(capturedBody.params.arguments.requestType).toBe('DateRequest');
       expect(capturedBody.params.arguments.requestedDate).toBe('2026-03-01');
-      expect(capturedBody.params.arguments.shiftId).toBe(1);
+      expect(capturedBody.params.arguments.shiftGuid).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
       expect(capturedBody.params.arguments.reason).toBe('Need to work this day');
     });
 
@@ -539,7 +539,7 @@ describe('Shift Request MCP Tools', () => {
           method: 'tools/call',
           params: {
             name: 'UteamupShiftRequestCreate',
-            arguments: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' }
+            arguments: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' }
           },
           id: 27
         });
@@ -567,13 +567,13 @@ describe('Shift Request MCP Tools', () => {
     test('created request status defaults to Pending', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' },
+        { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         successReply(shiftRequest, 28)
       );
 
       const created = JSON.parse(response.body.result.content[0].text);
       expect(created.status).toBe('Pending');
-      expect(created.reviewedByUserId).toBeNull();
+      expect(created.reviewedByUserGuid).toBeNull();
       expect(created.reviewedAt).toBeNull();
     });
   });
@@ -585,7 +585,7 @@ describe('Shift Request MCP Tools', () => {
     test('success — creates AvailabilityDeclaration with availableDaysMask and time range', async () => {
       const availabilityRequest = {
         ...shiftRequest,
-        id: 5,
+        externalGuid: '55555555-5555-4555-8555-555555555555',
         requestType: 'AvailabilityDeclaration',
         requestedDate: null,
         availableDaysMask: 31, // Monday–Friday bitmask
@@ -601,7 +601,7 @@ describe('Shift Request MCP Tools', () => {
           availableDaysMask: 31,
           availableFrom: '08:00',
           availableTo: '16:00',
-          shiftId: 1,
+          shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           reason: 'Available for morning shifts next month'
         },
         successReply(availabilityRequest, 30)
@@ -622,7 +622,7 @@ describe('Shift Request MCP Tools', () => {
     test('invalid availableDaysMask — must be between 1 and 127 returns error', async () => {
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'AvailabilityDeclaration', availableDaysMask: 0, shiftId: 1, reason: 'test' },
+        { requestType: 'AvailabilityDeclaration', availableDaysMask: 0, shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         errorReply(-32602, 'AvailableDaysMask must be between 1 and 127', 31)
       );
 
@@ -638,7 +638,7 @@ describe('Shift Request MCP Tools', () => {
           availableDaysMask: 31,
           availableFrom: '17:00',
           availableTo: '08:00',
-          shiftId: 1,
+          shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           reason: 'test'
         },
         errorReply(-32602, 'AvailableFrom must be before AvailableTo', 32)
@@ -650,11 +650,11 @@ describe('Shift Request MCP Tools', () => {
 
     test('JSON-RPC 2.0 compliance — AvailabilityDeclaration response has id and result', async () => {
       const id = 33;
-      const availabilityRequest = { ...shiftRequest, id: 5, requestType: 'AvailabilityDeclaration', availableDaysMask: 31 };
+      const availabilityRequest = { ...shiftRequest, externalGuid: '55555555-5555-4555-8555-555555555555', requestType: 'AvailabilityDeclaration', availableDaysMask: 31 };
 
       const response = await call(
         'UteamupShiftRequestCreate',
-        { requestType: 'AvailabilityDeclaration', availableDaysMask: 31, shiftId: 1, reason: 'test' },
+        { requestType: 'AvailabilityDeclaration', availableDaysMask: 31, shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' },
         successReply(availabilityRequest, id)
       );
 
@@ -688,7 +688,7 @@ describe('Shift Request MCP Tools', () => {
             availableDaysMask: 62,
             availableFrom: '09:00',
             availableTo: '17:00',
-            shiftId: 1,
+            shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
             reason: 'Available Tue–Sat'
           }
         },
@@ -740,7 +740,7 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.id).toBe(1);
+      expect(result.externalGuid).toBe('11111111-1111-4111-8111-111111111111');
       expect(result.reason).toBe('Updated reason');
     });
 
@@ -1082,10 +1082,10 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.id).toBe(1);
+      expect(result.externalGuid).toBe('11111111-1111-4111-8111-111111111111');
       expect(result.status).toBe('Approved');
       expect(result.reviewNotes).toBe('Approved as requested');
-      expect(result.reviewedByUserId).toBe('user-manager-001');
+      expect(result.reviewedByUserGuid).toBe('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
       expect(result.reviewedAt).toBeDefined();
     });
 
@@ -1260,10 +1260,10 @@ describe('Shift Request MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.id).toBe(1);
+      expect(result.externalGuid).toBe('11111111-1111-4111-8111-111111111111');
       expect(result.status).toBe('Denied');
       expect(result.reviewNotes).toBe('Not enough staff available');
-      expect(result.reviewedByUserId).toBe('user-manager-001');
+      expect(result.reviewedByUserGuid).toBe('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
       expect(result.reviewedAt).toBeDefined();
     });
 
@@ -1441,7 +1441,7 @@ describe('Shift Request MCP Tools', () => {
   const allTools = [
     { name: 'UteamupShiftRequestList', args: {} },
     { name: 'UteamupShiftRequestGet', args: { id: 1 } },
-    { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftId: 1, reason: 'test' } },
+    { name: 'UteamupShiftRequestCreate', args: { requestType: 'DateRequest', requestedDate: '2026-03-01', shiftGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reason: 'test' } },
     { name: 'UteamupShiftRequestUpdate', args: { id: 1, reason: 'Updated' } },
     { name: 'UteamupShiftRequestDelete', args: { id: 1 } },
     { name: 'UteamupShiftRequestApprove', args: { id: 1, notes: 'Approved' } },
