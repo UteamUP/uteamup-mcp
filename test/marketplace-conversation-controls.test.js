@@ -157,6 +157,30 @@ describe('Marketplace conversation control tools', () => {
     });
   });
 
+  test('round-trips an authoritative offer card snapshot', async () => {
+    const offerRevisionGuid = '33333333-3333-4333-8333-333333333333';
+    const response = await call('UteamupMarketplaceConversationOfferCardCreate', {
+      conversationGuid,
+      offerRevisionGuid
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: messageGuid,
+          type: 'offerCard',
+          offerCard: { offerRevisionGuid, labourSubtotal: 1000, providerFeeAmount: 100 }
+        }) }] },
+        id: 8
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      type: 'offerCard',
+      offerCard: { offerRevisionGuid, providerFeeAmount: 100 }
+    });
+  });
+
   const tools = [
     { name: 'UteamupMarketplaceConversationMessagesSearch', args: { conversationGuid, query: 'permit' } },
     { name: 'UteamupMarketplaceConversationPreferencesUpdate', args: { conversationGuid, isMuted: true } },
@@ -169,7 +193,11 @@ describe('Marketplace conversation control tools', () => {
       timeZone: 'UTC'
     } },
     { name: 'UteamupMarketplaceConversationMeetingRespond', args: { conversationGuid, messageGuid, status: 'Accepted' } },
-    { name: 'UteamupMarketplaceConversationMeetingCalendarDownload', args: { conversationGuid, messageGuid } }
+    { name: 'UteamupMarketplaceConversationMeetingCalendarDownload', args: { conversationGuid, messageGuid } },
+    { name: 'UteamupMarketplaceConversationOfferCardCreate', args: {
+      conversationGuid,
+      offerRevisionGuid: '33333333-3333-4333-8333-333333333333'
+    } }
   ];
 
   describeJsonRpcCompliance(call, tools);
