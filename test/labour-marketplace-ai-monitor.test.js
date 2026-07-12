@@ -177,12 +177,49 @@ describe('Labour marketplace AI MCP tools', () => {
     expect(body).not.toHaveProperty('selectedRevisionGuid');
   });
 
+  test('previews and returns an editable contractor application draft without submitting', async () => {
+    const cost = await call('UteamupLabourMarketplaceContractorApplicationDraftCost', {}, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({ expectedCredits: 4, remaining: 9, canRun: true }) }] },
+        id: 11
+      }
+    });
+    expect(JSON.parse(cost.body.result.content[0].text).expectedCredits).toBe(4);
+
+    const args = { jobGuid, providerPartyGuid, language: 'English' };
+    const draft = await call('UteamupLabourMarketplaceContractorApplicationDraftCreate', args, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          jobGuid,
+          providerPartyGuid,
+          coverNote: 'Editable contractor draft.',
+          answers: [{ questionGuid: '44444444-4444-4444-8444-444444444444', requiresContractorVerification: true }],
+          possibleQualificationGaps: ['HV switching'],
+          creditsCharged: 4,
+          disclaimer: 'Editable only; no application was submitted.'
+        }) }] },
+        id: 12
+      }
+    });
+    expect(JSON.parse(draft.body.result.content[0].text)).toMatchObject({
+      jobGuid,
+      providerPartyGuid,
+      creditsCharged: 4
+    });
+  });
+
   const createArgs = { providerPartyGuid, name: 'Power jobs', maxCreditsPerRun: 2, monthlyCreditBudget: 20 };
   const tools = [
     { name: 'UteamupLabourMarketplaceBuyerJobDraftCost', args: {} },
     { name: 'UteamupLabourMarketplaceBuyerJobDraftCreate', args: { description: 'Four fitters for a planned outage.', currencyCode: 'USD' } },
     { name: 'UteamupLabourMarketplaceOfferComparisonCost', args: {} },
     { name: 'UteamupLabourMarketplaceOfferComparison', args: { jobGuid, revisionGuids, language: 'English' } },
+    { name: 'UteamupLabourMarketplaceContractorApplicationDraftCost', args: {} },
+    { name: 'UteamupLabourMarketplaceContractorApplicationDraftCreate', args: { jobGuid, providerPartyGuid, language: 'English' } },
     { name: 'UteamupLabourMarketplaceAiJobMonitorsList', args: {} },
     { name: 'UteamupLabourMarketplaceAiJobMonitorCost', args: {} },
     { name: 'UteamupLabourMarketplaceAiJobMonitorCreate', args: createArgs },
