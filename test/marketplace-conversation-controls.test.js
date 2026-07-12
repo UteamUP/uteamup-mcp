@@ -181,6 +181,63 @@ describe('Marketplace conversation control tools', () => {
     });
   });
 
+  test('round-trips a server-owned consent-stage contact card', async () => {
+    const response = await call('UteamupMarketplaceConversationContactCardCreate', {
+      conversationGuid,
+      includeEmail: true,
+      includePhone: false,
+      includeWebsite: true
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: messageGuid,
+          type: 'contactCard',
+          contactCard: {
+            displayName: 'Provider Owner',
+            email: 'provider@example.com',
+            phone: null,
+            website: 'https://provider.example.com'
+          }
+        }) }] },
+        id: 9
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      type: 'contactCard',
+      contactCard: {
+        email: 'provider@example.com',
+        phone: null
+      }
+    });
+  });
+
+  test('round-trips an entitled base64 vCard download', async () => {
+    const response = await call('UteamupMarketplaceConversationContactCardDownload', {
+      conversationGuid,
+      messageGuid
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          fileName: 'contact.vcf',
+          contentType: 'text/vcard; charset=utf-8',
+          base64Data: 'QkVHSU46VkNBUkQ=',
+          fileSizeBytes: 11
+        }) }] },
+        id: 10
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      fileName: 'contact.vcf',
+      contentType: 'text/vcard; charset=utf-8'
+    });
+  });
+
   const tools = [
     { name: 'UteamupMarketplaceConversationMessagesSearch', args: { conversationGuid, query: 'permit' } },
     { name: 'UteamupMarketplaceConversationPreferencesUpdate', args: { conversationGuid, isMuted: true } },
@@ -197,7 +254,14 @@ describe('Marketplace conversation control tools', () => {
     { name: 'UteamupMarketplaceConversationOfferCardCreate', args: {
       conversationGuid,
       offerRevisionGuid: '33333333-3333-4333-8333-333333333333'
-    } }
+    } },
+    { name: 'UteamupMarketplaceConversationContactCardCreate', args: {
+      conversationGuid,
+      includeEmail: true,
+      includePhone: false,
+      includeWebsite: true
+    } },
+    { name: 'UteamupMarketplaceConversationContactCardDownload', args: { conversationGuid, messageGuid } }
   ];
 
   describeJsonRpcCompliance(call, tools);
