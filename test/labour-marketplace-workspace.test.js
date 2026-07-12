@@ -17,6 +17,14 @@ describe('Private labour marketplace workspace tool', () => {
     name: 'UteamupLabourAgreementTimesheets',
     args: { agreementGuid: '44444444-4444-4444-8444-444444444444' }
   };
+  const replacementTool = {
+    name: 'UteamupLabourWorkerDispatchReplace',
+    args: {
+      dispatchGuid: '66666666-6666-4666-8666-666666666666',
+      replacementWorkforceMembershipGuid: '77777777-7777-4777-8777-777777777777',
+      reason: 'Original worker became unavailable.'
+    }
+  };
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -74,7 +82,39 @@ describe('Private labour marketplace workspace tool', () => {
     expect(body[0].entries[0].dispatchGuid).toBe('66666666-6666-4666-8666-666666666666');
   });
 
-  describeJsonRpcCompliance(call, [tool, timesheetsTool]);
-  describe401Unauthorized(BASE_URL, [tool, timesheetsTool]);
-  describe503ServiceUnavailable(BASE_URL, [tool, timesheetsTool]);
+  test('replaces a worker through GUID-only immutable roster arguments', async () => {
+    const response = await call(replacementTool.name, replacementTool.args, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: '88888888-8888-4888-8888-888888888888',
+          currentRevisionGuid: '99999999-9999-4999-8999-999999999999',
+          status: 'pendingApprovals',
+          approvals: [{ side: 'buyer', status: 'invalidated' }],
+          dispatches: [{
+            guid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            workforceMembershipGuid: replacementTool.args.replacementWorkforceMembershipGuid,
+            workerAcceptanceStatus: 'pending',
+            qualificationStatus: 'qualified',
+            qualificationSnapshot: {
+              replacesDispatchGuid: replacementTool.args.dispatchGuid,
+              replacementReason: replacementTool.args.reason
+            }
+          }]
+        }) }] },
+        id: 1
+      }
+    });
+
+    const body = JSON.parse(response.body.result.content[0].text);
+    expect(body.status).toBe('pendingApprovals');
+    expect(body.approvals[0].status).toBe('invalidated');
+    expect(body.dispatches[0].qualificationSnapshot.replacesDispatchGuid)
+      .toBe(replacementTool.args.dispatchGuid);
+  });
+
+  describeJsonRpcCompliance(call, [tool, timesheetsTool, replacementTool]);
+  describe401Unauthorized(BASE_URL, [tool, timesheetsTool, replacementTool]);
+  describe503ServiceUnavailable(BASE_URL, [tool, timesheetsTool, replacementTool]);
 });

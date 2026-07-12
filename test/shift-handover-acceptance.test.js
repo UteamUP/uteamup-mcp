@@ -6,10 +6,11 @@
  * and error responses from the backend /mcp endpoint.
  *
  * Tools under test:
- *   UteamupShiftHandoverStartReview(handoverGuid)
- *   UteamupShiftHandoverAccept(handoverGuid, notes?)
- *   UteamupShiftHandoverComplete(handoverGuid)
- *   UteamupShiftHandoverDeclineAcceptance(handoverGuid, notes?)
+ *   Lifecycle mutations also require concurrencyToken and idempotencyKey.
+ *   UteamupShiftHandoverStartReview(handoverGuid, concurrencyToken, idempotencyKey)
+ *   UteamupShiftHandoverAccept(handoverGuid, concurrencyToken, idempotencyKey, notes?)
+ *   UteamupShiftHandoverComplete(handoverGuid, concurrencyToken, idempotencyKey)
+ *   UteamupShiftHandoverDeclineAcceptance(handoverGuid, concurrencyToken, idempotencyKey, notes?)
  *   UteamupShiftHandoverGetPendingAcceptances()
  *   UteamupShiftHandoverCreate(..., shiftInstanceId?, journalId?, journalGenerationType?, journalName?)
  *
@@ -39,7 +40,25 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     nock.cleanAll();
   });
 
-  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
+  const lifecycleMutationTools = new Set([
+    'UteamupShiftHandoverStartReview',
+    'UteamupShiftHandoverAccept',
+    'UteamupShiftHandoverComplete',
+    'UteamupShiftHandoverDeclineAcceptance',
+  ]);
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(
+    BASE_URL,
+    ACCESS_TOKEN,
+    toolName,
+    lifecycleMutationTools.has(toolName)
+      ? {
+          concurrencyToken: 'latest-concurrency-token',
+          idempotencyKey: '77777777-7777-4777-8777-777777777777',
+          ...toolArgs,
+        }
+      : toolArgs,
+    mockReply,
+  );
 
   // ---------------------------------------------------------------------------
   // Shared mock data
