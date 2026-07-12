@@ -69,6 +69,32 @@ describe('Marketplace conversation control tools', () => {
     expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({ isPinned: true });
   });
 
+  test('round-trips server-validated participant mentions on a text message', async () => {
+    const mentionedParticipantGuid = '44444444-4444-4444-8444-444444444444';
+    const response = await call('UteamupMarketplaceConversationMessageSend', {
+      conversationGuid,
+      body: 'Please review the access plan.',
+      mentionedParticipantGuids: [mentionedParticipantGuid]
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: messageGuid,
+          type: 'text',
+          body: 'Please review the access plan.',
+          mentionedParticipantGuids: [mentionedParticipantGuid]
+        }) }] },
+        id: 11
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      type: 'text',
+      mentionedParticipantGuids: [mentionedParticipantGuid]
+    });
+  });
+
   test('does not expose unauthorized conversation history', async () => {
     const response = await call('UteamupMarketplaceConversationMessagesSearch', {
       conversationGuid,
@@ -242,6 +268,11 @@ describe('Marketplace conversation control tools', () => {
     { name: 'UteamupMarketplaceConversationMessagesSearch', args: { conversationGuid, query: 'permit' } },
     { name: 'UteamupMarketplaceConversationPreferencesUpdate', args: { conversationGuid, isMuted: true } },
     { name: 'UteamupMarketplaceConversationMessagePinUpdate', args: { conversationGuid, messageGuid, isPinned: true } },
+    { name: 'UteamupMarketplaceConversationMessageSend', args: {
+      conversationGuid,
+      body: 'Please review the access plan.',
+      mentionedParticipantGuids: ['44444444-4444-4444-8444-444444444444']
+    } },
     { name: 'UteamupMarketplaceConversationMeetingCreate', args: {
       conversationGuid,
       subject: 'Scope review',
