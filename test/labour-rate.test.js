@@ -10,8 +10,8 @@
  *   UteamupLabourRateGetRules()
  *   UteamupLabourRateGetModifiers()
  *   UteamupLabourRateCreateModifier(name, rateDefinitionType, rateValue, ...)
- *   UteamupLabourRateUpdateModifier(id, name, rateDefinitionType, rateValue, ...)
- *   UteamupLabourRateDeleteModifier(id)
+ *   UteamupLabourRateUpdateModifier(modifierGuid, name, rateDefinitionType, rateValue, ...)
+ *   UteamupLabourRateDeleteModifier(modifierGuid)
  *
  * Pattern mirrors tenant-holidays.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -60,6 +60,7 @@ describe('Labour Rate MCP Tools', () => {
 
   const modifier = {
     id: 10,
+    externalGuid: '20000000-0000-0000-0000-000000000010',
     name: 'Weekend Surcharge',
     description: '1.5x rate on weekends',
     daysOfWeekMask: 65,  // Sun=1 + Sat=64
@@ -399,7 +400,7 @@ describe('Labour Rate MCP Tools', () => {
       const response = await call(
         'UteamupLabourRateUpdateModifier',
         {
-          id: 10,
+          modifierGuid: modifier.externalGuid,
           name: 'Weekend Surcharge (updated)',
           rateDefinitionType: 0,
           rateValue: 1.75,
@@ -423,28 +424,38 @@ describe('Labour Rate MCP Tools', () => {
       expect(updated.name).toBe('Weekend Surcharge (updated)');
     });
 
-    test('returns error for invalid id (0)', async () => {
+    test('returns error for an empty modifier GUID', async () => {
       const response = await call(
         'UteamupLabourRateUpdateModifier',
-        { id: 0, name: 'Test', rateDefinitionType: 0, rateValue: 1.5 },
+        {
+          modifierGuid: '00000000-0000-0000-0000-000000000000',
+          name: 'Test',
+          rateDefinitionType: 0,
+          rateValue: 1.5
+        },
         {
           status: 200,
           body: {
             jsonrpc: '2.0',
-            error: { code: -32602, message: 'Id must be greater than 0' },
+            error: { code: -32602, message: 'ModifierGuid must be a non-empty GUID' },
             id: 15
           }
         }
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('Id must be greater than 0');
+      expect(response.body.error.message).toContain('ModifierGuid must be a non-empty GUID');
     });
 
     test('returns error when modifier not found', async () => {
       const response = await call(
         'UteamupLabourRateUpdateModifier',
-        { id: 99999, name: 'Test', rateDefinitionType: 0, rateValue: 1.5 },
+        {
+          modifierGuid: '20000000-0000-0000-0000-000000099999',
+          name: 'Test',
+          rateDefinitionType: 0,
+          rateValue: 1.5
+        },
         {
           status: 200,
           body: {
@@ -466,7 +477,7 @@ describe('Labour Rate MCP Tools', () => {
     test('deletes a modifier successfully', async () => {
       const response = await call(
         'UteamupLabourRateDeleteModifier',
-        { id: 10 },
+        { modifierGuid: modifier.externalGuid },
         {
           status: 200,
           body: {
@@ -482,10 +493,10 @@ describe('Labour Rate MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
     });
 
-    test('returns error for non-existent modifier id', async () => {
+    test('returns error for a non-existent modifier GUID', async () => {
       const response = await call(
         'UteamupLabourRateDeleteModifier',
-        { id: 99999999 },
+        { modifierGuid: '20000000-0000-0000-0000-000099999999' },
         {
           status: 200,
           body: {
@@ -499,28 +510,28 @@ describe('Labour Rate MCP Tools', () => {
       expect(response.body.error).toBeDefined();
     });
 
-    test('returns error for invalid id (0)', async () => {
+    test('returns error for an empty modifier GUID', async () => {
       const response = await call(
         'UteamupLabourRateDeleteModifier',
-        { id: 0 },
+        { modifierGuid: '00000000-0000-0000-0000-000000000000' },
         {
           status: 200,
           body: {
             jsonrpc: '2.0',
-            error: { code: -32602, message: 'Id must be greater than 0' },
+            error: { code: -32602, message: 'ModifierGuid must be a non-empty GUID' },
             id: 19
           }
         }
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('Id must be greater than 0');
+      expect(response.body.error.message).toContain('ModifierGuid must be a non-empty GUID');
     });
 
     test('returns 403 when LaborCost.All permission is missing', async () => {
       const response = await call(
         'UteamupLabourRateDeleteModifier',
-        { id: 10 },
+        { modifierGuid: modifier.externalGuid },
         {
           status: 200,
           body: {
@@ -544,8 +555,16 @@ describe('Labour Rate MCP Tools', () => {
     { name: 'UteamupLabourRateGetRules', args: {} },
     { name: 'UteamupLabourRateGetModifiers', args: {} },
     { name: 'UteamupLabourRateCreateModifier', args: { name: 'Test', rateDefinitionType: 'Flat', rateValue: 25.00 } },
-    { name: 'UteamupLabourRateUpdateModifier', args: { id: 1, name: 'Updated', rateDefinitionType: 'Flat', rateValue: 30.00 } },
-    { name: 'UteamupLabourRateDeleteModifier', args: { id: 1 } }
+    {
+      name: 'UteamupLabourRateUpdateModifier',
+      args: {
+        modifierGuid: modifier.externalGuid,
+        name: 'Updated',
+        rateDefinitionType: 'Flat',
+        rateValue: 30.00
+      }
+    },
+    { name: 'UteamupLabourRateDeleteModifier', args: { modifierGuid: modifier.externalGuid } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
