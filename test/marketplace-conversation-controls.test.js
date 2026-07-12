@@ -85,10 +85,91 @@ describe('Marketplace conversation control tools', () => {
     expect(response.body.error.message).toBe('Conversation not found.');
   });
 
+  test('round-trips a server-owned meeting proposal', async () => {
+    const response = await call('UteamupMarketplaceConversationMeetingCreate', {
+      conversationGuid,
+      subject: 'Scope review',
+      scheduledStartUtc: '2026-08-01T10:00:00Z',
+      scheduledEndUtc: '2026-08-01T11:00:00Z',
+      timeZone: 'Atlantic/Reykjavik',
+      location: 'Turbine hall',
+      notes: 'Bring PPE'
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: messageGuid,
+          type: 'meetingProposal',
+          meetingProposal: { status: 'proposed', subject: 'Scope review' }
+        }) }] },
+        id: 5
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      guid: messageGuid,
+      meetingProposal: { status: 'proposed' }
+    });
+  });
+
+  test('round-trips a typed meeting response', async () => {
+    const response = await call('UteamupMarketplaceConversationMeetingRespond', {
+      conversationGuid,
+      messageGuid,
+      status: 'Accepted'
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          guid: messageGuid,
+          meetingProposal: { status: 'accepted' }
+        }) }] },
+        id: 6
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text).meetingProposal.status).toBe('accepted');
+  });
+
+  test('round-trips an entitled base64 iCalendar download', async () => {
+    const response = await call('UteamupMarketplaceConversationMeetingCalendarDownload', {
+      conversationGuid,
+      messageGuid
+    }, {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        result: { content: [{ type: 'text', text: JSON.stringify({
+          fileName: 'meeting.ics',
+          contentType: 'text/calendar; charset=utf-8',
+          base64Data: 'QkVHSU46VkNBTEVOREFS',
+          fileSizeBytes: 15
+        }) }] },
+        id: 7
+      }
+    });
+
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({
+      fileName: 'meeting.ics',
+      contentType: 'text/calendar; charset=utf-8'
+    });
+  });
+
   const tools = [
     { name: 'UteamupMarketplaceConversationMessagesSearch', args: { conversationGuid, query: 'permit' } },
     { name: 'UteamupMarketplaceConversationPreferencesUpdate', args: { conversationGuid, isMuted: true } },
-    { name: 'UteamupMarketplaceConversationMessagePinUpdate', args: { conversationGuid, messageGuid, isPinned: true } }
+    { name: 'UteamupMarketplaceConversationMessagePinUpdate', args: { conversationGuid, messageGuid, isPinned: true } },
+    { name: 'UteamupMarketplaceConversationMeetingCreate', args: {
+      conversationGuid,
+      subject: 'Scope review',
+      scheduledStartUtc: '2026-08-01T10:00:00Z',
+      scheduledEndUtc: '2026-08-01T11:00:00Z',
+      timeZone: 'UTC'
+    } },
+    { name: 'UteamupMarketplaceConversationMeetingRespond', args: { conversationGuid, messageGuid, status: 'Accepted' } },
+    { name: 'UteamupMarketplaceConversationMeetingCalendarDownload', args: { conversationGuid, messageGuid } }
   ];
 
   describeJsonRpcCompliance(call, tools);
