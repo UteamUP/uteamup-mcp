@@ -19,9 +19,11 @@ describe('durable handover transfer challenge MCP tools', () => {
   const HANDOVER_GUID = '11111111-1111-4111-8111-111111111111';
   const ISSUE_ARGS = { handoverGuid: HANDOVER_GUID };
   const REDEEM_ARGS = { token: 'signed-single-use-token' };
+  const REDEEM_CODE_ARGS = { code: '12345678' };
   const tools = [
     { name: 'UteamupHandoverAttestationIssue', args: ISSUE_ARGS },
     { name: 'UteamupHandoverAttestationRedeem', args: REDEEM_ARGS },
+    { name: 'UteamupHandoverAttestationRedeemCode', args: REDEEM_CODE_ARGS },
   ];
 
   beforeEach(() => nock.cleanAll());
@@ -33,6 +35,7 @@ describe('durable handover transfer challenge MCP tools', () => {
   test('preserves the fully-bound issue receipt without integer identities', async () => {
     const challenge = {
       token: 'signed-single-use-token',
+      numericCode: '12345678',
       sessionGuid: '22222222-2222-4222-8222-222222222222',
       challengeGuid: '33333333-3333-4333-8333-333333333333',
       handoverGuid: HANDOVER_GUID,
@@ -79,6 +82,46 @@ describe('durable handover transfer challenge MCP tools', () => {
     );
 
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(receipt);
+  });
+
+  test('preserves a durable numeric-fallback redemption receipt', async () => {
+    const receipt = {
+      status: 'Redeemed',
+      isValid: true,
+      handoverGuid: HANDOVER_GUID,
+      challengeGuid: '33333333-3333-4333-8333-333333333333',
+    };
+    const response = await call(
+      'UteamupHandoverAttestationRedeemCode',
+      REDEEM_CODE_ARGS,
+      successReply(receipt),
+    );
+
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(receipt);
+  });
+
+  test('forwards only the eight-digit code when redeeming the fallback', async () => {
+    let captured = null;
+    nock(BASE_URL)
+      .post('/mcp', body => {
+        captured = body;
+        return body.params?.name === 'UteamupHandoverAttestationRedeemCode';
+      })
+      .reply(200, JSON.stringify(successReply({ isValid: true }).body), {
+        'Content-Type': 'application/json',
+      });
+
+    const status = await sendRawRequest(
+      BASE_URL,
+      'UteamupHandoverAttestationRedeemCode',
+      REDEEM_CODE_ARGS,
+    );
+
+    expect(status).toBe(200);
+    expect(captured.params).toEqual({
+      name: 'UteamupHandoverAttestationRedeemCode',
+      arguments: REDEEM_CODE_ARGS,
+    });
   });
 
   test('forwards only the stable handover GUID when issuing', async () => {

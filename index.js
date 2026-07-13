@@ -407,7 +407,11 @@ async function forwardRequest(request, requestId) {
                 debug('Detected SSE format, parsing...', { requestId });
                 const parsed = parseSSE(responseData);
                 if (parsed) {
-                  trace('SSE parsed successfully', { requestId, result: parsed });
+                  trace('SSE parsed successfully', {
+                    requestId,
+                    responseId: parsed?.id,
+                    hasError: Boolean(parsed?.error)
+                  });
                   resolve(parsed);
                   return;
                 }
@@ -416,7 +420,11 @@ async function forwardRequest(request, requestId) {
               // Fall back to plain JSON parsing
               try {
                 const parsed = JSON.parse(responseData);
-                trace('JSON parsed successfully', { requestId, result: parsed });
+                trace('JSON parsed successfully', {
+                  requestId,
+                  responseId: parsed?.id,
+                  hasError: Boolean(parsed?.error)
+                });
                 resolve(parsed);
               } catch (e) {
                 debug('Parse error (not SSE, not JSON)', { requestId, error: e.message });

@@ -134,5 +134,21 @@ describe('Logger', () => {
       expect(redacted.secretKey).toBe('[REDACTED]');
       expect(redacted.publicField).toBe('visible');
     });
+
+    test('should redact numeric handover codes at every nesting level', () => {
+      const data = {
+        numericCode: '12345678',
+        result: {
+          numeric_code: '87654321',
+          statusCode: 200
+        }
+      };
+
+      const redacted = redactSensitive(data);
+
+      expect(redacted.numericCode).toBe('[REDACTED]');
+      expect(redacted.result.numeric_code).toBe('[REDACTED]');
+      expect(redacted.result.statusCode).toBe(200);
+    });
   });
 });
