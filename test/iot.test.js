@@ -35,9 +35,18 @@ describe('IoT MCP tools', () => {
 
   test('returns monitoring and empty rules safely', async () => {
     const monitoring = await call('UteamupIoTMonitoringDashboard', {}, successReply({
-      totalDevices: 10, onlineDevices: 9, criticalAlerts: 1,
+      totalDevices: 10,
+      onlineDevices: 9,
+      criticalAlerts: 1,
+      stampDiagnosticsAvailable: true,
+      pendingProjectionEvents: 4,
+      deadLetterBacklog: 1,
     }));
-    expect(JSON.parse(monitoring.body.result.content[0].text).onlineDevices).toBe(9);
+    const dashboard = JSON.parse(monitoring.body.result.content[0].text);
+    expect(dashboard.onlineDevices).toBe(9);
+    expect(dashboard.stampDiagnosticsAvailable).toBe(true);
+    expect(dashboard.pendingProjectionEvents).toBe(4);
+    expect(dashboard.deadLetterBacklog).toBe(1);
     const rules = await call('UteamupIoTRulesList', {}, successReply([]));
     expect(JSON.parse(rules.body.result.content[0].text)).toEqual([]);
   });
