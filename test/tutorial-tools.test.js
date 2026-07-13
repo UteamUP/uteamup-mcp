@@ -22,7 +22,7 @@ describe('UPMate tutorial MCP tools', () => {
   const call = (toolName, toolArgs, mockReply) =>
     callTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
-  const tutorial = {
+  const stockTutorial = {
     schemaVersion: '1.0',
     id: 'stock.orientation',
     version: 1,
@@ -41,18 +41,32 @@ describe('UPMate tutorial MCP tools', () => {
     },
   };
 
-  test('lists published tutorials for a platform', async () => {
+  const workorderTutorial = {
+    ...stockTutorial,
+    id: 'workorders.create',
+    module: 'workorders',
+    requiredPermissions: ['WorkOrder.Create'],
+    requiredFeatures: ['Workorders'],
+    localizations: {
+      en: { title: 'Create a workorder', summary: 'Learn the workorder creation flow.' },
+    },
+    variants: {
+      web: { route: '/workorders/create', steps: [] },
+      mobile: { route: '/workorders', steps: [] },
+    },
+  };
+
+  test('discovers published tutorials across modules when module is omitted', async () => {
     const response = await call(
       'UteamupTutorialList',
-      { module: 'stock', platform: 'mobile' },
-      successReply([tutorial]),
+      { platform: 'mobile' },
+      successReply([stockTutorial, workorderTutorial]),
     );
 
     expect(response.status).toBe(200);
     const data = JSON.parse(response.body.result.content[0].text);
-    expect(data).toHaveLength(1);
-    expect(data[0].id).toBe('stock.orientation');
-    expect(data[0].supportedPlatforms).toContain('mobile');
+    expect(data.map((item) => item.id)).toEqual(['stock.orientation', 'workorders.create']);
+    expect(data.every((item) => item.supportedPlatforms.includes('mobile'))).toBe(true);
   });
 
   test('returns an empty list when no tutorial matches', async () => {
@@ -70,7 +84,7 @@ describe('UPMate tutorial MCP tools', () => {
     const response = await call(
       'UteamupTutorialGet',
       { tutorialId: 'stock.orientation', platform: 'web' },
-      successReply(tutorial),
+      successReply(stockTutorial),
     );
 
     const data = JSON.parse(response.body.result.content[0].text);
@@ -92,7 +106,7 @@ describe('UPMate tutorial MCP tools', () => {
   });
 
   const tools = [
-    { name: 'UteamupTutorialList', args: { module: 'stock', platform: 'web' } },
+    { name: 'UteamupTutorialList', args: { platform: 'web' } },
     { name: 'UteamupTutorialGet', args: { tutorialId: 'stock.orientation', platform: 'web' } },
   ];
   describeJsonRpcCompliance(call, tools);
