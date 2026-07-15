@@ -100,14 +100,15 @@ describe('enabled UPMate capability contracts', () => {
       name: 'UteamupWorkorderTemplateCreateFromTemplateByGuid',
       args: { templateGuid: GUID_A },
     },
+    { name: 'UteamupWorkorderTemplateAnalyzePreview', args: { templateGuid: GUID_A } },
   ];
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(37);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(37);
+    expect(capabilities).toHaveLength(38);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(38);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {
