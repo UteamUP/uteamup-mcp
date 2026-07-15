@@ -39,6 +39,11 @@ describe('UteamupAssetAsk MCP tool', () => {
         title: 'Replace mechanical seal',
         route: '/workorders/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         excerpt: 'Leak found at the mechanical seal.',
+        sourceUpdatedAtUtc: '2026-07-15T09:00:00Z',
+        dataFreshAtUtc: '2026-07-15T10:00:00Z',
+        revisionNumber: 4,
+        freshnessState: 'fresh',
+        freshnessWarning: null,
       }],
       creditsCharged: 2,
       remaining: 18,
@@ -48,6 +53,8 @@ describe('UteamupAssetAsk MCP tool', () => {
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.answer).toContain('[S1]');
     expect(data.citations[0].sourceGuid).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+    expect(data.citations[0].sourceUpdatedAtUtc).toBe('2026-07-15T09:00:00Z');
+    expect(data.citations[0].freshnessState).toBe('fresh');
     expect(data.creditsCharged).toBe(2);
   });
 
