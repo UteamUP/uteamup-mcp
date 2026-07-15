@@ -49,6 +49,9 @@ describe('durable schedule optimization run MCP tools', () => {
       proposedAssignments: [{
         workorderGuid,
         workorderUpdatedAt: '2026-07-15T08:00:00Z',
+        crewRole: 'Technician',
+        crewPosition: 1,
+        crewSize: 1,
         technicianGuid,
         technicianName: 'Field technician',
         scheduledStart: '2026-07-15T09:00:00Z',
