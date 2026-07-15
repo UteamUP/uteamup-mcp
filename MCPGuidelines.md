@@ -218,4 +218,4 @@ Do NOT regress these without a corresponding spec update and migration note in t
 - Backend tool registration: `UteamUP_Backend/UteamUP_API/MCP/Tools/*.cs`
 - CLI subcommand registration (mirrors MCP tools): `UteamUP_CLI/internal/registry/domains_*.go`
 - Wiki seed guide: `UteamUP_Frontend/Guidelines/WikiSeedGuidelines.md`
-- Frontend styling rules (when docs/examples touch UI): `UteamUP_Frontend/Guidelines/PageAndComponentStylesGuidelinesReadme.md`
+- Frontend styling rules (when docs/examples touch UI): `UteamUP_Frontend/Guidelines/PageAndComponentStylesGuidelines.md`
