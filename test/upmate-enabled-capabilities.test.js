@@ -13,6 +13,7 @@ describe('enabled UPMate capability contracts', () => {
 
   const capabilities = [
     { name: 'UteamupAssetList', args: { page: 1, pageSize: 10 } },
+    { name: 'UteamupAssetGetByGuid', args: { guid: GUID_A } },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
     { name: 'UteamupIoTTelemetryPoints', args: { deviceGuid: GUID_A, limit: 25 } },
     { name: 'UteamupMarketplaceBrowse', args: { search: 'bearing', page: 1, pageSize: 20 } },
@@ -97,8 +98,8 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(28);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(28);
+    expect(capabilities).toHaveLength(29);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(29);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {
