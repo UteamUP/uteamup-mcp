@@ -29,6 +29,7 @@ describe('enabled UPMate capability contracts', () => {
       args: { requirementGuid: GUID_A, offerGuid: GUID_B },
     },
     { name: 'UteamupProjectList', args: { page: 1, pageSize: 10 } },
+    { name: 'UteamupProjectGet', args: { projectGuid: GUID_A } },
     {
       name: 'UteamupScheduleAssignmentGetWorkorderOptions',
       args: { workorderGuid: GUID_A, plannedStartUtc: START, plannedEndUtc: END },
@@ -43,6 +44,7 @@ describe('enabled UPMate capability contracts', () => {
       },
     },
     { name: 'UteamupShiftList', args: {} },
+    { name: 'UteamupShiftGetByGuid', args: { shiftGuid: GUID_A } },
     {
       name: 'UteamupStockCreateMarketplacePurchaseOrderDraft',
       args: { requirementGuid: GUID_A, offerGuid: GUID_B },
@@ -98,8 +100,8 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(29);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(29);
+    expect(capabilities).toHaveLength(31);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(31);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {
