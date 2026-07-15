@@ -16,6 +16,8 @@ describe('enabled UPMate capability contracts', () => {
     { name: 'UteamupAssetGetByGuid', args: { guid: GUID_A } },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
     { name: 'UteamupIoTTelemetryPoints', args: { deviceGuid: GUID_A, limit: 25 } },
+    { name: 'UteamupDocumentListVersionsByGuid', args: { externalGuid: GUID_A } },
+    { name: 'UteamupDocumentGetMetadata', args: { guid: GUID_A } },
     { name: 'UteamupMarketplaceBrowse', args: { search: 'bearing', page: 1, pageSize: 20 } },
     { name: 'UteamupMarketplaceRequirementsList', args: {} },
     {
@@ -65,6 +67,7 @@ describe('enabled UPMate capability contracts', () => {
     },
     { name: 'UteamupTutorialList', args: { platform: 'web' } },
     { name: 'UteamupTutorialGet', args: { tutorialId: 'workorders.create', platform: 'web' } },
+    { name: 'UteamupVendorGetCatalog', args: { vendorGuid: GUID_A } },
     {
       name: 'UteamupWorkorderPrepareCloseoutByGuid',
       args: { workorderGuid: GUID_A, runGuid: GUID_B },
@@ -100,8 +103,8 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(31);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(31);
+    expect(capabilities).toHaveLength(34);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(34);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {
