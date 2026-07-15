@@ -6,6 +6,7 @@ const {
   successReply,
 } = require('./helpers/mcp-test-helpers');
 const {
+  describeJsonRpcCompliance,
   describe401Unauthorized,
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');
@@ -20,6 +21,9 @@ describe('durable schedule optimization run MCP tools', () => {
   const teamGuid = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   const workorderGuid = '11111111-1111-4111-8111-111111111111';
   const technicianGuid = '22222222-2222-4222-8222-222222222222';
+  const applyIdempotencyKey = '99999999-9999-4999-8999-999999999999';
+  const revertIdempotencyKey = '88888888-8888-4888-8888-888888888888';
+  const assignmentGuid = '33333333-3333-4333-8333-333333333333';
 
   const createArguments = {
     idempotencyKey,
@@ -44,6 +48,7 @@ describe('durable schedule optimization run MCP tools', () => {
     result: {
       proposedAssignments: [{
         workorderGuid,
+        workorderUpdatedAt: '2026-07-15T08:00:00Z',
         technicianGuid,
         technicianName: 'Field technician',
         scheduledStart: '2026-07-15T09:00:00Z',
@@ -69,8 +74,30 @@ describe('durable schedule optimization run MCP tools', () => {
       unassignedCount: 0,
       solverMethod: 'DeterministicFastAssign',
     },
+    isApplied: false,
+    applyIdempotencyKey: null,
+    appliedAt: null,
+    appliedByGuid: null,
+    appliedAssignmentGuids: [],
+    isReverted: false,
+    revertIdempotencyKey: null,
+    revertReason: null,
+    revertedAt: null,
+    revertedByGuid: null,
     createdAt: '2026-07-15T08:00:00Z',
     updatedAt: '2026-07-15T08:01:00Z',
+  };
+
+  const applyArguments = {
+    runGuid,
+    idempotencyKey: applyIdempotencyKey,
+    selectedWorkorderGuids: [workorderGuid],
+  };
+
+  const revertArguments = {
+    runGuid,
+    idempotencyKey: revertIdempotencyKey,
+    reason: 'Restore prior dispatch plan',
   };
 
   beforeEach(() => nock.cleanAll());
@@ -102,12 +129,36 @@ describe('durable schedule optimization run MCP tools', () => {
         cancellationReason: 'Priorities changed',
       },
     ],
+    [
+      'UteamupScheduleOptimizationRunApply',
+      applyArguments,
+      {
+        ...responseModel,
+        isApplied: true,
+        applyIdempotencyKey,
+        appliedAt: '2026-07-15T08:02:00Z',
+        appliedByGuid: dispatcherGuid,
+        appliedAssignmentGuids: [assignmentGuid],
+      },
+    ],
+    [
+      'UteamupScheduleOptimizationRunRevert',
+      revertArguments,
+      {
+        ...responseModel,
+        isReverted: true,
+        revertIdempotencyKey,
+        revertReason: 'Restore prior dispatch plan',
+        revertedAt: '2026-07-15T08:03:00Z',
+        revertedByGuid: dispatcherGuid,
+      },
+    ],
   ])('%s preserves the GUID-only durable contract', async (toolName, args, data) => {
     const result = await call(toolName, args, data);
 
     expect(result).toEqual(data);
     expect(JSON.stringify(args)).not.toMatch(
-      /"(?:runId|teamId|workorderIds|technicianIds)"/,
+      /"(?:runId|teamId|workorderIds|technicianIds|selectedWorkorderIds)"/,
     );
     expect(JSON.stringify(result)).not.toMatch(
       /"(?:runId|tenantId|requestedById|workorderId|technicianId)"/,
@@ -118,8 +169,11 @@ describe('durable schedule optimization run MCP tools', () => {
     { name: 'UteamupScheduleOptimizationRunCreate', args: createArguments },
     { name: 'UteamupScheduleOptimizationRunGet', args: { runGuid } },
     { name: 'UteamupScheduleOptimizationRunCancel', args: { runGuid } },
+    { name: 'UteamupScheduleOptimizationRunApply', args: applyArguments },
+    { name: 'UteamupScheduleOptimizationRunRevert', args: revertArguments },
   ];
 
+  describeJsonRpcCompliance(call, errorTools);
   describe401Unauthorized(BASE_URL, errorTools);
   describe503ServiceUnavailable(BASE_URL, errorTools);
 });
