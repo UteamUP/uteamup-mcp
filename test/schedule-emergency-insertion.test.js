@@ -15,8 +15,11 @@ describe('schedule emergency insertion MCP tool', () => {
   const technicianGuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   const teamGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
   const assignmentGuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const runGuid = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const idempotencyKey = '99999999-9999-4999-8999-999999999999';
 
   const args = {
+    idempotencyKey,
     workorderGuid,
     desiredStartUtc: '2026-07-16T10:00:00Z',
     planningWindowEndUtc: '2026-07-16T18:00:00Z',
@@ -26,7 +29,9 @@ describe('schedule emergency insertion MCP tool', () => {
   };
 
   const proposal = {
+    runGuid,
     workorderGuid,
+    workorderUpdatedAtUtc: '2026-07-15T08:00:00Z',
     workorderName: 'Burst pipe',
     hasEligibleProposal: true,
     bestTechnicianGuid: technicianGuid,
@@ -46,6 +51,7 @@ describe('schedule emergency insertion MCP tool', () => {
     affectedAssignments: [
       {
         assignmentGuid,
+        technicianGuid,
         workorderGuid: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
         workorderName: 'Routine inspection',
         currentStartUtc: '2026-07-16T11:00:00Z',
@@ -95,6 +101,7 @@ describe('schedule emergency insertion MCP tool', () => {
   test('returns explicit blocking constraints when no insertion is eligible', async () => {
     const noProposal = {
       ...proposal,
+      runGuid: null,
       hasEligibleProposal: false,
       bestTechnicianGuid: null,
       bestTechnicianName: '',
