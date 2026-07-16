@@ -25,6 +25,8 @@ const {
   ProxyTransportError,
   attachRequestTimeout,
   collectResponseBody,
+  getMcpRetryLimit,
+  parseOAuthTokenResponse,
   toPublicErrorMessage
 } = require('./lib/transport-security');
 
@@ -154,7 +156,7 @@ function generatePKCE() {
 /**
  * Gets an OAuth access token, using cached token if still valid.
  * Implements full OAuth 2.0 Authorization Code + PKCE flow with retry logic.
- * @returns {Promise<string>} JWT access token valid for 7 days
+ * @returns {Promise<string>} JWT access token valid for the backend-reported lifetime
  * @throws {Error} If authentication fails or credentials are invalid
  */
 async function getAccessToken() {
@@ -261,7 +263,7 @@ async function getAccessToken() {
       code_verifier: verifier
     }).toString();
 
-    const token = await retryWithBackoff(
+    const tokenResponse = await retryWithBackoff(
       async () => {
         return new Promise((resolve, reject) => {
           trace('Exchanging authorization code for access token');
@@ -297,19 +299,9 @@ async function getAccessToken() {
                 return;
               }
 
-              try {
-                const json = JSON.parse(data);
-                // Accept both camelCase (accessToken) and snake_case (access_token) formats
-                const token = json.accessToken || json.access_token;
-                if (token) {
-                  debug('Access token received successfully');
-                  resolve(token);
-                } else {
-                  reject(new ProxyTransportError('Token exchange returned an invalid response'));
-                }
-              } catch {
-                reject(new ProxyTransportError('Token exchange returned invalid JSON'));
-              }
+              const parsedToken = parseOAuthTokenResponse(data);
+              debug('Access token received successfully');
+              resolve(parsedToken);
             } catch (responseError) {
               reject(responseError);
             }
@@ -327,8 +319,8 @@ async function getAccessToken() {
       }
     );
 
-    accessToken = token;
-    tokenExpiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+    accessToken = tokenResponse.accessToken;
+    tokenExpiry = Date.now() + (tokenResponse.expiresInSeconds * 1000);
 
     const duration = stopTimer();
     recordOAuthAttempt(true, duration);
@@ -495,7 +487,7 @@ async function forwardRequest(request, requestId) {
         });
       },
       {
-        maxRetries: config.maxRetries,
+        maxRetries: getMcpRetryLimit(request.method, config.maxRetries),
         operationName: `MCP request [${request.method}]`
       }
     );

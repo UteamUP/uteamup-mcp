@@ -4,7 +4,9 @@ const {
   ProxyTransportError,
   attachRequestTimeout,
   collectResponseBody,
+  getMcpRetryLimit,
   normalizeBackendBaseUrl,
+  parseOAuthTokenResponse,
   toPublicErrorMessage
 } = require('../lib/transport-security');
 
@@ -48,6 +50,45 @@ describe('MCP transport security', () => {
 
       expect(buffer.push('ééé\n')).toEqual([{ oversized: true }]);
     });
+  });
+
+  describe('parseOAuthTokenResponse', () => {
+    test.each([
+      ['camel case', '{"accessToken":"jwt-value","expiresIn":86400}', 86400],
+      ['OAuth snake case', '{"access_token":"jwt-value","expires_in":3600}', 3600]
+    ])('uses the %s token and backend lifetime', (_label, response, expiresInSeconds) => {
+      expect(parseOAuthTokenResponse(response)).toEqual({
+        accessToken: 'jwt-value',
+        expiresInSeconds
+      });
+    });
+
+    test.each([
+      '{}',
+      '{"accessToken":"jwt-value"}',
+      '{"accessToken":"jwt-value","expiresIn":0}',
+      '{"accessToken":"","expiresIn":3600}',
+      'null',
+      'not-json'
+    ])('rejects a token response whose lifetime cannot be trusted: %s', response => {
+      expect(() => parseOAuthTokenResponse(response)).toThrow(/token exchange/i);
+    });
+  });
+
+  describe('getMcpRetryLimit', () => {
+    test.each(['tools/list', 'resources/read', 'prompts/get', 'ping'])(
+      'retains configured retries for protocol read %s',
+      method => {
+        expect(getMcpRetryLimit(method, 3)).toBe(3);
+      }
+    );
+
+    test.each(['tools/call', 'initialize', 'notifications/initialized', 'unknown/method'])(
+      'disables automatic retries for potentially stateful method %s',
+      method => {
+        expect(getMcpRetryLimit(method, 3)).toBe(0);
+      }
+    );
   });
 
   describe('collectResponseBody', () => {
