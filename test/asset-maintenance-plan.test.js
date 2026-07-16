@@ -26,17 +26,24 @@ describe('asset maintenance plan MCP tools', () => {
   const itemExternalGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
   const templateExternalGuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
   const workorderGuid = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const templateFamilyGuid = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const meterAttributeGuid = '12121212-1212-4121-8121-121212121212';
 
   const planModel = {
     name: 'Quarterly service',
     description: 'Inspect and service the asset',
     isActive: true,
+    effectiveDate: '2026-07-01T00:00:00Z',
+    consolidationWindowDays: 3,
+    dueTriggerPolicy: 0,
   };
 
   const itemModel = {
     name: 'Inspect drive belt',
     triggerType: 0,
     calendarIntervalDays: 90,
+    meterIntervalValue: 100,
+    meterAttributeDefinitionExternalGuid: meterAttributeGuid,
     workorderTemplateExternalGuid: templateExternalGuid,
     isRequiredForWarranty: true,
     isRequiredForCertification: false,
@@ -56,6 +63,41 @@ describe('asset maintenance plan MCP tools', () => {
     assetExternalGuid,
     ...planModel,
     items: [itemResponse],
+  };
+
+  const templateModel = {
+    name: 'Pump service',
+    consolidationWindowDays: 3,
+    items: [itemModel],
+  };
+
+  const templateResponse = {
+    externalGuid: templateExternalGuid,
+    templateFamilyGuid,
+    version: 2,
+    isCurrent: true,
+    createdAt: '2026-07-16T12:00:00Z',
+    ...templateModel,
+  };
+
+  const dueProjection = {
+    planExternalGuid,
+    assetExternalGuid,
+    calculatedAt: '2026-07-16T12:00:00Z',
+    triggerPolicy: 0,
+    items: [{
+      planItemExternalGuid: itemExternalGuid,
+      name: itemModel.name,
+      state: 0,
+      dueSource: 1,
+      dueAt: '2026-07-26T12:00:00Z',
+      reason: 'Projected from the observed meter rate.',
+      currentMeterValue: 50,
+      targetMeterValue: 100,
+      calculatedRatePerDay: 5,
+      meterSampleSize: 2,
+      confidence: 'low',
+    }],
   };
 
   beforeEach(() => nock.cleanAll());
@@ -100,11 +142,36 @@ describe('asset maintenance plan MCP tools', () => {
       itemResponse,
     ],
     ['UteamupAssetMaintenancePlanDeleteItem', { itemExternalGuid }, true],
+    [
+      'UteamupAssetMaintenancePlanTemplateList',
+      { includeHistory: true },
+      [templateResponse],
+    ],
+    [
+      'UteamupAssetMaintenancePlanTemplateGet',
+      { templateExternalGuid },
+      templateResponse,
+    ],
+    [
+      'UteamupAssetMaintenancePlanTemplateCreate',
+      { model: templateModel },
+      templateResponse,
+    ],
+    [
+      'UteamupAssetMaintenancePlanTemplateCreateVersion',
+      { templateExternalGuid, model: templateModel },
+      templateResponse,
+    ],
+    [
+      'UteamupAssetMaintenancePlanDueProjection',
+      { planExternalGuid, asOf: '2026-07-16T12:00:00Z' },
+      dueProjection,
+    ],
   ])('%s preserves its GUID contract', async (toolName, args, data) => {
     const result = await call(toolName, args, data);
     expect(result).toEqual(data);
     expect(JSON.stringify(result)).not.toMatch(
-      /\"(?:id|assetId|assetMaintenancePlanId|workorderTemplateId|lastWorkorderId)\"/,
+      /\"(?:id|assetId|assetMaintenancePlanId|templateId|meterAttributeId|workorderTemplateId|lastWorkorderId)\"/,
     );
   });
 
@@ -119,6 +186,14 @@ describe('asset maintenance plan MCP tools', () => {
     },
     {
       name: 'UteamupAssetMaintenancePlanGetItems',
+      args: { planExternalGuid },
+    },
+    {
+      name: 'UteamupAssetMaintenancePlanTemplateList',
+      args: { includeHistory: false },
+    },
+    {
+      name: 'UteamupAssetMaintenancePlanDueProjection',
       args: { planExternalGuid },
     },
   ];
