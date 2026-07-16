@@ -39,7 +39,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:integration": "jest test/integration.test.js",
-    "lint": "eslint index.js test/",
+    "test:ai-governance": "jest test/ai-governance-boundary.test.js test/ai-governance-ci.test.js --runInBand",
+    "lint": "eslint index.js lib/ test/",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "prepublishOnly": "npm test"
   },
@@ -54,6 +55,9 @@
     "prettier": "^3.8.3",
     "nock": "^14.0.15",
     "@types/node": "^25.7.0"
+  },
+  "overrides": {
+    "js-yaml@<3.15.0": "3.15.0"
   },
   "files": [
     "index.js",

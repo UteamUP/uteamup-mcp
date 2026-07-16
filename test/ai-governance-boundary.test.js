@@ -1,11 +1,49 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const repositoryRoot = path.resolve(__dirname, '..');
+const javaScriptFilePattern = /\.(?:cjs|js|mjs)$/;
+
+const collectJavaScriptFiles = directory =>
+  fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return collectJavaScriptFiles(entryPath);
+    return entry.isFile() && javaScriptFilePattern.test(entry.name) ? [entryPath] : [];
+  });
+
+const sourceFiles = [
+  path.join(repositoryRoot, 'index.js'),
+  ...collectJavaScriptFiles(path.join(repositoryRoot, 'lib'))
+].sort();
 
 describe('MCP AI governance boundary', () => {
+  test('discovers nested JavaScript implementation files recursively', () => {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uteamup-mcp-governance-'));
+
+    try {
+      fs.mkdirSync(path.join(temporaryRoot, 'nested', 'deeper'), { recursive: true });
+      fs.writeFileSync(path.join(temporaryRoot, 'root.js'), 'module.exports = {};');
+      fs.writeFileSync(path.join(temporaryRoot, 'nested', 'module.mjs'), 'export {};');
+      fs.writeFileSync(path.join(temporaryRoot, 'nested', 'deeper', 'module.cjs'), 'module.exports = {};');
+      fs.writeFileSync(path.join(temporaryRoot, 'nested', 'ignored.json'), '{}');
+
+      const discoveredFiles = collectJavaScriptFiles(temporaryRoot)
+        .map(fileName => path.relative(temporaryRoot, fileName))
+        .sort();
+
+      expect(discoveredFiles).toEqual([
+        path.join('nested', 'deeper', 'module.cjs'),
+        path.join('nested', 'module.mjs'),
+        'root.js'
+      ]);
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
   test('contains no direct AI provider SDK dependency', () => {
     const packageJson = JSON.parse(
       fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8')
@@ -26,12 +64,6 @@ describe('MCP AI governance boundary', () => {
   });
 
   test('contains no provider credential, endpoint, or control-plane marker', () => {
-    const sourceFiles = [
-      path.join(repositoryRoot, 'index.js'),
-      ...fs.readdirSync(path.join(repositoryRoot, 'lib'))
-        .filter(fileName => fileName.endsWith('.js'))
-        .map(fileName => path.join(repositoryRoot, 'lib', fileName))
-    ];
     const source = sourceFiles
       .map(fileName => fs.readFileSync(fileName, 'utf8'))
       .join('\n')
