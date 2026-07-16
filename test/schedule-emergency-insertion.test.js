@@ -1,59 +1,66 @@
 'use strict';
 
 const nock = require('nock');
-const { callMcpTool, successReply } = require('./helpers/mcp-test-helpers');
+const { callMcpTool, successReply, errorReply } = require('./helpers/mcp-test-helpers');
 const {
   describeJsonRpcCompliance,
   describe401Unauthorized,
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');
 
-describe('emergency schedule insertion preview MCP tool', () => {
+describe('schedule emergency insertion MCP tool', () => {
   const BASE_URL = 'https://api.test.com';
-  const ACCESS_TOKEN = 'test_access_token_emergency_insertion';
+  const ACCESS_TOKEN = 'test_access_token_schedule_emergency';
+  const workorderGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const technicianGuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const teamGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const assignmentGuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
   const args = {
-    workorderGuid: '11111111-1111-4111-8111-111111111111',
-    desiredStartUtc: '2026-07-20T08:00:00Z',
-    planningWindowEndUtc: '2026-07-20T18:00:00Z',
-    teamGuid: '22222222-2222-4222-8222-222222222222',
-    technicianGuids: ['33333333-3333-4333-8333-333333333333'],
+    workorderGuid,
+    desiredStartUtc: '2026-07-16T10:00:00Z',
+    planningWindowEndUtc: '2026-07-16T18:00:00Z',
+    teamGuid,
+    technicianGuids: [technicianGuid],
     maxDisplacedAssignments: 3,
   };
-  const response = {
-    workorderGuid: args.workorderGuid,
-    workorderName: 'Emergency repair',
+
+  const proposal = {
+    workorderGuid,
+    workorderName: 'Burst pipe',
     hasEligibleProposal: true,
-    bestTechnicianGuid: args.technicianGuids[0],
-    bestTechnicianName: 'Ada Technician',
-    proposedStartUtc: args.desiredStartUtc,
-    proposedEndUtc: '2026-07-20T09:00:00Z',
+    bestTechnicianGuid: technicianGuid,
+    bestTechnicianName: 'Ada Lovelace',
+    proposedStartUtc: '2026-07-16T10:00:00Z',
+    proposedEndUtc: '2026-07-16T12:00:00Z',
     displacedAssignmentCount: 1,
-    totalDisplacedMinutes: 60,
-    totalTravelIncreaseMinutes: 8,
-    competencyScore: 90,
+    totalDisplacedMinutes: 90,
+    totalTravelIncreaseMinutes: 12,
+    competencyScore: 95,
     scoreBreakdown: {
-      competencyReward: 90,
-      disruptionPenalty: 28,
-      travelPenalty: 1.6,
-      totalScore: 60.4,
+      competencyReward: 95,
+      disruptionPenalty: 25,
+      travelPenalty: 2.4,
+      totalScore: 67.6,
     },
-    affectedAssignments: [{
-      assignmentGuid: '44444444-4444-4444-8444-444444444444',
-      workorderGuid: '55555555-5555-4555-8555-555555555555',
-      workorderName: 'Planned inspection',
-      currentStartUtc: '2026-07-20T08:30:00Z',
-      currentEndUtc: '2026-07-20T09:30:00Z',
-      proposedStartUtc: '2026-07-20T09:00:00Z',
-      proposedEndUtc: '2026-07-20T10:00:00Z',
-      assignmentUpdatedAtUtc: '2026-07-19T12:00:00Z',
-      changeReason: 'Moved after the emergency work.',
-    }],
-    reasons: ['Least disruption'],
+    affectedAssignments: [
+      {
+        assignmentGuid,
+        workorderGuid: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        workorderName: 'Routine inspection',
+        currentStartUtc: '2026-07-16T11:00:00Z',
+        currentEndUtc: '2026-07-16T12:00:00Z',
+        proposedStartUtc: '2026-07-16T12:00:00Z',
+        proposedEndUtc: '2026-07-16T13:00:00Z',
+        assignmentUpdatedAtUtc: '2026-07-15T09:00:00Z',
+        changeReason: 'Moved after the emergency work while preserving its existing duration.',
+      },
+    ],
+    reasons: [
+      '1 scheduled assignment(s) move by 90 minutes in total.',
+      'The technician has a competency score of 95.0 for this workorder.',
+    ],
     blockingConstraints: [],
-  };
-  const tool = {
-    name: 'UteamupScheduleEmergencyInsertionPreview',
-    args,
   };
 
   beforeEach(() => nock.cleanAll());
@@ -71,17 +78,63 @@ describe('emergency schedule insertion preview MCP tool', () => {
     return JSON.parse(result.body.result.content[0].text);
   }
 
-  it('preserves the deterministic GUID-only displacement evidence', async () => {
-    expect(await call(tool.name, tool.args, response)).toEqual(response);
-    expect(JSON.stringify(args)).not.toMatch(
-      /"(?:workorderId|teamId|technicianIds|maxDisplacedAssignmentIds)"/,
+  test('returns a read-only GUID-first emergency insertion proposal', async () => {
+    const result = await call(
+      'UteamupScheduleEmergencyInsertionPreview',
+      args,
+      proposal,
     );
-    expect(JSON.stringify(response)).not.toMatch(
-      /"(?:assignmentId|affectedAssignmentIds|bestTechnicianId)"/,
+
+    expect(result).toEqual(proposal);
+    expect(JSON.stringify(args)).not.toMatch(/"(?:workorderId|teamId|technicianIds)"/);
+    expect(JSON.stringify(result)).not.toMatch(/"(?:workorderId|assignmentId|technicianId)"/);
+    expect(result.hasEligibleProposal).toBe(true);
+    expect(result.affectedAssignments[0].assignmentGuid).toBe(assignmentGuid);
+  });
+
+  test('returns explicit blocking constraints when no insertion is eligible', async () => {
+    const noProposal = {
+      ...proposal,
+      hasEligibleProposal: false,
+      bestTechnicianGuid: null,
+      bestTechnicianName: '',
+      displacedAssignmentCount: 0,
+      totalDisplacedMinutes: 0,
+      totalTravelIncreaseMinutes: 0,
+      competencyScore: 0,
+      affectedAssignments: [],
+      reasons: [],
+      blockingConstraints: ['No eligible emergency insertion could be calculated.'],
+    };
+
+    const result = await call(
+      'UteamupScheduleEmergencyInsertionPreview',
+      args,
+      noProposal,
+    );
+
+    expect(result.hasEligibleProposal).toBe(false);
+    expect(result.blockingConstraints).toContain(
+      'No eligible emergency insertion could be calculated.',
     );
   });
 
-  describeJsonRpcCompliance(call, [tool]);
-  describe401Unauthorized(BASE_URL, [tool]);
-  describe503ServiceUnavailable(BASE_URL, [tool]);
+  test('handles backend JSON-RPC errors without crashing the proxy', async () => {
+    const result = await callMcpTool(
+      BASE_URL,
+      ACCESS_TOKEN,
+      'UteamupScheduleEmergencyInsertionPreview',
+      args,
+      errorReply(-32603, 'Permission denied: Schedule.Optimize required.'),
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.error.message).toContain('Schedule.Optimize');
+  });
+
+  const tools = [{ name: 'UteamupScheduleEmergencyInsertionPreview', args }];
+
+  describeJsonRpcCompliance(call, tools);
+  describe401Unauthorized(BASE_URL, tools);
+  describe503ServiceUnavailable(BASE_URL, tools);
 });
