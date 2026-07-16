@@ -78,12 +78,11 @@ describe('UTEAMUP-SEC-2026-05-02-008 — insecureTLS config', () => {
     expect(cfg.insecureTLS).toBe(false);
   });
 
-  test('IGNORES UTEAMUP_INSECURE_TLS against api.uteamup.com with subpath', () => {
-    const cfg = withEnv(
+  test('rejects a production base URL with a subpath before applying TLS settings', () => {
+    expect(() => withEnv(
       { UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: 'https://api.uteamup.com/some/path' },
       loadConfig
-    );
-    expect(cfg.insecureTLS).toBe(false);
+    )).toThrow(/base URL/i);
   });
 
   test('off by default against api.uteamup.com', () => {
