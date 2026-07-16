@@ -150,5 +150,23 @@ describe('Logger', () => {
       expect(redacted.result.numeric_code).toBe('[REDACTED]');
       expect(redacted.result.statusCode).toBe(200);
     });
+
+    test('should redact API keys, cookies, OAuth redirects, and refresh tokens', () => {
+      const redacted = redactSensitive({
+        apiKey: 'api-key-value',
+        cookie: 'session=value',
+        setCookie: 'session=value',
+        oauthRedirect: 'https://localhost/callback?code=secret-code',
+        refreshToken: 'refresh-token-value',
+        visible: 'safe'
+      });
+
+      expect(redacted.apiKey).toBe('[REDACTED]');
+      expect(redacted.cookie).toBe('[REDACTED]');
+      expect(redacted.setCookie).toBe('[REDACTED]');
+      expect(redacted.oauthRedirect).toBe('[REDACTED]');
+      expect(redacted.refreshToken).toBe('[REDACTED]');
+      expect(redacted.visible).toBe('safe');
+    });
   });
 });

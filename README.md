@@ -150,10 +150,15 @@ That's it! 🎉
 | `UTEAMUP_DEBUG` | Legacy debug mode (`1` or `true`) | `false` |
 | `UTEAMUP_REQUEST_TIMEOUT` | Request timeout in milliseconds | `30000` |
 | `UTEAMUP_MAX_RETRIES` | Max retry attempts for network errors | `3` |
+| `UTEAMUP_MAX_REQUEST_BYTES` | Maximum bytes in one JSON-RPC request | `1048576` |
+| `UTEAMUP_MAX_RESPONSE_BYTES` | Maximum bytes buffered from one backend response | `10485760` |
 | `UTEAMUP_TOKEN_CACHE_DIR` | Persistent token cache directory | - |
 | `UTEAMUP_TOKEN_REFRESH_MARGIN` | Token refresh margin in seconds | `300` |
 
 ### API Base URLs
+
+The configured base URL must be a bare HTTPS origin. Credentials, paths, query
+parameters, fragments, and plain HTTP endpoints are rejected.
 
 | Environment | URL | When to Use |
 |-------------|-----|-------------|

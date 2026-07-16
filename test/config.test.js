@@ -31,6 +31,8 @@ describe('Configuration Validation', () => {
       expect(config.logFormat).toBe('text');
       expect(config.requestTimeout).toBe(30000);
       expect(config.maxRetries).toBe(3);
+      expect(config.maxRequestBytes).toBe(1048576);
+      expect(config.maxResponseBytes).toBe(10485760);
     });
 
     test('should throw error for missing API key', () => {
@@ -68,6 +70,31 @@ describe('Configuration Validation', () => {
 
       const config = loadConfig();
       expect(config.baseUrl).toBe('https://dev.example.com');
+    });
+
+    test.each([
+      'http://dev.example.com',
+      'https://user:password@dev.example.com',
+      'https://dev.example.com/untrusted-path',
+      'https://dev.example.com/?redirect=https://attacker.example'
+    ])('should reject unsafe base URL %s', unsafeUrl => {
+      process.env.UTEAMUP_API_KEY = '12345678901234567890123456789012';
+      process.env.UTEAMUP_SECRET = '1234567890123456789012345678901234567890123456789012345678901234';
+      process.env.UTEAMUP_API_BASE_URL = unsafeUrl;
+
+      expect(() => loadConfig()).toThrow(/base URL/i);
+    });
+
+    test('should parse transport byte limits', () => {
+      process.env.UTEAMUP_API_KEY = '12345678901234567890123456789012';
+      process.env.UTEAMUP_SECRET = '1234567890123456789012345678901234567890123456789012345678901234';
+      process.env.UTEAMUP_MAX_REQUEST_BYTES = '2048';
+      process.env.UTEAMUP_MAX_RESPONSE_BYTES = '4096';
+
+      const config = loadConfig();
+
+      expect(config.maxRequestBytes).toBe(2048);
+      expect(config.maxResponseBytes).toBe(4096);
     });
 
     test('should validate log level enum', () => {
