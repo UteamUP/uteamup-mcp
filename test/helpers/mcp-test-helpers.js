@@ -2,15 +2,21 @@
 
 const nock = require('nock');
 const https = require('https');
+const { isDeepStrictEqual } = require('node:util');
 
 const TEST_BASE_URL = 'https://api.test.com';
 
 /**
  * Send a JSON-RPC 2.0 tools/call to /mcp via nock-mocked HTTPS.
  */
-function callMcpTool(baseUrl, accessToken, toolName, toolArgs, mockReply) {
+function callMcpTool(baseUrl, accessToken, toolName, toolArgs, mockReply, expectedArgs) {
   nock(baseUrl)
-    .post('/mcp', body => body.method === 'tools/call' && body.params?.name === toolName)
+    .post('/mcp', body => (
+      body.method === 'tools/call'
+      && body.params?.name === toolName
+      && (expectedArgs === undefined
+        || isDeepStrictEqual(body.params?.arguments, expectedArgs))
+    ))
     .reply(mockReply.status, JSON.stringify(mockReply.body), {
       'Content-Type': 'application/json'
     });
