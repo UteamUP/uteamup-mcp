@@ -23,7 +23,11 @@ describe('enabled UPMate capability contracts', () => {
     { name: 'UteamupFleetDashboardGetCosts', args: { dateFrom: START, dateTo: END } },
     {
       name: 'UteamupFleetMaintenancePropose',
-      args: { sourceType: 'telematics-event', sourceGuid: GUID_A },
+      args: {
+        sourceType: 'asset-maintenance-package',
+        sourceGuid: GUID_A,
+        idempotencyKey: 'fleet-package-contract-1',
+      },
     },
     { name: 'UteamupMarketplaceBrowse', args: { search: 'bearing', page: 1, pageSize: 20 } },
     { name: 'UteamupMarketplaceRequirementsList', args: {} },
