@@ -25,6 +25,7 @@ describe('Project governance MCP tools', () => {
     callTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   const tools = [
+    { name: 'UteamupProjectFieldContextGet', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectMembersList', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectMembersAdd', args: { projectGuid: PROJECT_GUID, model: { userGuid: RESOURCE_GUID, role: 2, allocationPercent: 50, startDate: '2026-07-09' } } },
     { name: 'UteamupProjectMembersUpdate', args: { projectGuid: PROJECT_GUID, memberGuid: RESOURCE_GUID, model: { role: 1, allocationPercent: 75, startDate: '2026-07-09', isActive: true } } },
@@ -59,6 +60,24 @@ describe('Project governance MCP tools', () => {
   test.each(listTools)('$name preserves an empty list', async ({ name, args }) => {
     const response = await call(name, args, successReply([]));
     expect(JSON.parse(response.body.result.content[0].text)).toEqual([]);
+  });
+
+  test('UteamupProjectFieldContextGet preserves deterministic GUID evidence', async () => {
+    const fieldContext = {
+      projectGuid: PROJECT_GUID,
+      currentStage: { stageGuid: RESOURCE_GUID, name: 'Commissioning' },
+      hasCriticalPathWarning: true,
+      budget: { signal: 'Watch' },
+      evidenceComputedAt: '2026-07-17T09:30:00Z',
+    };
+
+    const response = await call(
+      'UteamupProjectFieldContextGet',
+      { projectGuid: PROJECT_GUID },
+      successReply(fieldContext),
+    );
+
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(fieldContext);
   });
 
   test.each(tools)('$name preserves backend JSON-RPC errors', async ({ name, args }) => {
