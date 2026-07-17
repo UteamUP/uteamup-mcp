@@ -41,6 +41,7 @@ describe('Meter Reading Schedule MCP Tools', () => {
   // -------------------------------------------------------------------------
   const ASSET_GUID = '11111111-2222-3333-4444-555555555555';
   const ATTR_GUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+  const WORKORDER_GUID = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
 
   const createdSchedule = {
     id: 7,
@@ -84,10 +85,11 @@ describe('Meter Reading Schedule MCP Tools', () => {
   };
 
   const workorderMeterReading = {
-    id: 123,
-    workorderId: 789,
-    attributeDefinitionId: 5,
-    readingValue: 45230,
+    requirementGuid: 'cccccccc-dddd-eeee-ffff-000000000001',
+    workorderGuid: WORKORDER_GUID,
+    assetGuid: ASSET_GUID,
+    attributeDefinitionGuid: ATTR_GUID,
+    recordedValue: 45230,
     isCompleted: true
   };
 
@@ -381,8 +383,8 @@ describe('Meter Reading Schedule MCP Tools', () => {
       const response = await call(
         'UteamupMeterscheduleRecordWorkorder',
         {
-          workorderId: 789,
-          attributeDefinitionId: 5,
+          workorderGuid: WORKORDER_GUID,
+          attributeDefinitionGuid: ATTR_GUID,
           readingValue: 45230,
           notes: 'Recorded during PM service'
         },
@@ -397,8 +399,9 @@ describe('Meter Reading Schedule MCP Tools', () => {
       );
 
       const reading = JSON.parse(response.body.result.content[0].text);
-      expect(reading.workorderId).toBe(789);
-      expect(reading.readingValue).toBe(45230);
+      expect(reading.workorderGuid).toBe(WORKORDER_GUID);
+      expect(reading.attributeDefinitionGuid).toBe(ATTR_GUID);
+      expect(reading.recordedValue).toBe(45230);
       expect(reading.isCompleted).toBe(true);
     });
   });
@@ -564,7 +567,11 @@ describe('Meter Reading Schedule MCP Tools', () => {
     { name: 'UteamupMeterscheduleComplianceSummary', args: {} },
     {
       name: 'UteamupMeterscheduleRecordWorkorder',
-      args: { workorderId: 789, attributeDefinitionId: 5, readingValue: 45230 }
+      args: {
+        workorderGuid: WORKORDER_GUID,
+        attributeDefinitionGuid: ATTR_GUID,
+        readingValue: 45230
+      }
     },
     {
       name: 'UteamupMeterscheduleCreateWorkorder',
