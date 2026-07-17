@@ -52,9 +52,28 @@ describe('Open asset failure MCP read', () => {
     expect(failure.severity).toBe('Critical');
   });
 
+  test('uses GUID-only identity arguments for failure and asset reads', async () => {
+    const failureGuid = '44444444-4444-4444-8444-444444444444';
+    const assetGuid = '55555555-5555-4555-8555-555555555555';
+    const cases = [
+      ['UteamupAssetfailureGet', { failureGuid }],
+      ['UteamupAssetfailureGetByAsset', { assetGuid }],
+      ['UteamupAssetfailureGetStatistics', { assetGuid }],
+    ];
+
+    for (const [toolName, args] of cases) {
+      const response = await call(toolName, args, successReply({ ok: true }));
+      expect(response.status).toBe(200);
+      expect(JSON.stringify(args)).not.toMatch(/"(?:id|assetId|failureId)"/);
+    }
+  });
+
   const tools = [
     { name: 'UteamupAssetfailureGetOpen', args: {} },
     { name: 'UteamupAssetfailureGetBySeverity', args: { severity: 'Critical' } },
+    { name: 'UteamupAssetfailureGet', args: { failureGuid: '44444444-4444-4444-8444-444444444444' } },
+    { name: 'UteamupAssetfailureGetByAsset', args: { assetGuid: '55555555-5555-4555-8555-555555555555' } },
+    { name: 'UteamupAssetfailureGetStatistics', args: { assetGuid: '55555555-5555-4555-8555-555555555555' } },
   ];
 
   describeJsonRpcCompliance(call, tools);
