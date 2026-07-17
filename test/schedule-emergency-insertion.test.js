@@ -48,6 +48,23 @@ describe('schedule emergency insertion MCP tool', () => {
       travelPenalty: 2.4,
       totalScore: 67.6,
     },
+    workingTimePolicyGuid: '12121212-1212-4212-8212-121212121212',
+    workingTimePolicyName: 'Iceland working-time policy',
+    workingTimePolicyHash: 'policy-hash',
+    workingTimeEvaluationHash: 'evaluation-hash',
+    workingTimePolicyConfigured: true,
+    workingTimeRequiresManagerOverride: true,
+    workingTimeViolations: [
+      {
+        ruleCode: 'WT-DAILY-REST-11H',
+        workerGuid: technicianGuid,
+        severity: 1,
+        severityName: 'Warn',
+        message: 'Only 10h rest before the emergency shift.',
+        at: '2026-07-16T10:00:00Z',
+        quantity: 1,
+      },
+    ],
     affectedAssignments: [
       {
         assignmentGuid,
@@ -95,6 +112,9 @@ describe('schedule emergency insertion MCP tool', () => {
     expect(JSON.stringify(args)).not.toMatch(/"(?:workorderId|teamId|technicianIds)"/);
     expect(JSON.stringify(result)).not.toMatch(/"(?:workorderId|assignmentId|technicianId)"/);
     expect(result.hasEligibleProposal).toBe(true);
+    expect(result.workingTimePolicyConfigured).toBe(true);
+    expect(result.workingTimeRequiresManagerOverride).toBe(true);
+    expect(result.workingTimeViolations[0].ruleCode).toBe('WT-DAILY-REST-11H');
     expect(result.affectedAssignments[0].assignmentGuid).toBe(assignmentGuid);
   });
 

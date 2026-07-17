@@ -30,11 +30,15 @@ The MCP server's job is to:
 
 ### Common Commands
 
+Do not run npm/Jest tests from hooks or after turns, tasks, phases, sections, todos,
+commits, or subagents. Only the primary agent, after the entire user goal and all
+subagents are complete, may run one affected MCP test invocation with
+`UTEAMUP_FINAL_GOAL_GATE=1`. Lint and formatting remain available during implementation.
+
 ```bash
 npm install              # Install dependencies
-npm test                 # Run full Jest suite
-npm run test:watch       # Watch mode
-npm run test:integration # Integration tests only
+UTEAMUP_FINAL_GOAL_GATE=1 npm test                 # Final full Jest gate
+UTEAMUP_FINAL_GOAL_GATE=1 npm run test:integration # Final integration gate
 npm run lint             # ESLint
 npm run format           # Prettier
 ```
@@ -53,7 +57,7 @@ No build step — `index.js` is published to npm as-is.
 ### Pre-commit Checklist
 
 ```bash
-npm test          # All Jest tests pass
+UTEAMUP_FINAL_GOAL_GATE=1 npm test # Final whole-goal Jest gate
 npm run lint      # No ESLint errors
 ```
 
