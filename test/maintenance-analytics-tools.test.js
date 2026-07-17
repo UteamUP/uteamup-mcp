@@ -6,8 +6,8 @@
  * responses from the backend /mcp endpoint.
  *
  * Tools under test:
- *   UteamupReliabilityMetricsGet(timeframe?, startDate?, endDate?, assetId?)
- *   UteamupOeeMetricsGet(timeframe?, assetId?, performanceRate?, qualityRate?)
+ *   UteamupReliabilityMetricsGet(timeframe?, startDate?, endDate?, assetGuid?)
+ *   UteamupOeeMetricsGet(timeframe?, assetGuid?, performanceRate?, qualityRate?)
  *   UteamupPmComplianceGet(timeframe?, locationId?)
  *   UteamupMaintenanceScorecardGet()
  *   UteamupRepairReplaceAnalysisGet(workorderId)
@@ -39,7 +39,7 @@ describe('Maintenance Analytics MCP Tools', () => {
     averageMttr: 4.5,
     averageMtbf: 720.0,
     firstTimeFixRate: 85.5,
-    assetRecords: [{ assetId: 1, assetName: 'Pump A', mttr: 3.2, mtbf: 800, failureCount: 5 }],
+    assetRecords: [{ assetGuid: '11111111-1111-4111-8111-111111111111', assetName: 'Pump A', mttr: 3.2, mtbf: 800, failureCount: 5 }],
     trendData: [{ date: '2026-02-01', mttr: 4.0, mtbf: 700 }]
   };
 
@@ -50,7 +50,7 @@ describe('Maintenance Analytics MCP Tools', () => {
     averageQuality: 95.0,
     performanceRateUsed: 85.0,
     qualityRateUsed: 95.0,
-    assetRecords: [{ assetId: 1, assetName: 'Pump A', oee: 75.0, availability: 92.0 }]
+    assetRecords: [{ assetGuid: '11111111-1111-4111-8111-111111111111', assetName: 'Pump A', oee: 75.0, availability: 92.0 }]
   };
 
   const mockPmCompliance = {
@@ -116,13 +116,13 @@ describe('Maintenance Analytics MCP Tools', () => {
     test('returns reliability metrics with date range filter', async () => {
       const response = await call(
         'UteamupReliabilityMetricsGet',
-        { startDate: '2026-01-01', endDate: '2026-02-28', assetId: 1 },
+        { startDate: '2026-01-01', endDate: '2026-02-28', assetGuid: '11111111-1111-4111-8111-111111111111' },
         successReply(mockReliability)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.assetRecords[0].assetId).toBe(1);
+      expect(data.assetRecords[0].assetGuid).toBe('11111111-1111-4111-8111-111111111111');
       expect(data.assetRecords[0].failureCount).toBe(5);
     });
 
@@ -165,7 +165,7 @@ describe('Maintenance Analytics MCP Tools', () => {
     test('returns OEE metrics with custom performance and quality rates', async () => {
       const response = await call(
         'UteamupOeeMetricsGet',
-        { assetId: 1, performanceRate: 90.0, qualityRate: 98.0 },
+        { assetGuid: '11111111-1111-4111-8111-111111111111', performanceRate: 90.0, qualityRate: 98.0 },
         successReply({ ...mockOee, performanceRateUsed: 90.0, qualityRateUsed: 98.0 })
       );
 
