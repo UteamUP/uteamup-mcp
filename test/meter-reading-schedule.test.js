@@ -7,10 +7,9 @@
  *
  * Tools under test:
  *   UteamupMeterscheduleCreateByGuid(assetGuid, attributeDefinitionGuid, intervalSeconds, ...)  [preferred]
- *   UteamupMeterscheduleCreate(assetId, attributeDefinitionId, intervalSeconds, ...)            [Obsolete shim]
  *   UteamupMeterscheduleGetOverdue()
- *   UteamupMeterscheduleComplianceSummary(assetId?)
- *   UteamupMeterscheduleRecordWorkorder(workorderId, attributeDefinitionId, readingValue, ...)
+ *   UteamupMeterscheduleComplianceSummary(assetGuid?)
+ *   UteamupMeterscheduleRecordWorkorder(workorderGuid, attributeDefinitionGuid, readingValue, ...)
  *
  * Pattern mirrors labour-rate.test.js: nock-mocked HTTPS responses simulating
  * what the backend `/mcp` POST returns to the proxy.
@@ -44,12 +43,9 @@ describe('Meter Reading Schedule MCP Tools', () => {
   const WORKORDER_GUID = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
 
   const createdSchedule = {
-    id: 7,
     guid: '99999999-8888-7777-6666-555555555555',
     assetGuid: ASSET_GUID,
-    assetId: 42,
     attributeDefinitionGuid: ATTR_GUID,
-    attributeDefinitionId: 5,
     intervalSeconds: 86400,
     scheduleLabel: 'Daily Odometer Check',
     autoCreateWorkorder: true,
@@ -59,12 +55,9 @@ describe('Meter Reading Schedule MCP Tools', () => {
 
   const overdueScheduleList = [
     {
-      id: 7,
       guid: '99999999-8888-7777-6666-555555555555',
       assetGuid: ASSET_GUID,
-      assetId: 42,
       attributeDefinitionGuid: ATTR_GUID,
-      attributeDefinitionId: 5,
       intervalSeconds: 86400,
       isActive: true,
       isOverdue: true,
@@ -109,8 +102,6 @@ describe('Meter Reading Schedule MCP Tools', () => {
       workorderTicketId: 'MET-0000000001',
       name: 'Trip Count reading — SEL-751',
       attributeDefinitionGuid: ATTR_GUID,
-      attributeDefinitionId: 5,
-      assetId: 42,
       attributeName: 'Trip Count',
       unit: 'count',
       isOverdue: true,
@@ -121,8 +112,6 @@ describe('Meter Reading Schedule MCP Tools', () => {
       workorderTicketId: 'MET-0000000002',
       name: 'Trip Count reading — SEL-751',
       attributeDefinitionGuid: ATTR_GUID,
-      attributeDefinitionId: 5,
-      assetId: 42,
       attributeName: 'Trip Count',
       unit: 'count',
       isOverdue: false
@@ -279,35 +268,6 @@ describe('Meter Reading Schedule MCP Tools', () => {
   });
 
   // -------------------------------------------------------------------------
-  // UteamupMeterscheduleCreate — deprecation shim (int-keyed)
-  // -------------------------------------------------------------------------
-  describe('UteamupMeterscheduleCreate (deprecated int variant)', () => {
-    test('still routes through the proxy for legacy int callers', async () => {
-      const response = await call(
-        'UteamupMeterscheduleCreate',
-        {
-          assetId: 42,
-          attributeDefinitionId: 5,
-          intervalSeconds: 86400
-        },
-        {
-          status: 200,
-          body: {
-            jsonrpc: '2.0',
-            result: { content: [{ type: 'text', text: JSON.stringify(createdSchedule) }] },
-            id: 4
-          }
-        }
-      );
-
-      expect(response.status).toBe(200);
-      const schedule = JSON.parse(response.body.result.content[0].text);
-      expect(schedule.id).toBe(7);
-      expect(schedule.assetId).toBe(42);
-    });
-  });
-
-  // -------------------------------------------------------------------------
   // UteamupMeterscheduleGetOverdue
   // -------------------------------------------------------------------------
   describe('UteamupMeterscheduleGetOverdue tool', () => {
@@ -355,7 +315,7 @@ describe('Meter Reading Schedule MCP Tools', () => {
   // UteamupMeterscheduleComplianceSummary
   // -------------------------------------------------------------------------
   describe('UteamupMeterscheduleComplianceSummary tool', () => {
-    test('returns tenant-wide compliance summary when no assetId is supplied', async () => {
+    test('returns tenant-wide compliance summary when no assetGuid is supplied', async () => {
       const response = await call(
         'UteamupMeterscheduleComplianceSummary',
         {},
@@ -559,12 +519,11 @@ describe('Meter Reading Schedule MCP Tools', () => {
       name: 'UteamupMeterscheduleCreateByGuid',
       args: { assetGuid: ASSET_GUID, attributeDefinitionGuid: ATTR_GUID, intervalSeconds: 86400 }
     },
-    {
-      name: 'UteamupMeterscheduleCreate',
-      args: { assetId: 42, attributeDefinitionId: 5, intervalSeconds: 86400 }
-    },
     { name: 'UteamupMeterscheduleGetOverdue', args: {} },
-    { name: 'UteamupMeterscheduleComplianceSummary', args: {} },
+    {
+      name: 'UteamupMeterscheduleComplianceSummary',
+      args: { assetGuid: ASSET_GUID }
+    },
     {
       name: 'UteamupMeterscheduleRecordWorkorder',
       args: {
