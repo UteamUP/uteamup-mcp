@@ -68,6 +68,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // ---------------------------------------------------------------------------
   const handover = {
     id: 10,
+    shiftGuid: SHIFT_GUID,
     shiftId: 1,
     shiftName: 'Morning Shift',
     shiftDate: '2026-03-01T00:00:00Z',
@@ -80,7 +81,10 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     incomingOperatorRespondedAt: null,
     incomingOperatorNotes: null,
     shiftInstanceId: 5,
+    shiftInstanceGuid: SHIFT_INSTANCE_GUID,
     journalId: null,
+    journalGuid: JOURNAL_GUID,
+    locationGuid: '66666666-6666-4666-8666-666666666666',
     journalGenerationType: 'AutoGenerate',
     journalName: 'Morning Shift Handover 2026-03-01',
     summary: 'All equipment checked, 2 WOs pending.'
