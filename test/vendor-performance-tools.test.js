@@ -10,8 +10,8 @@
  *   UteamupVendorRatingList(vendorId, page, pageSize)
  *   UteamupVendorRatingAggregate(vendorId)
  *   UteamupVendorRatingFlag(ratingId, model)
- *   UteamupVendorScorecardGet(vendorId)
- *   UteamupVendorScorecardConfigGet(vendorId)
+ *   UteamupVendorScorecardGet(vendorGuid)
+ *   UteamupVendorScorecardConfigGet()
  *
  * Pattern mirrors labour-rate.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -26,6 +26,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Vendor Performance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_vendor_performance';
+  const VENDOR_GUID = '11111111-1111-1111-1111-111111111111';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -65,7 +66,8 @@ describe('Vendor Performance MCP Tools', () => {
   };
 
   const mockScorecard = {
-    vendorId: 1,
+    externalGuid: '22222222-2222-2222-2222-222222222222',
+    vendorGuid: VENDOR_GUID,
     vendorName: 'Acme Services',
     overallScore: 87.5,
     qualityScore: 90,
@@ -77,7 +79,7 @@ describe('Vendor Performance MCP Tools', () => {
   };
 
   const mockScorecardConfig = {
-    vendorId: 1,
+    externalGuid: '33333333-3333-3333-3333-333333333333',
     qualityWeight: 30,
     deliveryWeight: 25,
     complianceWeight: 25,
@@ -232,7 +234,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns scorecard for a vendor', async () => {
       const response = await call(
         'UteamupVendorScorecardGet',
-        { vendorId: 1 },
+        { vendorGuid: VENDOR_GUID },
         successReply(mockScorecard)
       );
 
@@ -246,7 +248,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns error when vendor not found', async () => {
       const response = await call(
         'UteamupVendorScorecardGet',
-        { vendorId: 99999 },
+        { vendorGuid: '99999999-9999-9999-9999-999999999999' },
         errorReply(-32000, 'Vendor not found')
       );
 
@@ -262,7 +264,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns scorecard configuration for a vendor', async () => {
       const response = await call(
         'UteamupVendorScorecardConfigGet',
-        { vendorId: 1 },
+        {},
         successReply(mockScorecardConfig)
       );
 
@@ -276,7 +278,7 @@ describe('Vendor Performance MCP Tools', () => {
 
     test('returns default config when none is explicitly set', async () => {
       const defaultConfig = {
-        vendorId: 1,
+        externalGuid: '44444444-4444-4444-4444-444444444444',
         qualityWeight: 25,
         deliveryWeight: 25,
         complianceWeight: 25,
@@ -287,7 +289,7 @@ describe('Vendor Performance MCP Tools', () => {
 
       const response = await call(
         'UteamupVendorScorecardConfigGet',
-        { vendorId: 1 },
+        {},
         successReply(defaultConfig)
       );
 
@@ -305,8 +307,8 @@ describe('Vendor Performance MCP Tools', () => {
     { name: 'UteamupVendorRatingList', args: { vendorId: 1, page: 1, pageSize: 10 } },
     { name: 'UteamupVendorRatingAggregate', args: { vendorId: 1 } },
     { name: 'UteamupVendorRatingFlag', args: { ratingId: 1, model: { reason: 'Spam' } } },
-    { name: 'UteamupVendorScorecardGet', args: { vendorId: 1 } },
-    { name: 'UteamupVendorScorecardConfigGet', args: { vendorId: 1 } }
+    { name: 'UteamupVendorScorecardGet', args: { vendorGuid: VENDOR_GUID } },
+    { name: 'UteamupVendorScorecardConfigGet', args: {} }
   ];
 
   describeJsonRpcCompliance(call, allTools);
