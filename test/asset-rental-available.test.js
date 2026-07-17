@@ -51,10 +51,32 @@ describe('Available asset rental MCP read', () => {
     expect(rental.currentRentalExpectedEndDate).toBe('2026-07-27T00:00:00Z');
   });
 
+  test('round-trips rental revenue aggregate evidence', async () => {
+    const response = await call(
+      'UteamupAssetrentalRevenueSummary',
+      {
+        startDate: '2026-01-01T00:00:00Z',
+        endDate: '2026-04-01T00:00:00Z',
+      },
+      successReply({ totalRevenue: 12500, totalRentals: 8, activeRentals: 2 }),
+    );
+
+    const summary = JSON.parse(response.body.result.content[0].text);
+    expect(summary.totalRevenue).toBe(12500);
+    expect(summary.totalRentals).toBe(8);
+  });
+
   const tools = [
     { name: 'UteamupAssetrentalGetAvailable', args: {} },
     { name: 'UteamupAssetrentalGetRented', args: {} },
     { name: 'UteamupAssetrentalGetExpiringSoon', args: { days: 30 } },
+    {
+      name: 'UteamupAssetrentalRevenueSummary',
+      args: {
+        startDate: '2026-01-01T00:00:00Z',
+        endDate: '2026-04-01T00:00:00Z',
+      },
+    },
   ];
 
   describeJsonRpcCompliance(call, tools);
