@@ -35,7 +35,27 @@ describe('Available asset rental MCP read', () => {
     expect(rental.isAvailable).toBe(true);
   });
 
-  const tools = [{ name: 'UteamupAssetrentalGetAvailable', args: {} }];
+  test('round-trips active rental return evidence', async () => {
+    const response = await call(
+      'UteamupAssetrentalGetRented',
+      {},
+      successReply([{
+        externalGuid: '33333333-3333-3333-3333-333333333333',
+        assetGuid: '44444444-4444-4444-4444-444444444444',
+        currentRentalExpectedEndDate: '2026-07-27T00:00:00Z',
+      }]),
+    );
+
+    const [rental] = JSON.parse(response.body.result.content[0].text);
+    expect(rental.externalGuid).toBe('33333333-3333-3333-3333-333333333333');
+    expect(rental.currentRentalExpectedEndDate).toBe('2026-07-27T00:00:00Z');
+  });
+
+  const tools = [
+    { name: 'UteamupAssetrentalGetAvailable', args: {} },
+    { name: 'UteamupAssetrentalGetRented', args: {} },
+    { name: 'UteamupAssetrentalGetExpiringSoon', args: { days: 30 } },
+  ];
 
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
