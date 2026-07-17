@@ -6,13 +6,13 @@
  * responses from the backend /mcp endpoint gracefully.
  *
  * Tools under test:
- *   UteamupWorkforceSuggestAssignment(workorderId)
- *   UteamupWorkforceGetCapacity(teamId, startDate, endDate)
- *   UteamupWorkforceGetAvailableTechnicians(date, requiredSkills?, requiredCerts?, teamId?)
- *   UteamupWorkforceExplainAssignment(assignmentId)
- *   UteamupWorkforceRankTechniciansForWorkOrder(workorderId)
- *   UteamupWorkforceCheckTechnicianAvailability(technicianUserId, dateStr)
- *   UteamupWorkforceSuggestWeekPlan(teamId, weekStartDate)
+ *   UteamupWorkforceSuggestAssignment(workorderGuid)
+ *   UteamupWorkforceGetCapacity(teamGuid, startDate, endDate)
+ *   UteamupWorkforceGetAvailableTechnicians(date, requiredSkillGuids?, requiredCertificateGuids?, teamGuid?)
+ *   UteamupWorkforceExplainAssignment(assignmentGuid)
+ *   UteamupWorkforceRankTechniciansForWorkOrder(workorderGuid)
+ *   UteamupWorkforceCheckTechnicianAvailability(technicianUserGuid, dateStr)
+ *   UteamupWorkforceSuggestWeekPlan(teamGuid, weekStartDate)
  *
  * Pattern mirrors schedule-assignment.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -25,6 +25,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 
 describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   const BASE_URL = 'https://api.test.com';
+  const guid = value => `00000000-0000-0000-0000-${String(value).padStart(12, '0')}`;
   const ACCESS_TOKEN = 'test_access_token_workforce_ai';
 
   beforeEach(() => {
@@ -43,19 +44,19 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   describe('UteamupWorkforceSuggestAssignment tool', () => {
     test('uteamup_workforce_suggest_assignment returns best-match technician for a work order', async () => {
       const mockSuggestion = {
-        userId: 'user-alice-001',
+        userGuid: guid(101),
         userName: 'Alice Smith',
         availabilityStatus: 'available',
         scheduledHours: 2.0,
         capacityRemaining: 6.0,
-        matchingSkills: [{ skillId: 12, skillName: 'Electrical' }],
+        matchingSkills: [{ skillGuid: guid(12), skillName: 'Electrical' }],
         matchingCertificates: [],
         competencyScore: 93.5
       };
 
       const response = await call(
         'UteamupWorkforceSuggestAssignment',
-        { workorderId: 42 },
+        { workorderGuid: guid(42) },
         {
           status: 200,
           body: {
@@ -71,7 +72,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const suggestion = JSON.parse(response.body.result.content[0].text);
-      expect(suggestion.userId).toBe('user-alice-001');
+      expect(suggestion.userGuid).toBe(guid(101));
       expect(suggestion.availabilityStatus).toBe('available');
       expect(typeof suggestion.competencyScore).toBe('number');
     });
@@ -79,7 +80,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_suggest_assignment returns null when no suitable technician found', async () => {
       const response = await call(
         'UteamupWorkforceSuggestAssignment',
-        { workorderId: 99 },
+        { workorderGuid: guid(99) },
         {
           status: 200,
           body: {
@@ -96,10 +97,10 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(suggestion).toBeNull();
     });
 
-    test('uteamup_workforce_suggest_assignment with non-existent workorderId returns error', async () => {
+    test('uteamup_workforce_suggest_assignment with non-existent workorderGuid returns error', async () => {
       const response = await call(
         'UteamupWorkforceSuggestAssignment',
-        { workorderId: 888888 },
+        { workorderGuid: guid(888888) },
         {
           status: 200,
           body: {
@@ -118,7 +119,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error.message).toContain('not found');
     });
 
-    test('uteamup_workforce_suggest_assignment request includes workorderId in params', async () => {
+    test('uteamup_workforce_suggest_assignment request includes workorderGuid in params', async () => {
       let capturedBody = null;
 
       nock(BASE_URL)
@@ -137,7 +138,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         method: 'tools/call',
         params: {
           name: 'UteamupWorkforceSuggestAssignment',
-          arguments: { workorderId: 55 }
+          arguments: { workorderGuid: guid(55) }
         },
         id: 73
       };
@@ -163,7 +164,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       expect(capturedBody).not.toBeNull();
       expect(capturedBody.params.name).toBe('UteamupWorkforceSuggestAssignment');
-      expect(capturedBody.params.arguments.workorderId).toBe(55);
+      expect(capturedBody.params.arguments.workorderGuid).toBe(guid(55));
     });
   });
 
@@ -173,7 +174,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   describe('UteamupWorkforceGetCapacity tool', () => {
     test('uteamup_workforce_get_capacity returns capacity overview for a team', async () => {
       const mockCapacity = {
-        teamId: 3,
+        teamGuid: guid(3),
         teamName: 'Electrical Team',
         startDate: '2026-02-23',
         endDate: '2026-02-27',
@@ -183,7 +184,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         utilizationPercent: 55.0,
         members: [
           {
-            userId: 'user-alice-001',
+            userGuid: guid(101),
             userName: 'Alice Smith',
             availableHours: 40.0,
             scheduledHours: 24.0,
@@ -191,7 +192,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
             utilizationPercent: 60.0
           },
           {
-            userId: 'user-bob-002',
+            userGuid: guid(102),
             userName: 'Bob Jones',
             availableHours: 40.0,
             scheduledHours: 16.0,
@@ -203,7 +204,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceGetCapacity',
-        { teamId: 3, startDate: '2026-02-23', endDate: '2026-02-27' },
+        { teamGuid: guid(3), startDate: '2026-02-23', endDate: '2026-02-27' },
         {
           status: 200,
           body: {
@@ -219,17 +220,17 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const capacity = JSON.parse(response.body.result.content[0].text);
-      expect(capacity.teamId).toBe(3);
+      expect(capacity.teamGuid).toBe(3);
       expect(capacity.totalAvailableHours).toBe(160.0);
       expect(capacity.utilizationPercent).toBe(55.0);
       expect(Array.isArray(capacity.members)).toBe(true);
       expect(capacity.members.length).toBe(2);
     });
 
-    test('uteamup_workforce_get_capacity returns error for non-existent teamId', async () => {
+    test('uteamup_workforce_get_capacity returns error for non-existent teamGuid', async () => {
       const response = await call(
         'UteamupWorkforceGetCapacity',
-        { teamId: 777777, startDate: '2026-02-23', endDate: '2026-02-27' },
+        { teamGuid: guid(777777), startDate: '2026-02-23', endDate: '2026-02-27' },
         {
           status: 200,
           body: {
@@ -251,7 +252,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_get_capacity returns error for invalid date format', async () => {
       const response = await call(
         'UteamupWorkforceGetCapacity',
-        { teamId: 3, startDate: 'not-a-date', endDate: '2026-02-27' },
+        { teamGuid: guid(3), startDate: 'not-a-date', endDate: '2026-02-27' },
         {
           status: 200,
           body: {
@@ -270,7 +271,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error.message).toContain('YYYY-MM-DD');
     });
 
-    test('uteamup_workforce_get_capacity request includes teamId, startDate, endDate in params', async () => {
+    test('uteamup_workforce_get_capacity request includes teamGuid, startDate, endDate in params', async () => {
       let capturedBody = null;
 
       nock(BASE_URL)
@@ -289,7 +290,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         method: 'tools/call',
         params: {
           name: 'UteamupWorkforceGetCapacity',
-          arguments: { teamId: 4, startDate: '2026-02-23', endDate: '2026-02-27' }
+          arguments: { teamGuid: guid(4), startDate: '2026-02-23', endDate: '2026-02-27' }
         },
         id: 77
       };
@@ -314,7 +315,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       });
 
       expect(capturedBody).not.toBeNull();
-      expect(capturedBody.params.arguments.teamId).toBe(4);
+      expect(capturedBody.params.arguments.teamGuid).toBe(guid(4));
       expect(capturedBody.params.arguments.startDate).toBe('2026-02-23');
       expect(capturedBody.params.arguments.endDate).toBe('2026-02-27');
     });
@@ -327,7 +328,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_get_available_technicians returns list with capacity data', async () => {
       const mockTechnicians = [
         {
-          userId: 'user-alice-001',
+          userGuid: guid(101),
           userName: 'Alice Smith',
           availabilityStatus: 'available',
           scheduledHours: 3.0,
@@ -336,7 +337,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
           matchingCertificates: []
         },
         {
-          userId: 'user-bob-002',
+          userGuid: guid(102),
           userName: 'Bob Jones',
           availabilityStatus: 'available',
           scheduledHours: 0.0,
@@ -370,22 +371,22 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(technicians[1].capacityRemaining).toBe(8.0);
     });
 
-    test('uteamup_workforce_get_available_technicians filters by requiredSkills list', async () => {
+    test('uteamup_workforce_get_available_technicians filters by requiredSkillGuids list', async () => {
       const mockFiltered = [
         {
-          userId: 'user-alice-001',
+          userGuid: guid(101),
           userName: 'Alice Smith',
           availabilityStatus: 'available',
           scheduledHours: 1.0,
           capacityRemaining: 7.0,
-          matchingSkills: [{ skillId: 5, skillName: 'Plumbing' }],
+          matchingSkills: [{ skillGuid: guid(5), skillName: 'Plumbing' }],
           matchingCertificates: []
         }
       ];
 
       const response = await call(
         'UteamupWorkforceGetAvailableTechnicians',
-        { date: '2026-02-24', requiredSkills: [5] },
+        { date: '2026-02-24', requiredSkillGuids: [guid(5)] },
         {
           status: 200,
           body: {
@@ -399,7 +400,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.status).toBe(200);
       const technicians = JSON.parse(response.body.result.content[0].text);
       expect(technicians.length).toBe(1);
-      expect(technicians[0].matchingSkills[0].skillId).toBe(5);
+      expect(technicians[0].matchingSkills[0].skillGuid).toBe(5);
     });
 
     test('uteamup_workforce_get_available_technicians returns error for invalid date', async () => {
@@ -445,9 +446,9 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
           name: 'UteamupWorkforceGetAvailableTechnicians',
           arguments: {
             date: '2026-02-24',
-            requiredSkills: [5, 12],
-            requiredCerts: [3],
-            teamId: 2
+            requiredSkillGuids: [guid(5), guid(12)],
+            requiredCertificateGuids: [guid(3)],
+            teamGuid: guid(2)
           }
         },
         id: 81
@@ -474,9 +475,9 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       expect(capturedBody).not.toBeNull();
       expect(capturedBody.params.arguments.date).toBe('2026-02-24');
-      expect(capturedBody.params.arguments.requiredSkills).toEqual([5, 12]);
-      expect(capturedBody.params.arguments.requiredCerts).toEqual([3]);
-      expect(capturedBody.params.arguments.teamId).toBe(2);
+      expect(capturedBody.params.arguments.requiredSkillGuids).toEqual([guid(5), guid(12)]);
+      expect(capturedBody.params.arguments.requiredCertificateGuids).toEqual([guid(3)]);
+      expect(capturedBody.params.arguments.teamGuid).toBe(guid(2));
     });
   });
 
@@ -486,10 +487,10 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   describe('UteamupWorkforceExplainAssignment tool', () => {
     test('uteamup_workforce_explain_assignment returns explanation object', async () => {
       const mockExplanation = {
-        assignmentId: 42,
-        technicianId: 'user-alice-001',
+        assignmentGuid: guid(42),
+        technicianUserGuid: guid(101),
         technicianName: 'Alice Smith',
-        workorderId: 99,
+        workorderGuid: guid(99),
         workorderTitle: 'Inspect Pump Station A',
         explanation: 'Alice was assigned because she has 5 years of experience with pump maintenance, is available during the scheduled window, and her location (Site B) is closest to the work site.',
         competencyScore: 91.5,
@@ -499,7 +500,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceExplainAssignment',
-        { assignmentId: 42 },
+        { assignmentGuid: guid(42) },
         {
           status: 200,
           body: {
@@ -515,16 +516,16 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const content = JSON.parse(response.body.result.content[0].text);
-      expect(content.assignmentId).toBe(42);
+      expect(content.assignmentGuid).toBe(42);
       expect(content.technicianName).toBe('Alice Smith');
       expect(typeof content.explanation).toBe('string');
       expect(content.explanation.length).toBeGreaterThan(0);
     });
 
-    test('uteamup_workforce_explain_assignment with invalid assignmentId returns error', async () => {
+    test('uteamup_workforce_explain_assignment with invalid assignmentGuid returns error', async () => {
       const response = await call(
         'UteamupWorkforceExplainAssignment',
-        { assignmentId: 999999 },
+        { assignmentGuid: guid(999999) },
         {
           status: 200,
           body: {
@@ -544,7 +545,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error.message).toContain('not found');
     });
 
-    test('uteamup_workforce_explain_assignment request includes correct assignmentId in params', async () => {
+    test('uteamup_workforce_explain_assignment request includes correct assignmentGuid in params', async () => {
       let capturedBody = null;
 
       nock(BASE_URL)
@@ -563,7 +564,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         method: 'tools/call',
         params: {
           name: 'UteamupWorkforceExplainAssignment',
-          arguments: { assignmentId: 77 }
+          arguments: { assignmentGuid: guid(77) }
         },
         id: 3
       };
@@ -589,7 +590,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       expect(capturedBody).not.toBeNull();
       expect(capturedBody.params.name).toBe('UteamupWorkforceExplainAssignment');
-      expect(capturedBody.params.arguments.assignmentId).toBe(77);
+      expect(capturedBody.params.arguments.assignmentGuid).toBe(guid(77));
     });
   });
 
@@ -601,7 +602,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       const mockRankings = [
         {
           rank: 1,
-          technicianId: 'user-alice-001',
+          technicianUserGuid: guid(101),
           technicianName: 'Alice Smith',
           overallScore: 93.2,
           competencyScore: 95.0,
@@ -611,7 +612,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         },
         {
           rank: 2,
-          technicianId: 'user-bob-002',
+          technicianUserGuid: guid(102),
           technicianName: 'Bob Jones',
           overallScore: 80.1,
           competencyScore: 78.5,
@@ -623,7 +624,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
-        { workorderId: 55 },
+        { workorderGuid: guid(55) },
         {
           status: 200,
           body: {
@@ -649,7 +650,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_rank_technicians_for_work_order returns empty list when no technicians available', async () => {
       const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
-        { workorderId: 123 },
+        { workorderGuid: guid(123) },
         {
           status: 200,
           body: {
@@ -667,10 +668,10 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(rankings.length).toBe(0);
     });
 
-    test('uteamup_workforce_rank_technicians_for_work_order with non-existent workorderId returns error', async () => {
+    test('uteamup_workforce_rank_technicians_for_work_order with non-existent workorderGuid returns error', async () => {
       const response = await call(
         'UteamupWorkforceRankTechniciansForWorkOrder',
-        { workorderId: 888888 },
+        { workorderGuid: guid(888888) },
         {
           status: 200,
           body: {
@@ -696,7 +697,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   describe('UteamupWorkforceCheckTechnicianAvailability tool', () => {
     test('uteamup_workforce_check_technician_availability returns availability status', async () => {
       const mockAvailability = {
-        technicianId: 'user-charlie-003',
+        technicianUserGuid: guid(103),
         technicianName: 'Charlie Brown',
         date: '2026-03-04',
         isAvailable: true,
@@ -705,7 +706,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
           { start: '14:00', end: '17:00', durationMinutes: 180 }
         ],
         bookedSlots: [
-          { start: '12:00', end: '14:00', assignmentId: 501, workorderTitle: 'Pump Maintenance' }
+          { start: '12:00', end: '14:00', assignmentGuid: guid(501), workorderTitle: 'Pump Maintenance' }
         ],
         totalAvailableMinutes: 420,
         totalBookedMinutes: 120
@@ -713,7 +714,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
-        { technicianUserId: 'user-charlie-003', dateStr: '2026-03-04' },
+        { technicianUserGuid: guid(103), dateStr: '2026-03-04' },
         {
           status: 200,
           body: {
@@ -729,7 +730,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const availability = JSON.parse(response.body.result.content[0].text);
-      expect(availability.technicianId).toBe('user-charlie-003');
+      expect(availability.technicianUserGuid).toBe(guid(103));
       expect(availability.isAvailable).toBe(true);
       expect(Array.isArray(availability.availableSlots)).toBe(true);
       expect(availability.totalAvailableMinutes).toBe(420);
@@ -737,13 +738,13 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
     test('uteamup_workforce_check_technician_availability returns false when fully booked', async () => {
       const mockFullyBooked = {
-        technicianId: 'user-dave-004',
+        technicianUserGuid: guid(104),
         technicianName: 'Dave Wilson',
         date: '2026-03-05',
         isAvailable: false,
         availableSlots: [],
         bookedSlots: [
-          { start: '08:00', end: '17:00', assignmentId: 600, workorderTitle: 'Full Day Site Inspection' }
+          { start: '08:00', end: '17:00', assignmentGuid: guid(600), workorderTitle: 'Full Day Site Inspection' }
         ],
         totalAvailableMinutes: 0,
         totalBookedMinutes: 540
@@ -751,7 +752,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
-        { technicianUserId: 'user-dave-004', dateStr: '2026-03-05' },
+        { technicianUserGuid: guid(104), dateStr: '2026-03-05' },
         {
           status: 200,
           body: {
@@ -774,7 +775,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_check_technician_availability with invalid dateStr returns error', async () => {
       const response = await call(
         'UteamupWorkforceCheckTechnicianAvailability',
-        { technicianUserId: 'user-alice-001', dateStr: 'not-a-date' },
+        { technicianUserGuid: guid(101), dateStr: 'not-a-date' },
         {
           status: 200,
           body: {
@@ -813,7 +814,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         params: {
           name: 'UteamupWorkforceCheckTechnicianAvailability',
           arguments: {
-            technicianUserId: 'user-eve-005',
+            technicianUserGuid: 'user-eve-005',
             dateStr: '2026-03-06'
           }
         },
@@ -840,7 +841,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       });
 
       expect(capturedBody).not.toBeNull();
-      expect(capturedBody.params.arguments.technicianUserId).toBe('user-eve-005');
+      expect(capturedBody.params.arguments.technicianUserGuid).toBe('user-eve-005');
       expect(capturedBody.params.arguments.dateStr).toBe('2026-03-06');
     });
   });
@@ -851,25 +852,25 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   describe('UteamupWorkforceSuggestWeekPlan tool', () => {
     test('uteamup_workforce_suggest_week_plan returns plan suggestion', async () => {
       const mockWeekPlan = {
-        teamId: 3,
+        teamGuid: guid(3),
         teamName: 'Electrical Team',
         weekStart: '2026-03-02',
         weekEnd: '2026-03-08',
         summary: 'Suggested plan places 12 assignments across 4 technicians with an estimated utilization of 78%.',
         suggestedAssignments: [
           {
-            workorderId: 10,
+            workorderGuid: guid(10),
             workorderTitle: 'Replace Circuit Breaker B12',
-            technicianId: 'user-alice-001',
+            technicianUserGuid: guid(101),
             technicianName: 'Alice Smith',
             proposedStart: '2026-03-02T09:00:00Z',
             proposedEnd: '2026-03-02T11:00:00Z',
             reasoning: 'Alice is best qualified and available on Monday morning'
           },
           {
-            workorderId: 11,
+            workorderGuid: guid(11),
             workorderTitle: 'Install Emergency Lighting',
-            technicianId: 'user-bob-002',
+            technicianUserGuid: guid(102),
             technicianName: 'Bob Jones',
             proposedStart: '2026-03-03T13:00:00Z',
             proposedEnd: '2026-03-03T16:00:00Z',
@@ -882,7 +883,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
-        { teamId: 3, weekStartDate: '2026-03-02' },
+        { teamGuid: guid(3), weekStartDate: '2026-03-02' },
         {
           status: 200,
           body: {
@@ -898,17 +899,17 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const plan = JSON.parse(response.body.result.content[0].text);
-      expect(plan.teamId).toBe(3);
+      expect(plan.teamGuid).toBe(3);
       expect(typeof plan.summary).toBe('string');
       expect(Array.isArray(plan.suggestedAssignments)).toBe(true);
       expect(plan.suggestedAssignments.length).toBe(2);
       expect(plan.estimatedUtilizationPercent).toBe(78.0);
     });
 
-    test('uteamup_workforce_suggest_week_plan with invalid teamId returns error', async () => {
+    test('uteamup_workforce_suggest_week_plan with invalid teamGuid returns error', async () => {
       const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
-        { teamId: 777777, weekStartDate: '2026-03-02' },
+        { teamGuid: guid(777777), weekStartDate: '2026-03-02' },
         {
           status: 200,
           body: {
@@ -931,7 +932,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
     test('uteamup_workforce_suggest_week_plan with invalid weekStartDate returns error', async () => {
       const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
-        { teamId: 3, weekStartDate: 'bad-date' },
+        { teamGuid: guid(3), weekStartDate: 'bad-date' },
         {
           status: 200,
           body: {
@@ -950,7 +951,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error.message).toContain('YYYY-MM-DD');
     });
 
-    test('uteamup_workforce_suggest_week_plan request includes teamId and weekStartDate in params', async () => {
+    test('uteamup_workforce_suggest_week_plan request includes teamGuid and weekStartDate in params', async () => {
       let capturedBody = null;
 
       nock(BASE_URL)
@@ -969,7 +970,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
         method: 'tools/call',
         params: {
           name: 'UteamupWorkforceSuggestWeekPlan',
-          arguments: { teamId: 5, weekStartDate: '2026-03-09' }
+          arguments: { teamGuid: guid(5), weekStartDate: '2026-03-09' }
         },
         id: 14
       };
@@ -994,7 +995,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       });
 
       expect(capturedBody).not.toBeNull();
-      expect(capturedBody.params.arguments.teamId).toBe(5);
+      expect(capturedBody.params.arguments.teamGuid).toBe(guid(5));
       expect(capturedBody.params.arguments.weekStartDate).toBe('2026-03-09');
     });
   });
@@ -1003,13 +1004,13 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   // Shared error-handling coverage (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
   const allTools = [
-    { name: 'UteamupWorkforceSuggestAssignment', args: { workorderId: 1 } },
-    { name: 'UteamupWorkforceGetCapacity', args: { teamId: 1, startDate: '2026-02-23', endDate: '2026-02-27' } },
+    { name: 'UteamupWorkforceSuggestAssignment', args: { workorderGuid: guid(1) } },
+    { name: 'UteamupWorkforceGetCapacity', args: { teamGuid: guid(1), startDate: '2026-02-23', endDate: '2026-02-27' } },
     { name: 'UteamupWorkforceGetAvailableTechnicians', args: { date: '2026-02-24' } },
-    { name: 'UteamupWorkforceExplainAssignment', args: { assignmentId: 1 } },
-    { name: 'UteamupWorkforceRankTechniciansForWorkOrder', args: { workorderId: 1 } },
-    { name: 'UteamupWorkforceCheckTechnicianAvailability', args: { technicianUserId: 'user-test', dateStr: '2026-03-02' } },
-    { name: 'UteamupWorkforceSuggestWeekPlan', args: { teamId: 1, weekStartDate: '2026-03-02' } }
+    { name: 'UteamupWorkforceExplainAssignment', args: { assignmentGuid: guid(1) } },
+    { name: 'UteamupWorkforceRankTechniciansForWorkOrder', args: { workorderGuid: guid(1) } },
+    { name: 'UteamupWorkforceCheckTechnicianAvailability', args: { technicianUserGuid: guid(105), dateStr: '2026-03-02' } },
+    { name: 'UteamupWorkforceSuggestWeekPlan', args: { teamGuid: guid(1), weekStartDate: '2026-03-02' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
@@ -1020,17 +1021,17 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
   // Permission denied handling
   // ---------------------------------------------------------------------------
   describe('Permission denied handling', () => {
-    test('workforce tools return permission error when Schedule.AI permission is missing', async () => {
+    test('workforce tools return permission error when Schedule.Manage permission is missing', async () => {
       const response = await call(
         'UteamupWorkforceSuggestWeekPlan',
-        { teamId: 1, weekStartDate: '2026-03-02' },
+        { teamGuid: guid(1), weekStartDate: '2026-03-02' },
         {
           status: 200,
           body: {
             jsonrpc: '2.0',
             error: {
               code: -32600,
-              message: 'Permission denied: Schedule.AI required'
+              message: 'Permission denied: Schedule.Manage required'
             },
             id: 60
           }
@@ -1039,20 +1040,20 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
 
       expect(response.body.error).toBeDefined();
       expect(response.body.error.message).toContain('Permission denied');
-      expect(response.body.error.message).toContain('Schedule.AI');
+      expect(response.body.error.message).toContain('Schedule.Manage');
     });
 
-    test('workforce explain tool returns permission error for Schedule.Read missing', async () => {
+    test('workforce explain tool returns permission error for Schedule.Manage missing', async () => {
       const response = await call(
         'UteamupWorkforceExplainAssignment',
-        { assignmentId: 1 },
+        { assignmentGuid: guid(1) },
         {
           status: 200,
           body: {
             jsonrpc: '2.0',
             error: {
               code: -32600,
-              message: 'Permission denied: Schedule.Read required'
+              message: 'Permission denied: Schedule.Manage required'
             },
             id: 61
           }
@@ -1060,7 +1061,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('Schedule.Read');
+      expect(response.body.error.message).toContain('Schedule.Manage');
     });
   });
 });
