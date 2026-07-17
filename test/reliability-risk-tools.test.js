@@ -70,3 +70,68 @@ describe('reliability risk MCP tool', () => {
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
 });
+
+describe('reliability strategy MCP tool', () => {
+  const BASE_URL = 'https://api.test.com';
+  const ACCESS_TOKEN = 'reliability-strategy-token';
+  const assetGuid = '33333333-3333-4333-8333-333333333333';
+  const failureGuid = '44444444-4444-4444-8444-444444444444';
+  const tool = {
+    name: 'UteamupReliabilityStrategyPropose',
+    args: {
+      assetGuid,
+      objectiveKey: 'availability',
+      fromUtc: '2026-01-01T00:00:00Z',
+      toUtc: '2026-07-17T00:00:00Z',
+    },
+  };
+  const call = (toolName, toolArgs, reply) =>
+    callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, reply);
+
+  beforeEach(() => nock.cleanAll());
+  afterEach(() => nock.cleanAll());
+
+  test('round-trips review-only FMEA, RCM, PM and prediction gates', async () => {
+    const response = await call(
+      tool.name,
+      tool.args,
+      successReply({
+        assetGuid,
+        selectedStrategyKey: 'planned-preventive',
+        recommendedPmIntervalDays: 24,
+        fmeaEligible: true,
+        fmecaEligible: false,
+        statisticalGate: {
+          weibullEligible: false,
+          survivalAnalysisEligible: false,
+          remainingUsefulLifeEligible: false,
+          gateReason: 'More evidence is required.',
+        },
+        failureModes: [{
+          failureModeKey: 'bearing',
+          detectionScore: null,
+          riskPriorityNumber: null,
+          evidenceFailureGuids: [failureGuid],
+        }],
+        plan: {
+          status: 'needs-review',
+          recommendations: [{ proposedActions: [], requiresHumanConfirmation: true }],
+        },
+      }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.assetGuid).toBe(assetGuid);
+    expect(result.fmecaEligible).toBe(false);
+    expect(result.statisticalGate.remainingUsefulLifeEligible).toBe(false);
+    expect(result.failureModes[0].riskPriorityNumber).toBeNull();
+    expect(result.plan.status).toBe('needs-review');
+    expect(result.plan.recommendations[0].proposedActions).toEqual([]);
+    expect(result).not.toHaveProperty('assetId');
+  });
+
+  const tools = [tool];
+  describeJsonRpcCompliance(call, tools);
+  describe401Unauthorized(BASE_URL, tools);
+  describe503ServiceUnavailable(BASE_URL, tools);
+});
