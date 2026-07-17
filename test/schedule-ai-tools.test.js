@@ -220,7 +220,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const capacity = JSON.parse(response.body.result.content[0].text);
-      expect(capacity.teamGuid).toBe(3);
+      expect(capacity.teamGuid).toBe(guid(3));
       expect(capacity.totalAvailableHours).toBe(160.0);
       expect(capacity.utilizationPercent).toBe(55.0);
       expect(Array.isArray(capacity.members)).toBe(true);
@@ -400,7 +400,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.status).toBe(200);
       const technicians = JSON.parse(response.body.result.content[0].text);
       expect(technicians.length).toBe(1);
-      expect(technicians[0].matchingSkills[0].skillGuid).toBe(5);
+      expect(technicians[0].matchingSkills[0].skillGuid).toBe(guid(5));
     });
 
     test('uteamup_workforce_get_available_technicians returns error for invalid date', async () => {
@@ -516,7 +516,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const content = JSON.parse(response.body.result.content[0].text);
-      expect(content.assignmentGuid).toBe(42);
+      expect(content.assignmentGuid).toBe(guid(42));
       expect(content.technicianName).toBe('Alice Smith');
       expect(typeof content.explanation).toBe('string');
       expect(content.explanation.length).toBeGreaterThan(0);
@@ -899,7 +899,7 @@ describe('Schedule AI / Workforce Planning MCP Tools (Phase 4)', () => {
       expect(response.body.error).toBeUndefined();
 
       const plan = JSON.parse(response.body.result.content[0].text);
-      expect(plan.teamGuid).toBe(3);
+      expect(plan.teamGuid).toBe(guid(3));
       expect(typeof plan.summary).toBe('string');
       expect(Array.isArray(plan.suggestedAssignments)).toBe(true);
       expect(plan.suggestedAssignments.length).toBe(2);

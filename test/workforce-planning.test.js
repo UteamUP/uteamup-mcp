@@ -147,7 +147,7 @@ describe('Workforce Planning MCP Tools', () => {
         shiftRows: [
           {
             ...grid.shiftRows[0],
-            categoryGroups: grid.shiftRows[0].categoryGroups.filter(cg => cg.categoryGuid === 1)
+            categoryGroups: grid.shiftRows[0].categoryGroups.filter(cg => cg.categoryGuid === guid(1))
           }
         ]
       };
@@ -347,7 +347,7 @@ describe('Workforce Planning MCP Tools', () => {
       expect(capturedBody).not.toBeNull();
       expect(capturedBody.params.arguments.dateFrom).toBe('2026-03-01');
       expect(capturedBody.params.arguments.dateTo).toBe('2026-03-07');
-      expect(capturedBody.params.arguments.categoryGuids).toEqual([1, 2]);
+      expect(capturedBody.params.arguments.categoryGuids).toEqual([guid(1), guid(2)]);
     });
 
     test('instancesByDate is null for dates with no instance', async () => {
