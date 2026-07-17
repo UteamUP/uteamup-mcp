@@ -38,7 +38,27 @@ describe('Overdue asset calibration MCP read', () => {
     expect(calibration.isOverdue).toBe(true);
   });
 
-  const tools = [{ name: 'UteamupAssetcalibrationGetOverdue', args: {} }];
+  test('round-trips a bounded due-soon planning window', async () => {
+    const response = await call(
+      'UteamupAssetcalibrationGetDueSoon',
+      { days: 45 },
+      successReply([{
+        guid: '33333333-3333-3333-3333-333333333333',
+        assetGuid: '44444444-4444-4444-4444-444444444444',
+        name: 'Quarterly flow calibration',
+        daysUntilDue: 12,
+      }]),
+    );
+
+    const [calibration] = JSON.parse(response.body.result.content[0].text);
+    expect(calibration.guid).toBe('33333333-3333-3333-3333-333333333333');
+    expect(calibration.daysUntilDue).toBe(12);
+  });
+
+  const tools = [
+    { name: 'UteamupAssetcalibrationGetOverdue', args: {} },
+    { name: 'UteamupAssetcalibrationGetDueSoon', args: { days: 30 } },
+  ];
 
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);

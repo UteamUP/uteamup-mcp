@@ -12,7 +12,7 @@
  *   UteamupShiftHandoverComplete(handoverGuid, concurrencyToken, idempotencyKey)
  *   UteamupShiftHandoverDeclineAcceptance(handoverGuid, concurrencyToken, idempotencyKey, notes?)
  *   UteamupShiftHandoverGetPendingAcceptances()
- *   UteamupShiftHandoverCreate(..., shiftInstanceId?, journalId?, journalGenerationType?, journalName?)
+ *   UteamupShiftHandoverCreate(shiftGuid, shiftDate, shiftInstanceGuid?, journalGuid?, journalGenerationType?, journalName?)
  *
  * Pattern mirrors schedule-assignment.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -29,6 +29,9 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_shift_handover_acceptance';
   const HANDOVER_GUID = '11111111-1111-4111-8111-111111111111';
+  const SHIFT_GUID = '33333333-3333-4333-8333-333333333333';
+  const SHIFT_INSTANCE_GUID = '44444444-4444-4444-8444-444444444444';
+  const JOURNAL_GUID = '55555555-5555-4555-8555-555555555555';
   const SECOND_HANDOVER_GUID = '22222222-2222-4222-8222-222222222222';
   const UNKNOWN_HANDOVER_GUID = '99999999-9999-4999-8999-999999999999';
 
@@ -707,7 +710,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // UteamupShiftHandoverCreate — journal selection fields
   // ---------------------------------------------------------------------------
   describe('UteamupShiftHandoverCreate tool — journal selection', () => {
-    test('create with existing journalId sets journalId and leaves journalGenerationType null', async () => {
+    test('create with an existing journal uses its public GUID', async () => {
       const handoverWithJournal = {
         ...handover,
         id: 20,
@@ -719,11 +722,11 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked, 2 WOs pending.',
-          journalId: 99
+          journalGuid: JOURNAL_GUID,
+          journalGenerationType: 'Existing'
         },
         {
           status: 200,
@@ -756,11 +759,11 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked, 2 WOs pending.',
-          journalGenerationType: 'AutoGenerate'
+          journalGenerationType: 'AutoGenerate',
+          journalName: 'Morning Shift Handover 2026-03-01'
         },
         {
           status: 200,
@@ -791,9 +794,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked.',
           journalGenerationType: 'AutoGenerate',
           journalName: 'My Custom Handover Journal'
@@ -824,9 +826,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked, 2 WOs pending.'
         },
         {
@@ -847,7 +848,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.journalId).toBeNull();
     });
 
-    test('create with shiftInstanceId links the handover to the shift instance', async () => {
+    test('create with shiftInstanceGuid links the handover to the shift instance', async () => {
       const handoverWithInstance = {
         ...handover,
         id: 24,
@@ -857,12 +858,12 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked.',
-          shiftInstanceId: 5,
-          journalGenerationType: 'AutoGenerate'
+          shiftInstanceGuid: SHIFT_INSTANCE_GUID,
+          journalGenerationType: 'AutoGenerate',
+          journalName: 'Morning Shift Handover 2026-03-01'
         },
         {
           status: 200,
@@ -878,7 +879,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.shiftInstanceId).toBe(5);
     });
 
-    test('create without shiftInstanceId succeeds for backward compatibility', async () => {
+    test('create without shiftInstanceGuid succeeds when no instance is required', async () => {
       const handoverNoInstance = {
         ...handover,
         id: 25,
@@ -888,9 +889,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked.'
         },
         {
@@ -908,7 +908,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
     });
 
-    test('AutoGenerate generates journalName based on shift name and date', async () => {
+    test('default journal generation derives a name from the shift and date', async () => {
       const handoverAutoName = {
         ...handover,
         id: 26,
@@ -922,11 +922,9 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
-          summary: 'All equipment checked.',
-          journalGenerationType: 'AutoGenerate'
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
+          summary: 'All equipment checked.'
         },
         {
           status: 200,
@@ -947,9 +945,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked.'
         },
         {
@@ -973,11 +970,11 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const response = await call(
         'UteamupShiftHandoverCreate',
         {
-          shiftId: 1,
-          outgoingOperatorId: 'user-alice-001',
-          incomingOperatorId: 'user-bob-002',
+          shiftGuid: SHIFT_GUID,
+          shiftDate: '2026-03-01',
           summary: 'All equipment checked.',
-          journalGenerationType: 'AutoGenerate'
+          journalGenerationType: 'AutoGenerate',
+          journalName: 'Morning Shift Handover 2026-03-01'
         },
         {
           status: 200,
@@ -1051,7 +1048,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     { name: 'UteamupShiftHandoverComplete', args: { handoverGuid: HANDOVER_GUID } },
     { name: 'UteamupShiftHandoverDeclineAcceptance', args: { handoverGuid: HANDOVER_GUID, notes: 'Declined.' } },
     { name: 'UteamupShiftHandoverGetPendingAcceptances', args: {} },
-    { name: 'UteamupShiftHandoverCreate', args: { shiftId: 1, outgoingOperatorId: 'user-alice-001', incomingOperatorId: 'user-bob-002', summary: 'Test.' } }
+    { name: 'UteamupShiftHandoverCreate', args: { shiftGuid: SHIFT_GUID, shiftDate: '2026-03-01', summary: 'Test.' } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
