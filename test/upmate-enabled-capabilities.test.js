@@ -173,8 +173,8 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(46);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(46);
+    expect(capabilities).toHaveLength(50);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(capabilities.length);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {
