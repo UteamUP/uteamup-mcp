@@ -22,6 +22,25 @@ describe('enabled UPMate capability contracts', () => {
     { name: 'UteamupFleetDashboardGet', args: {} },
     { name: 'UteamupFleetDashboardGetCosts', args: { dateFrom: START, dateTo: END } },
     {
+      name: 'UteamupFleetIntelligenceGetAnomalies',
+      args: { lookbackDays: 60, minimumHistory: 8 },
+    },
+    { name: 'UteamupFleetIntelligenceGetTireReadiness', args: { assetGuid: GUID_A } },
+    {
+      name: 'UteamupFleetIntelligenceGetReplacementTco',
+      args: {
+        assetGuid: GUID_A,
+        currency: 'EUR',
+        horizonMonths: 36,
+        replacementEstimate: 42000,
+        residualValue: 8000,
+        financingCost: 1800,
+        downtimeCostPerHour: 125,
+        replacementAnnualMaintenanceCost: 900,
+        replacementFuelReductionPercent: 12,
+      },
+    },
+    {
       name: 'UteamupFleetMaintenancePropose',
       args: {
         sourceType: 'asset-maintenance-package',
@@ -125,8 +144,8 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(43);
-    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(43);
+    expect(capabilities).toHaveLength(46);
+    expect(new Set(capabilities.map(capability => capability.name)).size).toBe(46);
   });
 
   test.each(capabilities)('$name forwards its exact GUID-safe JSON-RPC contract', async ({ name, args }) => {

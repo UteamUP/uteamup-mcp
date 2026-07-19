@@ -68,9 +68,92 @@ describe('Fleet dashboard intelligence MCP tools', () => {
     expect(response.body.error.message).toContain('unavailable');
   });
 
+  test('round-trips comparable fuel and idling anomaly evidence', async () => {
+    const response = await call(
+      'UteamupFleetIntelligenceGetAnomalies',
+      { lookbackDays: 60, minimumHistory: 8 },
+      successReply({
+        readiness: {
+          eligible: true,
+          validRecords: 10,
+          excludedRecords: 2,
+        },
+        anomalies: [{
+          sourceGuid: '22222222-2222-4222-8222-222222222222',
+          assetGuid,
+          anomalyType: 'FuelConsumption',
+          sourceQuality: 'Recorded',
+          confidence: 0.88,
+        }],
+      }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.readiness.eligible).toBe(true);
+    expect(result.anomalies[0].assetGuid).toBe(assetGuid);
+    expect(result.anomalies[0]).not.toHaveProperty('assetId');
+  });
+
+  test('round-trips tire readiness by public asset GUID', async () => {
+    const response = await call(
+      'UteamupFleetIntelligenceGetTireReadiness',
+      { assetGuid },
+      successReply({
+        assetGuid,
+        safetyStatus: 'Withheld',
+        eligible: false,
+        withheldReason: 'Pressure evidence is stale',
+        measurements: [],
+      }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.assetGuid).toBe(assetGuid);
+    expect(result.eligible).toBe(false);
+    expect(result.withheldReason).toContain('stale');
+  });
+
+  test('round-trips replacement TCO with explicit single-currency assumptions', async () => {
+    const args = {
+      assetGuid,
+      currency: 'EUR',
+      horizonMonths: 36,
+      replacementEstimate: 42000,
+      residualValue: 8000,
+      financingCost: 1800,
+      downtimeCostPerHour: 125,
+      replacementAnnualMaintenanceCost: 900,
+      replacementFuelReductionPercent: 12,
+    };
+    const response = await call(
+      'UteamupFleetIntelligenceGetReplacementTco',
+      args,
+      successReply({
+        assetGuid,
+        currency: 'EUR',
+        eligible: true,
+        netReplacementBenefit: 6000,
+        assumptions: ['No currency conversion'],
+      }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.currency).toBe('EUR');
+    expect(result.netReplacementBenefit).toBe(6000);
+    expect(result).not.toHaveProperty('assetId');
+  });
+
   const tools = [
     { name: 'UteamupFleetDashboardGetUtilization', args: {} },
     { name: 'UteamupFleetDashboardGetCompliance', args: {} },
+    {
+      name: 'UteamupFleetIntelligenceGetAnomalies',
+      args: { lookbackDays: 60, minimumHistory: 8 },
+    },
+    {
+      name: 'UteamupFleetIntelligenceGetTireReadiness',
+      args: { assetGuid },
+    },
   ];
 
   describeJsonRpcCompliance(call, tools);
