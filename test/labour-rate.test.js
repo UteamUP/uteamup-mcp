@@ -46,14 +46,18 @@ describe('Labour Rate MCP Tools', () => {
   const ruleList = [
     {
       id: 1, rateType: 0, roleId: 'role-guid-123', roleName: 'Electrician',
-      skillId: null, skillName: null, certificateId: null, certificateName: null,
-      hourlyRate: 50.00, currencyId: 1, currencyCode: 'GBP', currencySymbol: '£',
+      skillId: null, skillGuid: null, skillName: null,
+      certificateId: null, certificateGuid: null, certificateName: null,
+      hourlyRate: 50.00, currencyId: 1, currencyGuid: '40000000-0000-0000-0000-000000000001',
+      currencyCode: 'GBP', currencySymbol: '£',
       isActive: true
     },
     {
       id: 2, rateType: 1, roleId: null, roleName: null,
-      skillId: 5, skillName: 'High Voltage', certificateId: null, certificateName: null,
-      hourlyRate: 65.00, currencyId: 1, currencyCode: 'GBP', currencySymbol: '£',
+      skillId: 5, skillGuid: '50000000-0000-0000-0000-000000000005', skillName: 'High Voltage',
+      certificateId: null, certificateGuid: null, certificateName: null,
+      hourlyRate: 65.00, currencyId: 1, currencyGuid: '40000000-0000-0000-0000-000000000001',
+      currencyCode: 'GBP', currencySymbol: '£',
       isActive: true
     }
   ];
@@ -176,7 +180,7 @@ describe('Labour Rate MCP Tools', () => {
       expect(rules[1].skillId).toBe(5);
     });
 
-    test('returns 403 when LaborCost.All permission is missing', async () => {
+    test('returns 403 when LaborCost.View permission is missing', async () => {
       const response = await call(
         'UteamupLabourRateGetRules',
         {},
@@ -184,14 +188,14 @@ describe('Labour Rate MCP Tools', () => {
           status: 200,
           body: {
             jsonrpc: '2.0',
-            error: { code: -32000, message: 'Permission denied: LaborCost.All required' },
+            error: { code: -32000, message: 'Permission denied: LaborCost.View required' },
             id: 5
           }
         }
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('LaborCost.All');
+      expect(response.body.error.message).toContain('LaborCost.View');
     });
 
     test('returns empty array when no rules are configured', async () => {
