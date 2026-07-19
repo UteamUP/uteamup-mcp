@@ -73,6 +73,35 @@ describe('enabled UPMate capability contracts', () => {
       args: { assetGuid: GUID_A, objectiveKey: 'availability', fromUtc: START, toUtc: END },
     },
     {
+      name: 'UteamupReliabilityAssessmentsList',
+      args: { assetGuid: GUID_A, includeHistory: false },
+    },
+    {
+      name: 'UteamupReliabilityAssessmentCreate',
+      args: {
+        requestGuid: GUID_C,
+        assetGuid: GUID_A,
+        failureModeKey: 'bearing-fatigue',
+        failureModeName: 'Bearing fatigue',
+        severityScore: 8,
+        detectabilityScore: 6,
+        evidenceReferenceGuids: [GUID_B],
+      },
+    },
+    {
+      name: 'UteamupReliabilityAssessmentApprove',
+      args: { versionGuid: GUID_A, requestGuid: GUID_C, expectedVersion: 1 },
+    },
+    {
+      name: 'UteamupReliabilityStrategyPrepareRun',
+      args: {
+        requestGuid: GUID_B,
+        runRequestGuid: GUID_C,
+        assetGuid: GUID_A,
+        objectiveKey: 'availability',
+      },
+    },
+    {
       name: 'UteamupScheduleAssignmentGetWorkorderOptions',
       args: { workorderGuid: GUID_A, plannedStartUtc: START, plannedEndUtc: END },
     },

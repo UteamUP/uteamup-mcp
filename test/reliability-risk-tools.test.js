@@ -135,3 +135,133 @@ describe('reliability strategy MCP tool', () => {
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
 });
+
+describe('reliability evidence and governed-run MCP tools', () => {
+  const BASE_URL = 'https://api.test.com';
+  const ACCESS_TOKEN = 'reliability-evidence-token';
+  const assetGuid = '55555555-5555-4555-8555-555555555555';
+  const versionGuid = '66666666-6666-4666-8666-666666666666';
+  const requestGuid = '77777777-7777-4777-8777-777777777777';
+  const runRequestGuid = '88888888-8888-4888-8888-888888888888';
+  const call = (toolName, toolArgs, reply) =>
+    callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, reply);
+
+  beforeEach(() => nock.cleanAll());
+  afterEach(() => nock.cleanAll());
+
+  test('round-trips versioned assessment evidence without integer identities', async () => {
+    const response = await call(
+      'UteamupReliabilityAssessmentsList',
+      { assetGuid, includeHistory: true },
+      successReply([{
+        assessmentGuid: requestGuid,
+        versionGuid,
+        version: 2,
+        assetGuid,
+        failureModeKey: 'bearing-fatigue',
+        status: 'approved',
+        evidenceReferenceGuids: [requestGuid],
+      }]),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result[0].assetGuid).toBe(assetGuid);
+    expect(result[0].versionGuid).toBe(versionGuid);
+    expect(result[0]).not.toHaveProperty('id');
+    expect(result[0]).not.toHaveProperty('assetId');
+  });
+
+  test('round-trips draft creation and exact-version approval', async () => {
+    const createArgs = {
+      requestGuid,
+      assetGuid,
+      failureModeKey: 'bearing-fatigue',
+      failureModeName: 'Bearing fatigue',
+      severityScore: 8,
+      detectabilityScore: 6,
+      consequenceScore: 7,
+      evidenceReferenceGuids: [requestGuid],
+    };
+    const created = await call(
+      'UteamupReliabilityAssessmentCreate',
+      createArgs,
+      successReply({
+        assessmentGuid: requestGuid,
+        versionGuid,
+        version: 1,
+        assetGuid,
+        status: 'draft',
+      }),
+    );
+    const createdResult = JSON.parse(created.body.result.content[0].text);
+    expect(createdResult.status).toBe('draft');
+
+    const approved = await call(
+      'UteamupReliabilityAssessmentApprove',
+      { versionGuid, requestGuid: runRequestGuid, expectedVersion: 1 },
+      successReply({
+        assessmentGuid: requestGuid,
+        versionGuid: runRequestGuid,
+        version: 2,
+        assetGuid,
+        status: 'approved',
+      }),
+    );
+    const approvedResult = JSON.parse(approved.body.result.content[0].text);
+    expect(approvedResult.status).toBe('approved');
+    expect(approvedResult.version).toBe(2);
+  });
+
+  test('round-trips durable-run readiness without implying execution', async () => {
+    const response = await call(
+      'UteamupReliabilityStrategyPrepareRun',
+      {
+        requestGuid,
+        runRequestGuid,
+        assetGuid,
+        objectiveKey: 'availability',
+      },
+      successReply({
+        planGuid: requestGuid,
+        durableRunGuid: runRequestGuid,
+        status: 'awaiting-approval',
+        readyForExecution: false,
+        withheldReasons: ['Approval is required before execution.'],
+      }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.durableRunGuid).toBe(runRequestGuid);
+    expect(result.status).toBe('awaiting-approval');
+    expect(result.readyForExecution).toBe(false);
+  });
+
+  const tools = [
+    {
+      name: 'UteamupReliabilityAssessmentsList',
+      args: { assetGuid, includeHistory: false },
+    },
+    {
+      name: 'UteamupReliabilityAssessmentCreate',
+      args: {
+        requestGuid,
+        assetGuid,
+        failureModeKey: 'bearing-fatigue',
+        failureModeName: 'Bearing fatigue',
+        severityScore: 8,
+        detectabilityScore: 6,
+      },
+    },
+    {
+      name: 'UteamupReliabilityAssessmentApprove',
+      args: { versionGuid, requestGuid, expectedVersion: 1 },
+    },
+    {
+      name: 'UteamupReliabilityStrategyPrepareRun',
+      args: { requestGuid, runRequestGuid, assetGuid, objectiveKey: 'availability' },
+    },
+  ];
+  describeJsonRpcCompliance(call, tools);
+  describe401Unauthorized(BASE_URL, tools);
+  describe503ServiceUnavailable(BASE_URL, tools);
+});
