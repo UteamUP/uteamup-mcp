@@ -169,6 +169,15 @@ describe('governed UPMate field-service tools', () => {
       },
     },
   ];
+  // Free cost preview for the charged classify call. It is assistant-excluded
+  // and returns a MarketplaceAiCostPreviewModel, so it carries no
+  // capabilityKey/evidence envelope and takes no arguments; identity comes
+  // from the Bearer token alone.
+  const classifyCostTool = {
+    name: 'UteamupUpmatePortalRequestClassifyCost',
+    args: {},
+  };
+  const allTools = [...tools, classifyCostTool];
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -280,7 +289,32 @@ describe('governed UPMate field-service tools', () => {
     expect(data.persistedToRequest).toBe(false);
   });
 
-  describeJsonRpcCompliance(call, tools);
-  describe401Unauthorized(baseUrl, tools);
-  describe503ServiceUnavailable(baseUrl, tools);
+  it('previews the authoritative classification cost with no arguments', async () => {
+    const response = await call(
+      classifyCostTool.name,
+      classifyCostTool.args,
+      successReply({
+        operationKey: 'portal.request.classify',
+        expectedCredits: 1,
+        remaining: 49,
+        canRun: true,
+      }),
+    );
+    const data = JSON.parse(response.body.result.content[0].text);
+
+    expect(response.status).toBe(200);
+    expect(data).toMatchObject({
+      operationKey: 'portal.request.classify',
+      expectedCredits: 1,
+      remaining: 49,
+      canRun: true,
+    });
+    // The bound call() forwards args as nock's expectedArgs, so this run
+    // also proves the proxy sends exactly {} — no tenant/user injection.
+    expect(classifyCostTool.args).toEqual({});
+  });
+
+  describeJsonRpcCompliance(call, allTools);
+  describe401Unauthorized(baseUrl, allTools);
+  describe503ServiceUnavailable(baseUrl, allTools);
 });

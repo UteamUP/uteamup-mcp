@@ -47,7 +47,7 @@ describe('supplier-invoice tools', () => {
   const tools = [
     {
       name: 'UteamupStockListSupplierInvoices',
-      args: { page: 1, pageSize: 50, matchStatus: 'Unmatched' },
+      args: { page: 1, pageSize: 50, matchStatus: 'PendingReview' },
     },
     {
       name: 'UteamupStockGetSupplierInvoice',
