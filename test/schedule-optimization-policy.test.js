@@ -16,7 +16,7 @@ describe('recurring schedule optimization policy MCP tools', () => {
     idempotencyKey: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     name: 'Daily schedule review',
     teamGuids: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'],
-    frequency: 0,
+    frequency: 'weekly',
     timeZoneId: 'Atlantic/Reykjavik',
     daysOfWeekMask: 62,
     localExecutionTime: '06:00',
@@ -68,6 +68,11 @@ describe('recurring schedule optimization policy MCP tools', () => {
       { policyGuid, idempotencyKey: mutation.idempotencyKey },
       true,
     ],
+    [
+      'UteamupScheduleOptimizationPolicyRestore',
+      { policyGuid },
+      { ...response, isArchived: false, isEnabled: false, nextRunAtUtc: null },
+    ],
   ])('%s preserves GUID-only policy evidence', async (toolName, args, data) => {
     expect(await call(toolName, args, data)).toEqual(data);
     expect(JSON.stringify(args)).not.toMatch(/"(?:policyId|tenantId|teamIds)"/);
@@ -82,7 +87,36 @@ describe('recurring schedule optimization policy MCP tools', () => {
       name: 'UteamupScheduleOptimizationPolicyDelete',
       args: { policyGuid, idempotencyKey: mutation.idempotencyKey },
     },
+    { name: 'UteamupScheduleOptimizationPolicyRestore', args: { policyGuid } },
   ];
+  it('restores an archived policy as a disabled draft', async () => {
+    // Restore must never resume the schedule on its own, so the tool answers with a policy that
+    // is no longer archived but is still disabled and has no next run.
+    const restored = await call(
+      'UteamupScheduleOptimizationPolicyRestore',
+      { policyGuid },
+      { ...response, isArchived: false, isEnabled: false, nextRunAtUtc: null },
+    );
+
+    expect(restored.isArchived).toBe(false);
+    expect(restored.isEnabled).toBe(false);
+    expect(restored.nextRunAtUtc).toBeNull();
+  });
+
+  it('lists archived policies only when asked', async () => {
+    const archived = { ...response, isArchived: true, isEnabled: false, nextRunAtUtc: null };
+
+    expect(await call('UteamupScheduleOptimizationPolicyList', {}, [response]))
+      .toEqual([response]);
+    expect(await call('UteamupScheduleOptimizationPolicyList', { includeArchived: true }, [response, archived]))
+      .toEqual([response, archived]);
+  });
+
+  it('carries the frequency as the camelCase string the API serializes', () => {
+    // An ordinal here is what convinced every client to model the enum numerically (audit OP-003).
+    expect(mutation.frequency).toBe('weekly');
+  });
+
   describeJsonRpcCompliance(call, errorTools);
   describe401Unauthorized(BASE_URL, errorTools);
   describe503ServiceUnavailable(BASE_URL, errorTools);
