@@ -29,6 +29,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_shift_handover_acceptance';
   const HANDOVER_GUID = '11111111-1111-4111-8111-111111111111';
+  const TENANT_GUID = '88888888-8888-4888-8888-888888888888';
   const SHIFT_GUID = '33333333-3333-4333-8333-333333333333';
   const SHIFT_INSTANCE_GUID = '44444444-4444-4444-8444-444444444444';
   const JOURNAL_GUID = '55555555-5555-4555-8555-555555555555';
@@ -67,9 +68,9 @@ describe('Shift Handover Acceptance MCP Tools', () => {
   // Shared mock data
   // ---------------------------------------------------------------------------
   const handover = {
-    id: 10,
+    guid: HANDOVER_GUID,
+    tenantGuid: TENANT_GUID,
     shiftGuid: SHIFT_GUID,
-    shiftId: 1,
     shiftName: 'Morning Shift',
     shiftDate: '2026-03-01T00:00:00Z',
     status: 'Reviewed',
@@ -80,9 +81,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     incomingOperatorStatus: 'PendingAcceptance',
     incomingOperatorRespondedAt: null,
     incomingOperatorNotes: null,
-    shiftInstanceId: 5,
     shiftInstanceGuid: SHIFT_INSTANCE_GUID,
-    journalId: null,
     journalGuid: JOURNAL_GUID,
     locationGuid: '66666666-6666-4666-8666-666666666666',
     journalGenerationType: 'AutoGenerate',
@@ -523,8 +522,13 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
     test('only returns handovers where the current user is the incomingOperator', async () => {
       const bobPending = [
-        { ...handover, id: 10, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones' },
-        { ...handover, id: 11, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones', shiftId: 2 }
+        { ...handover, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones' },
+        {
+          ...handover,
+          guid: SECOND_HANDOVER_GUID,
+          incomingOperatorId: 'user-bob-002',
+          incomingOperatorName: 'Bob Jones'
+        }
       ];
 
       const response = await call(
@@ -544,6 +548,15 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.length).toBe(2);
       result.forEach(h => {
         expect(h.incomingOperatorId).toBe('user-bob-002');
+        expect(h.guid).toMatch(/^[0-9a-f-]{36}$/i);
+        expect(h.tenantGuid).toBe(TENANT_GUID);
+        expect(h).not.toHaveProperty('id');
+        expect(h).not.toHaveProperty('shiftId');
+        expect(h).not.toHaveProperty('shiftInstanceId');
+        expect(h).not.toHaveProperty('locationId');
+        expect(h).not.toHaveProperty('journalId');
+        expect(h).not.toHaveProperty('tenantId');
+        expect(h).not.toHaveProperty('externalGuid');
       });
     });
 
@@ -612,9 +625,19 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
     test('response includes count of pending acceptances matching array length', async () => {
       const multiplePending = [
-        { ...handover, id: 10 },
-        { ...handover, id: 11, shiftId: 2, shiftName: 'Evening Shift', shiftDate: '2026-03-02T00:00:00Z' },
-        { ...handover, id: 12, shiftId: 3, shiftName: 'Night Shift', shiftDate: '2026-03-03T00:00:00Z' }
+        handover,
+        {
+          ...handover,
+          guid: SECOND_HANDOVER_GUID,
+          shiftName: 'Evening Shift',
+          shiftDate: '2026-03-02T00:00:00Z'
+        },
+        {
+          ...handover,
+          guid: UNKNOWN_HANDOVER_GUID,
+          shiftName: 'Night Shift',
+          shiftDate: '2026-03-03T00:00:00Z'
+        }
       ];
 
       const response = await call(
@@ -636,9 +659,9 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
     test('returned handovers are sorted by shiftDate descending — newest first', async () => {
       const sortedPending = [
-        { ...handover, id: 12, shiftDate: '2026-03-03T00:00:00Z' },
-        { ...handover, id: 11, shiftDate: '2026-03-02T00:00:00Z' },
-        { ...handover, id: 10, shiftDate: '2026-03-01T00:00:00Z' }
+        { ...handover, guid: UNKNOWN_HANDOVER_GUID, shiftDate: '2026-03-03T00:00:00Z' },
+        { ...handover, guid: SECOND_HANDOVER_GUID, shiftDate: '2026-03-02T00:00:00Z' },
+        handover
       ];
 
       const response = await call(
@@ -717,9 +740,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('create with an existing journal uses its public GUID', async () => {
       const handoverWithJournal = {
         ...handover,
-        id: 20,
-        journalId: 99,
-        journalGenerationType: null,
+        journalGenerationType: 'Existing',
         journalName: 'Existing Journal Q1 2026'
       };
 
@@ -747,15 +768,14 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.journalId).toBe(99);
-      expect(result.journalGenerationType).toBeNull();
+      expect(result.journalGuid).toBe(JOURNAL_GUID);
+      expect(result.journalGenerationType).toBe('Existing');
+      expect(result).not.toHaveProperty('journalId');
     });
 
-    test('create with AutoGenerate sets journalGenerationType to AutoGenerate and journalId to null', async () => {
+    test('create with AutoGenerate returns the generated journal GUID', async () => {
       const handoverAutoGenerate = {
         ...handover,
-        id: 21,
-        journalId: null,
         journalGenerationType: 'AutoGenerate',
         journalName: 'Morning Shift Handover 2026-03-01'
       };
@@ -780,7 +800,8 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       );
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.journalId).toBeNull();
+      expect(result.journalGuid).toBe(JOURNAL_GUID);
+      expect(result).not.toHaveProperty('journalId');
       expect(result.journalGenerationType).toBe('AutoGenerate');
       expect(typeof result.journalName).toBe('string');
       expect(result.journalName.length).toBeGreaterThan(0);
@@ -789,8 +810,6 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     test('create with custom journalName stores the provided journal name', async () => {
       const handoverCustomName = {
         ...handover,
-        id: 22,
-        journalId: null,
         journalGenerationType: 'AutoGenerate',
         journalName: 'My Custom Handover Journal'
       };
@@ -818,13 +837,10 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(result.journalName).toBe('My Custom Handover Journal');
     });
 
-    test('create without journal fields succeeds — journalId is nullable', async () => {
+    test('create without journal fields returns only the public journal GUID', async () => {
       const handoverNoJournal = {
         ...handover,
-        id: 23,
-        journalId: null,
-        journalGenerationType: null,
-        journalName: null
+        journalGenerationType: 'AutoGenerate'
       };
 
       const response = await call(
@@ -849,14 +865,13 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.journalId).toBeNull();
+      expect(result.journalGuid).toBe(JOURNAL_GUID);
+      expect(result).not.toHaveProperty('journalId');
     });
 
     test('create with shiftInstanceGuid links the handover to the shift instance', async () => {
       const handoverWithInstance = {
-        ...handover,
-        id: 24,
-        shiftInstanceId: 5
+        ...handover
       };
 
       const response = await call(
@@ -880,14 +895,14 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       );
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.shiftInstanceId).toBe(5);
+      expect(result.shiftInstanceGuid).toBe(SHIFT_INSTANCE_GUID);
+      expect(result).not.toHaveProperty('shiftInstanceId');
     });
 
     test('create without shiftInstanceGuid succeeds when no instance is required', async () => {
       const handoverNoInstance = {
         ...handover,
-        id: 25,
-        shiftInstanceId: null
+        shiftInstanceGuid: null
       };
 
       const response = await call(
@@ -910,15 +925,16 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
       expect(response.body.error).toBeUndefined();
+      const result = JSON.parse(response.body.result.content[0].text);
+      expect(result.shiftInstanceGuid).toBeNull();
+      expect(result).not.toHaveProperty('shiftInstanceId');
     });
 
     test('default journal generation derives a name from the shift and date', async () => {
       const handoverAutoName = {
         ...handover,
-        id: 26,
         shiftName: 'Morning Shift',
         shiftDate: '2026-03-01T00:00:00Z',
-        journalId: null,
         journalGenerationType: 'AutoGenerate',
         journalName: 'Morning Shift Handover 2026-03-01'
       };
@@ -984,7 +1000,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
           status: 200,
           body: {
             jsonrpc: '2.0',
-            result: { content: [{ type: 'text', text: JSON.stringify({ ...handover, id: 27 }) }] },
+            result: { content: [{ type: 'text', text: JSON.stringify(handover) }] },
             id: 38
           }
         }
