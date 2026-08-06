@@ -151,7 +151,7 @@ describe('enabled UPMate capability contracts', () => {
       },
     },
     {
-      name: 'UteamupWorkorderCreateByGuid',
+      name: 'UteamupWorkorderCreate',
       args: {
         title: 'Inspect pump',
         description: 'Inspect seals and vibration',
