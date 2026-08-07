@@ -7,11 +7,11 @@
  *
  * Tools under test:
  *   UteamupContractorProfileList(page, pageSize)
- *   UteamupContractorProfileGet(profileId)
- *   UteamupContractorAssignmentList(workOrderId)
+ *   UteamupContractorProfileGet(profileGuid)
+ *   UteamupContractorAssignmentList(workOrderGuid)
  *   UteamupContractorAssign(model)
- *   UteamupContractorBidList(workOrderId)
- *   UteamupContractorBidAccept(bidId)
+ *   UteamupContractorBidList(workOrderGuid)
+ *   UteamupContractorBidAccept(bidGuid)
  *
  * Pattern mirrors labour-rate.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -26,6 +26,11 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Contractor MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_contractor';
+  const PROFILE_GUID = '11111111-1111-1111-1111-111111111111';
+  const WORK_ORDER_GUID = '22222222-2222-2222-2222-222222222222';
+  const ASSIGNMENT_GUID = '33333333-3333-3333-3333-333333333333';
+  const BID_GUID = '44444444-4444-4444-4444-444444444444';
+  const MISSING_GUID = '99999999-9999-9999-9999-999999999999';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -36,7 +41,7 @@ describe('Contractor MCP Tools', () => {
   // Shared mock data
   // ---------------------------------------------------------------------------
   const mockProfile = {
-    id: 1,
+    externalGuid: PROFILE_GUID,
     companyName: 'ProFix Contractors',
     contactEmail: 'info@profix.com',
     contactPhone: '+1-555-0100',
@@ -56,9 +61,9 @@ describe('Contractor MCP Tools', () => {
   };
 
   const mockAssignment = {
-    id: 1,
-    workOrderId: 100,
-    contractorProfileId: 1,
+    externalGuid: ASSIGNMENT_GUID,
+    workOrderGuid: WORK_ORDER_GUID,
+    contractorProfileGuid: PROFILE_GUID,
     contractorName: 'ProFix Contractors',
     status: 'Accepted',
     assignedAt: '2026-03-01T09:00:00Z',
@@ -67,9 +72,9 @@ describe('Contractor MCP Tools', () => {
   };
 
   const mockBid = {
-    id: 1,
-    workOrderId: 100,
-    contractorProfileId: 1,
+    externalGuid: BID_GUID,
+    workOrderGuid: WORK_ORDER_GUID,
+    contractorProfileGuid: PROFILE_GUID,
     contractorName: 'ProFix Contractors',
     bidAmount: 500.00,
     currencyCode: 'USD',
@@ -122,16 +127,16 @@ describe('Contractor MCP Tools', () => {
   // UteamupContractorProfileGet
   // ---------------------------------------------------------------------------
   describe('UteamupContractorProfileGet tool', () => {
-    test('returns a single contractor profile by id', async () => {
+    test('returns a single contractor profile by public GUID', async () => {
       const response = await call(
         'UteamupContractorProfileGet',
-        { profileId: 1 },
+        { profileGuid: PROFILE_GUID },
         successReply(mockProfile)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.id).toBe(1);
+      expect(data.externalGuid).toBe(PROFILE_GUID);
       expect(data.companyName).toBe('ProFix Contractors');
       expect(data.specializations).toContain('Electrical');
       expect(data.hourlyRate).toBe(85.00);
@@ -140,7 +145,7 @@ describe('Contractor MCP Tools', () => {
     test('returns error when profile not found', async () => {
       const response = await call(
         'UteamupContractorProfileGet',
-        { profileId: 99999 },
+        { profileGuid: MISSING_GUID },
         errorReply(-32000, 'Contractor profile not found')
       );
 
@@ -156,7 +161,7 @@ describe('Contractor MCP Tools', () => {
     test('returns assignments for a work order', async () => {
       const response = await call(
         'UteamupContractorAssignmentList',
-        { workOrderId: 100 },
+        { workOrderGuid: WORK_ORDER_GUID },
         successReply([mockAssignment])
       );
 
@@ -164,14 +169,14 @@ describe('Contractor MCP Tools', () => {
       const data = JSON.parse(response.body.result.content[0].text);
       expect(Array.isArray(data)).toBe(true);
       expect(data).toHaveLength(1);
-      expect(data[0].workOrderId).toBe(100);
+      expect(data[0].workOrderGuid).toBe(WORK_ORDER_GUID);
       expect(data[0].status).toBe('Accepted');
     });
 
     test('returns empty list when no contractors are assigned', async () => {
       const response = await call(
         'UteamupContractorAssignmentList',
-        { workOrderId: 999 },
+        { workOrderGuid: MISSING_GUID },
         successReply([])
       );
 
@@ -189,7 +194,7 @@ describe('Contractor MCP Tools', () => {
     test('assigns a contractor to a work order successfully', async () => {
       const response = await call(
         'UteamupContractorAssign',
-        { model: { workOrderId: 100, contractorProfileId: 1, notes: 'Urgent repair' } },
+        { model: { workOrderGuid: WORK_ORDER_GUID, contractorProfileGuid: PROFILE_GUID, notes: 'Urgent repair' } },
         successReply(mockAssignment)
       );
 
@@ -198,31 +203,31 @@ describe('Contractor MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.workOrderId).toBe(100);
-      expect(data.contractorProfileId).toBe(1);
+      expect(data.workOrderGuid).toBe(WORK_ORDER_GUID);
+      expect(data.contractorProfileGuid).toBe(PROFILE_GUID);
       expect(data.status).toBe('Accepted');
     });
 
-    test('returns validation error when workOrderId is missing', async () => {
+    test('returns validation error when workOrderGuid is missing', async () => {
       const response = await call(
         'UteamupContractorAssign',
-        { model: { contractorProfileId: 1 } },
-        errorReply(-32602, 'WorkOrderId is required')
+        { model: { contractorProfileGuid: PROFILE_GUID } },
+        errorReply(-32602, 'WorkOrderGuid is required')
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('WorkOrderId');
+      expect(response.body.error.message).toContain('WorkOrderGuid');
     });
 
-    test('returns validation error when contractorProfileId is invalid', async () => {
+    test('returns validation error when contractorProfileGuid is invalid', async () => {
       const response = await call(
         'UteamupContractorAssign',
-        { model: { workOrderId: 100, contractorProfileId: 0 } },
-        errorReply(-32602, 'ContractorProfileId must be greater than 0')
+        { model: { workOrderGuid: WORK_ORDER_GUID, contractorProfileGuid: '00000000-0000-0000-0000-000000000000' } },
+        errorReply(-32602, 'ContractorProfileGuid is required')
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('ContractorProfileId');
+      expect(response.body.error.message).toContain('ContractorProfileGuid');
     });
   });
 
@@ -233,7 +238,7 @@ describe('Contractor MCP Tools', () => {
     test('returns bids for a work order', async () => {
       const response = await call(
         'UteamupContractorBidList',
-        { workOrderId: 100 },
+        { workOrderGuid: WORK_ORDER_GUID },
         successReply(mockBidList)
       );
 
@@ -248,7 +253,7 @@ describe('Contractor MCP Tools', () => {
     test('returns empty list when no bids exist', async () => {
       const response = await call(
         'UteamupContractorBidList',
-        { workOrderId: 999 },
+        { workOrderGuid: MISSING_GUID },
         successReply([])
       );
 
@@ -268,7 +273,7 @@ describe('Contractor MCP Tools', () => {
 
       const response = await call(
         'UteamupContractorBidAccept',
-        { bidId: 1 },
+        { bidGuid: BID_GUID },
         successReply(acceptedBid)
       );
 
@@ -284,7 +289,7 @@ describe('Contractor MCP Tools', () => {
     test('returns error when bid not found', async () => {
       const response = await call(
         'UteamupContractorBidAccept',
-        { bidId: 99999 },
+        { bidGuid: MISSING_GUID },
         errorReply(-32000, 'Bid not found')
       );
 
@@ -295,7 +300,7 @@ describe('Contractor MCP Tools', () => {
     test('returns error when bid is already accepted', async () => {
       const response = await call(
         'UteamupContractorBidAccept',
-        { bidId: 1 },
+        { bidGuid: BID_GUID },
         errorReply(-32000, 'Bid has already been accepted')
       );
 
@@ -309,11 +314,11 @@ describe('Contractor MCP Tools', () => {
   // ---------------------------------------------------------------------------
   const allTools = [
     { name: 'UteamupContractorProfileList', args: { page: 1, pageSize: 10 } },
-    { name: 'UteamupContractorProfileGet', args: { profileId: 1 } },
-    { name: 'UteamupContractorAssignmentList', args: { workOrderId: 100 } },
-    { name: 'UteamupContractorAssign', args: { model: { workOrderId: 100, contractorProfileId: 1 } } },
-    { name: 'UteamupContractorBidList', args: { workOrderId: 100 } },
-    { name: 'UteamupContractorBidAccept', args: { bidId: 1 } }
+    { name: 'UteamupContractorProfileGet', args: { profileGuid: PROFILE_GUID } },
+    { name: 'UteamupContractorAssignmentList', args: { workOrderGuid: WORK_ORDER_GUID } },
+    { name: 'UteamupContractorAssign', args: { model: { workOrderGuid: WORK_ORDER_GUID, contractorProfileGuid: PROFILE_GUID } } },
+    { name: 'UteamupContractorBidList', args: { workOrderGuid: WORK_ORDER_GUID } },
+    { name: 'UteamupContractorBidAccept', args: { bidGuid: BID_GUID } }
   ];
 
   describeJsonRpcCompliance(call, allTools);

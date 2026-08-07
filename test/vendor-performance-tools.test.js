@@ -7,9 +7,9 @@
  *
  * Tools under test:
  *   UteamupVendorRatingSubmit(model)
- *   UteamupVendorRatingList(vendorId, page, pageSize)
- *   UteamupVendorRatingAggregate(vendorId)
- *   UteamupVendorRatingFlag(ratingId, model)
+ *   UteamupVendorRatingList(vendorGuid, page, pageSize)
+ *   UteamupVendorRatingAggregate(vendorGuid)
+ *   UteamupVendorRatingFlag(ratingGuid, model)
  *   UteamupVendorScorecardGet(vendorGuid)
  *   UteamupVendorScorecardConfigGet()
  *
@@ -27,6 +27,9 @@ describe('Vendor Performance MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_vendor_performance';
   const VENDOR_GUID = '11111111-1111-1111-1111-111111111111';
+  const RATING_GUID = '22222222-2222-2222-2222-222222222222';
+  const WORK_ORDER_GUID = '33333333-3333-3333-3333-333333333333';
+  const MISSING_GUID = '99999999-9999-9999-9999-999999999999';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -37,8 +40,9 @@ describe('Vendor Performance MCP Tools', () => {
   // Shared mock data
   // ---------------------------------------------------------------------------
   const mockRating = {
-    id: 1,
-    vendorId: 1,
+    externalGuid: RATING_GUID,
+    vendorGuid: VENDOR_GUID,
+    workOrderGuid: WORK_ORDER_GUID,
     overallRating: 4.5,
     qualityRating: 5,
     timelinessRating: 4,
@@ -48,15 +52,10 @@ describe('Vendor Performance MCP Tools', () => {
     createdByUserId: 'user-guid-123'
   };
 
-  const mockRatingList = {
-    items: [mockRating],
-    totalCount: 1,
-    page: 1,
-    pageSize: 10
-  };
+  const mockRatingList = [mockRating];
 
   const mockAggregate = {
-    vendorId: 1,
+    vendorGuid: VENDOR_GUID,
     averageOverall: 4.5,
     averageQuality: 4.8,
     averageTimeliness: 4.2,
@@ -95,7 +94,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('submits rating successfully', async () => {
       const response = await call(
         'UteamupVendorRatingSubmit',
-        { model: { vendorId: 1, overallStars: 5, qualityStars: 5, comment: 'Great work' } },
+        { model: { vendorGuid: VENDOR_GUID, workOrderGuid: WORK_ORDER_GUID, ratingType: 2, overallRating: 5, qualityRating: 5, comment: 'Great work', isGeoVerified: false, isAnonymized: false } },
         successReply(mockRating)
       );
 
@@ -105,30 +104,30 @@ describe('Vendor Performance MCP Tools', () => {
 
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.overallRating).toBe(4.5);
-      expect(data.vendorId).toBe(1);
+      expect(data.vendorGuid).toBe(VENDOR_GUID);
       expect(data.comment).toBe('Great work');
     });
 
     test('returns validation error when model is invalid', async () => {
       const response = await call(
         'UteamupVendorRatingSubmit',
-        { model: { vendorId: 0 } },
-        errorReply(-32602, 'VendorId must be greater than 0')
+        { model: { vendorGuid: '00000000-0000-0000-0000-000000000000' } },
+        errorReply(-32602, 'VendorGuid is required')
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('VendorId');
+      expect(response.body.error.message).toContain('VendorGuid');
     });
 
-    test('returns error when overallStars is out of range', async () => {
+    test('returns error when overallRating is out of range', async () => {
       const response = await call(
         'UteamupVendorRatingSubmit',
-        { model: { vendorId: 1, overallStars: 6 } },
-        errorReply(-32602, 'OverallStars must be between 1 and 5')
+        { model: { vendorGuid: VENDOR_GUID, overallRating: 6 } },
+        errorReply(-32602, 'OverallRating must be between 1 and 5')
       );
 
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('OverallStars');
+      expect(response.body.error.message).toContain('OverallRating');
     });
   });
 
@@ -139,30 +138,28 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns paginated ratings for a vendor', async () => {
       const response = await call(
         'UteamupVendorRatingList',
-        { vendorId: 1, page: 1, pageSize: 10 },
+        { vendorGuid: VENDOR_GUID, page: 1, pageSize: 10 },
         successReply(mockRatingList)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(1);
-      expect(data.totalCount).toBe(1);
-      expect(data.page).toBe(1);
+      expect(data).toHaveLength(1);
+      expect(data[0].vendorGuid).toBe(VENDOR_GUID);
     });
 
     test('returns empty list when vendor has no ratings', async () => {
-      const emptyList = { items: [], totalCount: 0, page: 1, pageSize: 10 };
+      const emptyList = [];
 
       const response = await call(
         'UteamupVendorRatingList',
-        { vendorId: 999, page: 1, pageSize: 10 },
+        { vendorGuid: MISSING_GUID, page: 1, pageSize: 10 },
         successReply(emptyList)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(0);
-      expect(data.totalCount).toBe(0);
+      expect(data).toHaveLength(0);
     });
   });
 
@@ -173,7 +170,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns aggregate ratings for a vendor', async () => {
       const response = await call(
         'UteamupVendorRatingAggregate',
-        { vendorId: 1 },
+        { vendorGuid: VENDOR_GUID },
         successReply(mockAggregate)
       );
 
@@ -187,7 +184,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns error when vendor not found', async () => {
       const response = await call(
         'UteamupVendorRatingAggregate',
-        { vendorId: 99999 },
+        { vendorGuid: MISSING_GUID },
         errorReply(-32000, 'Vendor not found')
       );
 
@@ -205,7 +202,7 @@ describe('Vendor Performance MCP Tools', () => {
 
       const response = await call(
         'UteamupVendorRatingFlag',
-        { ratingId: 1, model: { reason: 'Inappropriate content' } },
+        { ratingGuid: RATING_GUID, model: { reason: 'Inappropriate content' } },
         successReply(flaggedRating)
       );
 
@@ -218,7 +215,7 @@ describe('Vendor Performance MCP Tools', () => {
     test('returns error when rating not found', async () => {
       const response = await call(
         'UteamupVendorRatingFlag',
-        { ratingId: 99999, model: { reason: 'Spam' } },
+        { ratingGuid: MISSING_GUID, model: { reason: 'Spam' } },
         errorReply(-32000, 'Rating not found')
       );
 
@@ -303,10 +300,10 @@ describe('Vendor Performance MCP Tools', () => {
   // Shared error-handling tests (JSON-RPC, 401, 503)
   // ---------------------------------------------------------------------------
   const allTools = [
-    { name: 'UteamupVendorRatingSubmit', args: { model: { vendorId: 1, overallStars: 5 } } },
-    { name: 'UteamupVendorRatingList', args: { vendorId: 1, page: 1, pageSize: 10 } },
-    { name: 'UteamupVendorRatingAggregate', args: { vendorId: 1 } },
-    { name: 'UteamupVendorRatingFlag', args: { ratingId: 1, model: { reason: 'Spam' } } },
+    { name: 'UteamupVendorRatingSubmit', args: { model: { vendorGuid: VENDOR_GUID, overallRating: 5 } } },
+    { name: 'UteamupVendorRatingList', args: { vendorGuid: VENDOR_GUID, page: 1, pageSize: 10 } },
+    { name: 'UteamupVendorRatingAggregate', args: { vendorGuid: VENDOR_GUID } },
+    { name: 'UteamupVendorRatingFlag', args: { ratingGuid: RATING_GUID, model: { reason: 'Spam' } } },
     { name: 'UteamupVendorScorecardGet', args: { vendorGuid: VENDOR_GUID } },
     { name: 'UteamupVendorScorecardConfigGet', args: {} }
   ];

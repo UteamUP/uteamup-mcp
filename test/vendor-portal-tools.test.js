@@ -12,10 +12,10 @@
  *   UteamupVendorComplianceDocumentList(vendorId)
  *   UteamupVendorComplianceExpiring(daysAhead)
  *   UteamupVendorMessageSend(model)
- *   UteamupVendorMessageList(vendorId, page, pageSize)
- *   UteamupVendorMessageUnreadCount(vendorId)
+ *   UteamupVendorMessageList(vendorGuid, page, pageSize)
+ *   UteamupVendorMessageUnreadCount(vendorGuid)
  *   UteamupVendorMatchVendors(model)
- *   UteamupVendorMatchGet(workOrderId)
+ *   UteamupVendorMatchGet(workOrderGuid)
  *
  * Pattern mirrors labour-rate.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy would forward to the backend.
@@ -30,6 +30,10 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Vendor Portal MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_vendor_portal';
+  const VENDOR_GUID = '11111111-1111-1111-1111-111111111111';
+  const OTHER_VENDOR_GUID = '22222222-2222-2222-2222-222222222222';
+  const WORK_ORDER_GUID = '33333333-3333-3333-3333-333333333333';
+  const MISSING_GUID = '99999999-9999-9999-9999-999999999999';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -86,8 +90,9 @@ describe('Vendor Portal MCP Tools', () => {
   };
 
   const mockMessage = {
-    id: 1,
-    vendorId: 1,
+    externalGuid: '44444444-4444-4444-4444-444444444444',
+    vendorGuid: VENDOR_GUID,
+    workOrderGuid: WORK_ORDER_GUID,
     senderId: 'user-guid-123',
     senderName: 'John Smith',
     subject: 'Work Order Update',
@@ -96,34 +101,34 @@ describe('Vendor Portal MCP Tools', () => {
     sentAt: '2026-03-01T14:00:00Z'
   };
 
-  const mockMessageList = {
-    items: [mockMessage],
-    totalCount: 1,
-    page: 1,
-    pageSize: 10
-  };
+  const mockMessageList = [mockMessage];
 
-  const mockMatchResult = {
-    workOrderId: 100,
-    matches: [
+  const mockMatchResults = [
       {
-        vendorId: 1,
+        externalGuid: '55555555-5555-5555-5555-555555555555',
+        workOrderGuid: WORK_ORDER_GUID,
+        vendorGuid: VENDOR_GUID,
         vendorName: 'Acme Services',
-        matchScore: 92,
-        matchReasons: ['Specialization match', 'High rating', 'Available'],
-        estimatedCost: 450.00,
-        estimatedResponseTime: '1 hour'
+        overallScore: 92,
+        skillMatchScore: 95,
+        availabilityScore: 90,
+        historicalScore: 93,
+        costScore: 88,
+        scoringExplanation: 'Specialization match, high rating, and available'
       },
       {
-        vendorId: 2,
+        externalGuid: '66666666-6666-6666-6666-666666666666',
+        workOrderGuid: WORK_ORDER_GUID,
+        vendorGuid: OTHER_VENDOR_GUID,
         vendorName: 'BetaFix Inc',
-        matchScore: 78,
-        matchReasons: ['Specialization match', 'Good rating'],
-        estimatedCost: 520.00,
-        estimatedResponseTime: '3 hours'
+        overallScore: 78,
+        skillMatchScore: 85,
+        availabilityScore: 72,
+        historicalScore: 80,
+        costScore: 75,
+        scoringExplanation: 'Specialization match and good rating'
       }
-    ]
-  };
+    ];
 
   // ---------------------------------------------------------------------------
   // UteamupVendorAnalyticsDashboard
@@ -299,7 +304,7 @@ describe('Vendor Portal MCP Tools', () => {
     test('sends a message to a vendor successfully', async () => {
       const response = await call(
         'UteamupVendorMessageSend',
-        { model: { vendorId: 1, subject: 'Work Order Update', body: 'Maintenance moved to next week.' } },
+        { model: { vendorGuid: VENDOR_GUID, workOrderGuid: WORK_ORDER_GUID, subject: 'Work Order Update', body: 'Maintenance moved to next week.' } },
         successReply(mockMessage)
       );
 
@@ -309,13 +314,13 @@ describe('Vendor Portal MCP Tools', () => {
 
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.subject).toBe('Work Order Update');
-      expect(data.vendorId).toBe(1);
+      expect(data.vendorGuid).toBe(VENDOR_GUID);
     });
 
     test('returns validation error when subject is missing', async () => {
       const response = await call(
         'UteamupVendorMessageSend',
-        { model: { vendorId: 1, body: 'Some message' } },
+        { model: { vendorGuid: VENDOR_GUID, body: 'Some message' } },
         errorReply(-32602, 'Subject is required')
       );
 
@@ -331,29 +336,28 @@ describe('Vendor Portal MCP Tools', () => {
     test('returns paginated messages for a vendor', async () => {
       const response = await call(
         'UteamupVendorMessageList',
-        { vendorId: 1, page: 1, pageSize: 10 },
+        { vendorGuid: VENDOR_GUID, page: 1, pageSize: 10 },
         successReply(mockMessageList)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(1);
-      expect(data.totalCount).toBe(1);
-      expect(data.items[0].subject).toBe('Work Order Update');
+      expect(data).toHaveLength(1);
+      expect(data[0].subject).toBe('Work Order Update');
     });
 
     test('returns empty list when no messages exist', async () => {
-      const emptyList = { items: [], totalCount: 0, page: 1, pageSize: 10 };
+      const emptyList = [];
 
       const response = await call(
         'UteamupVendorMessageList',
-        { vendorId: 999, page: 1, pageSize: 10 },
+        { vendorGuid: MISSING_GUID, page: 1, pageSize: 10 },
         successReply(emptyList)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(0);
+      expect(data).toHaveLength(0);
     });
   });
 
@@ -364,26 +368,25 @@ describe('Vendor Portal MCP Tools', () => {
     test('returns unread message count for a vendor', async () => {
       const response = await call(
         'UteamupVendorMessageUnreadCount',
-        { vendorId: 1 },
-        successReply({ vendorId: 1, unreadCount: 5 })
+        { vendorGuid: VENDOR_GUID },
+        successReply(5)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.unreadCount).toBe(5);
-      expect(data.vendorId).toBe(1);
+      expect(data).toBe(5);
     });
 
     test('returns zero when no unread messages', async () => {
       const response = await call(
         'UteamupVendorMessageUnreadCount',
-        { vendorId: 1 },
-        successReply({ vendorId: 1, unreadCount: 0 })
+        { vendorGuid: VENDOR_GUID },
+        successReply(0)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.unreadCount).toBe(0);
+      expect(data).toBe(0);
     });
   });
 
@@ -394,8 +397,8 @@ describe('Vendor Portal MCP Tools', () => {
     test('returns matched vendors for criteria', async () => {
       const response = await call(
         'UteamupVendorMatchVendors',
-        { model: { workOrderId: 100, specializations: ['Electrical'], maxBudget: 1000 } },
-        successReply(mockMatchResult)
+        { model: { workOrderGuid: WORK_ORDER_GUID, maxResults: 20 } },
+        successReply(mockMatchResults)
       );
 
       expect(response.status).toBe(200);
@@ -403,15 +406,15 @@ describe('Vendor Portal MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.matches).toHaveLength(2);
-      expect(data.matches[0].matchScore).toBe(92);
-      expect(data.matches[0].vendorName).toBe('Acme Services');
+      expect(data).toHaveLength(2);
+      expect(data[0].overallScore).toBe(92);
+      expect(data[0].vendorName).toBe('Acme Services');
     });
 
     test('returns error when no matching vendors found', async () => {
       const response = await call(
         'UteamupVendorMatchVendors',
-        { model: { workOrderId: 100, specializations: ['Nuclear'], maxBudget: 10 } },
+        { model: { workOrderGuid: WORK_ORDER_GUID, maxResults: 20 } },
         errorReply(-32000, 'No matching vendors found')
       );
 
@@ -427,20 +430,20 @@ describe('Vendor Portal MCP Tools', () => {
     test('returns existing match results for a work order', async () => {
       const response = await call(
         'UteamupVendorMatchGet',
-        { workOrderId: 100 },
-        successReply(mockMatchResult)
+        { workOrderGuid: WORK_ORDER_GUID },
+        successReply(mockMatchResults)
       );
 
       expect(response.status).toBe(200);
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.workOrderId).toBe(100);
-      expect(data.matches).toHaveLength(2);
+      expect(data).toHaveLength(2);
+      expect(data[0].workOrderGuid).toBe(WORK_ORDER_GUID);
     });
 
     test('returns error when no match exists for work order', async () => {
       const response = await call(
         'UteamupVendorMatchGet',
-        { workOrderId: 99999 },
+        { workOrderGuid: MISSING_GUID },
         errorReply(-32000, 'No vendor match found for this work order')
       );
 
@@ -458,11 +461,11 @@ describe('Vendor Portal MCP Tools', () => {
     { name: 'UteamupVendorComplianceSummary', args: { vendorId: 1 } },
     { name: 'UteamupVendorComplianceDocumentList', args: { vendorId: 1 } },
     { name: 'UteamupVendorComplianceExpiring', args: { daysAhead: 30 } },
-    { name: 'UteamupVendorMessageSend', args: { model: { vendorId: 1, subject: 'Test', body: 'Test message' } } },
-    { name: 'UteamupVendorMessageList', args: { vendorId: 1, page: 1, pageSize: 10 } },
-    { name: 'UteamupVendorMessageUnreadCount', args: { vendorId: 1 } },
-    { name: 'UteamupVendorMatchVendors', args: { model: { workOrderId: 100, specializations: ['Electrical'] } } },
-    { name: 'UteamupVendorMatchGet', args: { workOrderId: 100 } }
+    { name: 'UteamupVendorMessageSend', args: { model: { vendorGuid: VENDOR_GUID, subject: 'Test', body: 'Test message' } } },
+    { name: 'UteamupVendorMessageList', args: { vendorGuid: VENDOR_GUID, page: 1, pageSize: 10 } },
+    { name: 'UteamupVendorMessageUnreadCount', args: { vendorGuid: VENDOR_GUID } },
+    { name: 'UteamupVendorMatchVendors', args: { model: { workOrderGuid: WORK_ORDER_GUID, maxResults: 20 } } },
+    { name: 'UteamupVendorMatchGet', args: { workOrderGuid: WORK_ORDER_GUID } }
   ];
 
   describeJsonRpcCompliance(call, allTools);
