@@ -37,7 +37,7 @@ describe('UteamupAssetAsk MCP tool', () => {
         sourceType: 'Workorder',
         sourceGuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         title: 'Replace mechanical seal',
-        route: '/workorders/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        route: '/workorders?selected=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         excerpt: 'Leak found at the mechanical seal.',
         sourceUpdatedAtUtc: '2026-07-15T09:00:00Z',
         dataFreshAtUtc: '2026-07-15T10:00:00Z',

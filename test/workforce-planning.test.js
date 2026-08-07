@@ -734,7 +734,7 @@ describe('Workforce Planning MCP Tools', () => {
       entityGuid: guid(42),
       entityType: 'Workorder',
       name: 'Replace HVAC filter',
-      route: `/workorders/${guid(42)}`,
+      route: `/workorders?selected=${guid(42)}`,
       dataFreshAtUtc: '2026-03-01T12:00:00Z'
     };
 
@@ -756,7 +756,7 @@ describe('Workforce Planning MCP Tools', () => {
       const reference = JSON.parse(response.body.result.content[0].text);
       expect(reference.entityGuid).toBe(guid(42));
       expect(reference.entityType).toBe('Workorder');
-      expect(reference.route).toBe(`/workorders/${guid(42)}`);
+      expect(reference.route).toBe(`/workorders?selected=${guid(42)}`);
     });
 
     test('returns permission error when WorkOrder.Update is missing', async () => {
