@@ -36,7 +36,26 @@ describe('Report catalog MCP read', () => {
     expect(report.requiredFilters).toEqual(['StartDate', 'EndDate']);
   });
 
-  const tools = [{ name: 'UteamupReportList', args: {} }];
+  test('round-trips asset report history with a public GUID argument', async () => {
+    const assetGuid = '7b7fbd71-4ecf-4c3e-9e36-b87d447ab117';
+    const response = await call(
+      'UteamupAssetReports',
+      { assetGuid, page: 1, pageSize: 20 },
+      successReply({ assetGuid, totalReports: 0, reports: [] }),
+    );
+
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.assetGuid).toBe(assetGuid);
+    expect(result).not.toHaveProperty('assetId');
+  });
+
+  const tools = [
+    { name: 'UteamupReportList', args: {} },
+    {
+      name: 'UteamupAssetReports',
+      args: { assetGuid: '7b7fbd71-4ecf-4c3e-9e36-b87d447ab117', page: 1, pageSize: 20 },
+    },
+  ];
 
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
