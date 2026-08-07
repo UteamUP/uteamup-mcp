@@ -50,7 +50,11 @@ describe('governed IoT command tools', () => {
   const tools = [
     {
       name: 'UteamupIoTCommandDefinitionsList',
-      args: { deviceTypeGuid, includeInactive: false },
+      args: { deviceTypeGuid },
+    },
+    {
+      name: 'UteamupIoTCommandDefinitionHistory',
+      args: { deviceTypeGuid },
     },
     {
       name: 'UteamupIoTCommandDefinitionCreate',
@@ -139,7 +143,7 @@ describe('governed IoT command tools', () => {
   it('preserves an empty command-definition result', async () => {
     const response = await call(
       'UteamupIoTCommandDefinitionsList',
-      { includeInactive: false },
+      {},
       successReply([]),
     );
 
