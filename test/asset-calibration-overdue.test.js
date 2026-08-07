@@ -8,11 +8,11 @@ const {
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');
 
-describe('Overdue asset calibration MCP read', () => {
+describe('Asset calibration MCP GUID contracts', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'asset-calibration-overdue-token';
-  const call = (toolName, toolArgs, reply) =>
-    callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, reply);
+  const call = (toolName, toolArgs, reply, expectedArgs) =>
+    callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, reply, expectedArgs);
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -55,9 +55,92 @@ describe('Overdue asset calibration MCP read', () => {
     expect(calibration.daysUntilDue).toBe(12);
   });
 
+  test('forwards GUID selectors and GUID-only write payloads unchanged', async () => {
+    const calibrationGuid = '55555555-5555-4555-8555-555555555555';
+    const assetGuid = '66666666-6666-4666-8666-666666666666';
+    const args = {
+      calibrationGuid,
+      model: {
+        assetGuid,
+        name: 'Annual pressure calibration',
+        frequencyType: 'Yearly',
+        frequencyValue: 1,
+        status: 'Scheduled',
+      },
+    };
+
+    const response = await call(
+      'UteamupAssetcalibrationUpdate',
+      args,
+      successReply({ guid: calibrationGuid, assetGuid }),
+      args,
+    );
+
+    const calibration = JSON.parse(response.body.result.content[0].text);
+    expect(calibration.guid).toBe(calibrationGuid);
+    expect(calibration.assetGuid).toBe(assetGuid);
+    expect(args).not.toHaveProperty('id');
+    expect(args.model).not.toHaveProperty('assetId');
+  });
+
+  test('returns generated workorder GUIDs without integer aliases', async () => {
+    const workorderGuid = '77777777-7777-4777-8777-777777777777';
+    const response = await call(
+      'UteamupAssetcalibrationGenerateWorkorders',
+      {},
+      successReply({
+        success: true,
+        workordersGenerated: 1,
+        generatedWorkorderGuids: [workorderGuid],
+      }),
+    );
+
+    const receipt = JSON.parse(response.body.result.content[0].text);
+    expect(receipt.generatedWorkorderGuids).toEqual([workorderGuid]);
+    expect(receipt).not.toHaveProperty('generatedWorkorderIds');
+  });
+
   const tools = [
+    {
+      name: 'UteamupAssetcalibrationGetByAsset',
+      args: { assetGuid: '11111111-1111-4111-8111-111111111111' },
+    },
+    {
+      name: 'UteamupAssetcalibrationGet',
+      args: { calibrationGuid: '22222222-2222-4222-8222-222222222222' },
+    },
     { name: 'UteamupAssetcalibrationGetOverdue', args: {} },
     { name: 'UteamupAssetcalibrationGetDueSoon', args: { days: 30 } },
+    {
+      name: 'UteamupAssetcalibrationCreate',
+      args: {
+        model: {
+          assetGuid: '33333333-3333-4333-8333-333333333333',
+          name: 'Annual calibration',
+          frequencyType: 'Yearly',
+          frequencyValue: 1,
+          status: 'Scheduled',
+        },
+      },
+    },
+    {
+      name: 'UteamupAssetcalibrationUpdate',
+      args: {
+        calibrationGuid: '44444444-4444-4444-8444-444444444444',
+        model: {
+          assetGuid: '55555555-5555-4555-8555-555555555555',
+          name: 'Updated calibration',
+          frequencyType: 'Monthly',
+          frequencyValue: 6,
+          status: 'Scheduled',
+        },
+      },
+    },
+    {
+      name: 'UteamupAssetcalibrationDelete',
+      args: { calibrationGuid: '66666666-6666-4666-8666-666666666666' },
+    },
+    { name: 'UteamupAssetcalibrationGenerateWorkorders', args: {} },
   ];
 
   describeJsonRpcCompliance(call, tools);
