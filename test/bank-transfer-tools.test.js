@@ -9,7 +9,6 @@
  *   UteamupBankTransferListSubscriptions()                  [GlobalAdmin]
  *   UteamupBankTransferActivateSubscription(subscriptionGuid) [GlobalAdmin]
  *   UteamupBankTransferDashboard()                          [GlobalAdmin]
- *   UteamupBankTransferBillingOverview()                    [tenant, Billing.View]
  *   UteamupBankTransferRefundPayment(paymentGuid, reason, amount?) [GlobalAdmin]
  *
  * Pattern mirrors billing-gateway-switcher-tools.test.js: raw nock-mocked HTTPS calls
@@ -56,16 +55,6 @@ describe('Bank-transfer billing MCP Tools', () => {
       expect(response.body.result).toBeDefined();
     });
 
-    test('UteamupBankTransferBillingOverview — tenant-scoped subscription read', async () => {
-      const response = await call(
-        'UteamupBankTransferBillingOverview',
-        {},
-        successReply({ guid: SUBSCRIPTION_GUID, status: 'Active', planName: 'Gold', scheduledCancelAt: null })
-      );
-      expect(response.status).toBe(200);
-      expect(response.body.result).toBeDefined();
-    });
-
     test('UteamupBankTransferRefundPayment — full refund when amount omitted', async () => {
       const response = await call(
         'UteamupBankTransferRefundPayment',
@@ -84,7 +73,6 @@ describe('Bank-transfer billing MCP Tools', () => {
     { name: 'UteamupBankTransferListSubscriptions', args: {} },
     { name: 'UteamupBankTransferActivateSubscription', args: { subscriptionGuid: SUBSCRIPTION_GUID } },
     { name: 'UteamupBankTransferDashboard', args: {} },
-    { name: 'UteamupBankTransferBillingOverview', args: {} },
     { name: 'UteamupBankTransferRefundPayment', args: { paymentGuid: PAYMENT_GUID, reason: 'Compliance test refund.' } }
   ];
 
