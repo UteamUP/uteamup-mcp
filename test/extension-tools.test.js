@@ -7,7 +7,7 @@
  *
  * Tools under test:
  *   UteamupExtensionList(filter?, category?, tier?)
- *   UteamupExtensionInstall(extensionId)
+ *   UteamupExtensionInstall(extensionGuid)
  *   UteamupExtensionUninstall(installationId)
  *   UteamupExtensionGetHealth(installationId)
  *   UteamupExtensionGetSandboxStatus()
@@ -22,11 +22,21 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 describe('Extension System MCP Tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'test_access_token_extension';
+  const FREE_EXTENSION_GUID = '123e4567-e89b-42d3-a456-426614174001';
+  const PAID_EXTENSION_GUID = '123e4567-e89b-42d3-a456-426614174002';
+  const MISSING_EXTENSION_GUID = '123e4567-e89b-42d3-a456-426614174999';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
+  const call = (toolName, toolArgs, mockReply) => _callMcpTool(
+    BASE_URL,
+    ACCESS_TOKEN,
+    toolName,
+    toolArgs,
+    mockReply,
+    toolArgs
+  );
 
   // ---------------------------------------------------------------------------
   // Shared mock data
@@ -34,6 +44,7 @@ describe('Extension System MCP Tools', () => {
   const extensionList = [
     {
       id: 1,
+      externalGuid: FREE_EXTENSION_GUID,
       extensionId: 'com.uteamup.customer-viewer',
       name: 'Customer Viewer',
       shortDescription: 'Browse and search customer data',
@@ -46,6 +57,7 @@ describe('Extension System MCP Tools', () => {
     },
     {
       id: 2,
+      externalGuid: PAID_EXTENSION_GUID,
       extensionId: 'com.example.reporting',
       name: 'Advanced Reporting',
       shortDescription: 'Generate detailed reports',
@@ -60,7 +72,7 @@ describe('Extension System MCP Tools', () => {
 
   const installResult = {
     id: 10,
-    extensionId: 1,
+    extensionGuid: FREE_EXTENSION_GUID,
     extensionName: 'Customer Viewer',
     tenantGuid: 'tenant-guid-123',
     status: 0, // Active
@@ -158,7 +170,7 @@ describe('Extension System MCP Tools', () => {
     test('installs extension and returns installation details', async () => {
       const response = await call(
         'UteamupExtensionInstall',
-        { extensionId: 1 },
+        { extensionGuid: FREE_EXTENSION_GUID },
         successReply(installResult)
       );
 
@@ -173,7 +185,7 @@ describe('Extension System MCP Tools', () => {
     test('returns error when extension not found', async () => {
       const response = await call(
         'UteamupExtensionInstall',
-        { extensionId: 999 },
+        { extensionGuid: MISSING_EXTENSION_GUID },
         errorReply(-32602, 'Extension not found')
       );
 
@@ -185,7 +197,7 @@ describe('Extension System MCP Tools', () => {
     test('returns error when extension already installed', async () => {
       const response = await call(
         'UteamupExtensionInstall',
-        { extensionId: 1 },
+        { extensionGuid: FREE_EXTENSION_GUID },
         errorReply(-32602, 'Extension is already installed on this tenant')
       );
 
@@ -194,16 +206,19 @@ describe('Extension System MCP Tools', () => {
       expect(response.body.error.message).toContain('already installed');
     });
 
-    test('returns error when plan does not allow installation', async () => {
+    test('returns stable unavailable code when paid settlement is missing', async () => {
       const response = await call(
         'UteamupExtensionInstall',
-        { extensionId: 2 },
-        errorReply(-32602, 'Extension budget exceeded for current plan')
+        { extensionGuid: PAID_EXTENSION_GUID },
+        errorReply(
+          -32602,
+          'PAID_EXTENSION_SETTLEMENT_UNAVAILABLE: Paid extension installation is unavailable'
+        )
       );
 
       expect(response.status).toBe(200);
       expect(response.body.error).toBeDefined();
-      expect(response.body.error.message).toContain('budget exceeded');
+      expect(response.body.error.message).toContain('PAID_EXTENSION_SETTLEMENT_UNAVAILABLE');
     });
   });
 
@@ -371,7 +386,7 @@ describe('Extension System MCP Tools', () => {
   // ---------------------------------------------------------------------------
   const allTools = [
     { name: 'UteamupExtensionList', args: {} },
-    { name: 'UteamupExtensionInstall', args: { extensionId: 1 } },
+    { name: 'UteamupExtensionInstall', args: { extensionGuid: FREE_EXTENSION_GUID } },
     { name: 'UteamupExtensionUninstall', args: { installationId: 10 } },
     { name: 'UteamupExtensionGetHealth', args: { installationId: 10 } },
     { name: 'UteamupExtensionGetSandboxStatus', args: {} }
