@@ -1,7 +1,7 @@
 /**
  * Bank-transfer billing MCP tool tests (billing-kling-remediation F5.4).
  *
- * Tools under test — GUID-first after the F5.4 migration (invoice/subscription/payment
+ * Tools under test — GUID-first after the F5.4 migration (invoice/subscription
  * identifiers are external GUIDs; the old int-id params are gone):
  *   UteamupBankTransferListInvoices(statusFilter?)          [GlobalAdmin]
  *   UteamupBankTransferGetInvoice(invoiceGuid)              [GlobalAdmin]
@@ -9,7 +9,6 @@
  *   UteamupBankTransferListSubscriptions()                  [GlobalAdmin]
  *   UteamupBankTransferActivateSubscription(subscriptionGuid) [GlobalAdmin]
  *   UteamupBankTransferDashboard()                          [GlobalAdmin]
- *   UteamupBankTransferRefundPayment(paymentGuid, reason, amount?) [GlobalAdmin]
  *
  * Pattern mirrors billing-gateway-switcher-tools.test.js: raw nock-mocked HTTPS calls
  * that simulate what the MCP proxy forwards to the backend /mcp endpoint.
@@ -27,7 +26,6 @@ describe('Bank-transfer billing MCP Tools', () => {
 
   const INVOICE_GUID = '11111111-aaaa-4aaa-8aaa-111111111111';
   const SUBSCRIPTION_GUID = '22222222-bbbb-4bbb-8bbb-222222222222';
-  const PAYMENT_GUID = '33333333-cccc-4ccc-8ccc-333333333333';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -55,15 +53,6 @@ describe('Bank-transfer billing MCP Tools', () => {
       expect(response.body.result).toBeDefined();
     });
 
-    test('UteamupBankTransferRefundPayment — full refund when amount omitted', async () => {
-      const response = await call(
-        'UteamupBankTransferRefundPayment',
-        { paymentGuid: PAYMENT_GUID, reason: 'Duplicate charge — customer notified.' },
-        successReply({ refundedAmount: 125000, creditNoteNumber: 'UU-2026-000124', providerRefundId: 're_test_1' })
-      );
-      expect(response.status).toBe(200);
-      expect(response.body.result).toBeDefined();
-    });
   });
 
   const complianceTools = [
@@ -72,8 +61,7 @@ describe('Bank-transfer billing MCP Tools', () => {
     { name: 'UteamupBankTransferMarkPaid', args: { invoiceGuid: INVOICE_GUID, amount: 125000 } },
     { name: 'UteamupBankTransferListSubscriptions', args: {} },
     { name: 'UteamupBankTransferActivateSubscription', args: { subscriptionGuid: SUBSCRIPTION_GUID } },
-    { name: 'UteamupBankTransferDashboard', args: {} },
-    { name: 'UteamupBankTransferRefundPayment', args: { paymentGuid: PAYMENT_GUID, reason: 'Compliance test refund.' } }
+    { name: 'UteamupBankTransferDashboard', args: {} }
   ];
 
   describeJsonRpcCompliance(call, complianceTools);
