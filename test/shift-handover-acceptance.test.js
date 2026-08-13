@@ -130,7 +130,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       expect(response.body.error).toBeUndefined();
 
       const result = JSON.parse(response.body.result.content[0].text);
-      expect(result.id).toBe(10);
+      expect(result.guid).toBe(HANDOVER_GUID);
       expect(result.incomingOperatorStatus).toBe('Accepted');
       expect(result.status).toBe('Accepted');
     });
