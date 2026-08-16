@@ -104,7 +104,8 @@ describe('Public reporting-link MCP tools', () => {
       submissionCount: 0,
     }));
 
-    const link = JSON.parse(response.result.content[0].text);
+    // callMcpTool resolves { status, body }, so the JSON-RPC result is under body.
+    const link = JSON.parse(response.body.result.content[0].text);
     expect(link.token).toBe('K7f2QhabcdEFghij012345');
     expect(link.requireContactDetails).toBe(false);
     expect(link.id).toBeUndefined();
