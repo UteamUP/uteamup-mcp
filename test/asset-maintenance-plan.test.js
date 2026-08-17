@@ -36,12 +36,19 @@ describe('asset maintenance plan MCP tools', () => {
     effectiveDate: '2026-07-01T00:00:00Z',
     consolidationWindowDays: 3,
     dueTriggerPolicy: 0,
+    nestingPolicy: 0,
+    schedulingHorizonDays: 14,
+    cycleStartOffset: 0,
   };
 
   const itemModel = {
     name: 'Inspect drive belt',
     triggerType: 0,
+    frequencyPreset: 3,
     calendarIntervalDays: 90,
+    parentItemExternalGuid: null,
+    sortOrder: 0,
+    cycleMultiple: 1,
     meterIntervalValue: 100,
     meterAttributeDefinitionExternalGuid: meterAttributeGuid,
     workorderTemplateExternalGuid: templateExternalGuid,
@@ -134,6 +141,15 @@ describe('asset maintenance plan MCP tools', () => {
     [
       'UteamupAssetMaintenancePlanAddItem',
       { planExternalGuid, model: itemModel },
+      itemResponse,
+    ],
+    [
+      'UteamupAssetMaintenancePlanNestItem',
+      {
+        planExternalGuid,
+        itemExternalGuid,
+        model: { parentItemExternalGuid: itemExternalGuid },
+      },
       itemResponse,
     ],
     [
