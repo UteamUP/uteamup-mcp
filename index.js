@@ -20,6 +20,7 @@ const { loadConfig, printConfigSummary } = require('./lib/config');
 const { trace, debug, info, error } = require('./lib/logger');
 const { startTimer, recordOAuthAttempt, recordRequest, recordCacheHit, recordCacheMiss, printMetrics } = require('./lib/metrics');
 const { retryWithBackoff } = require('./lib/retry');
+const { buildMcpForwardHeaders } = require('./lib/mcp-http-headers');
 const {
   BoundedLineBuffer,
   ProxyTransportError,
@@ -410,7 +411,8 @@ async function forwardRequest(request, requestId) {
               'Content-Type': 'application/json',
               'Accept': 'application/json, text/event-stream',
               'Content-Length': requestBytes,
-              'X-Request-ID': requestId
+              'X-Request-ID': requestId,
+              ...buildMcpForwardHeaders(request)
             },
             // UTEAMUP-SEC-2026-05-02-008: see authorize handler above.
             rejectUnauthorized: !config.insecureTLS,

@@ -76,7 +76,7 @@ describe('MCP transport security', () => {
   });
 
   describe('getMcpRetryLimit', () => {
-    test.each(['tools/list', 'resources/read', 'prompts/get', 'ping'])(
+    test.each(['tools/list', 'resources/read', 'prompts/get', 'ping', 'server/discover'])(
       'retains configured retries for protocol read %s',
       method => {
         expect(getMcpRetryLimit(method, 3)).toBe(3);
