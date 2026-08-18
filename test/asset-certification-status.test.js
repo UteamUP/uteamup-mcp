@@ -80,9 +80,27 @@ describe('Asset certification status MCP reads', () => {
     expect(certification.daysUntilDue).toBe(20);
   });
 
+  test('lists certifications by asset GUID', async () => {
+    const response = await call(
+      'UteamupAssetcertificationGetByAssetGuid',
+      { assetGuid: '22222222-2222-2222-2222-222222222222' },
+      successReply([{
+        guid: '11111111-1111-1111-1111-111111111111',
+        assetGuid: '22222222-2222-2222-2222-222222222222',
+        certificationType: 'CeMarking',
+      }]),
+    );
+
+    const [certification] = JSON.parse(response.body.result.content[0].text);
+    expect(certification.guid).toBe('11111111-1111-1111-1111-111111111111');
+    expect(certification.certificationType).toBe('CeMarking');
+  });
+
   const tools = [
     { name: 'UteamupAssetcertificationGetExpired', args: {} },
     { name: 'UteamupAssetcertificationGetExpiringSoon', args: { days: 30 } },
+    { name: 'UteamupAssetcertificationGetByAssetGuid', args: { assetGuid: '22222222-2222-2222-2222-222222222222' } },
+    { name: 'UteamupAssetcertificationGetByGuid', args: { certificationGuid: '11111111-1111-1111-1111-111111111111' } },
     {
       name: 'UteamupAssetcertificationCreate',
       args: {

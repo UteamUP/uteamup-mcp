@@ -39,9 +39,32 @@ describe('Heat exposure MCP tools', () => {
     });
   });
 
+  describe('UteamupHeatexposureGetStatus tool', () => {
+    test('returns heat-priority status without inventing WBGT', async () => {
+      const response = await call(
+        'UteamupHeatexposureGetStatus',
+        { workorderGuid: reading.guid },
+        successReply({
+          workorderGuid: reading.guid,
+          isHeatPriorityDay: true,
+          promptCapture: true,
+          weatherIsHintOnly: true,
+          latestReading: { ...reading, wbgtC: null },
+        }),
+      );
+
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.isHeatPriorityDay).toBe(true);
+      expect(data.weatherIsHintOnly).toBe(true);
+      expect(data.latestReading.wbgtC).toBeNull();
+    });
+  });
+
   describeJsonRpcCompliance(call, [
     { name: 'UteamupHeatexposureList', args: { skip: 0, take: 10 } },
     { name: 'UteamupHeatexposureCreate', args: { locationGuid: reading.guid, dryBulbC: 32.2, relativeHumidityPct: 70 } },
+    { name: 'UteamupHeatexposureGetStatus', args: { workorderGuid: reading.guid } },
+    { name: 'UteamupHeatexposureGet', args: { guid: reading.guid } },
   ]);
   describe401Unauthorized(BASE_URL, [
     { name: 'UteamupHeatexposureList', args: {} },

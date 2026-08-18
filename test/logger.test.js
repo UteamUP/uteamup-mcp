@@ -168,5 +168,25 @@ describe('Logger', () => {
       expect(redacted.refreshToken).toBe('[REDACTED]');
       expect(redacted.visible).toBe('safe');
     });
+
+    test('should redact GPS and photo bytes from peer-sync style payloads', () => {
+      const redacted = redactSensitive({
+        gps: { latitude: 64.1, longitude: -21.9 },
+        photo: '<binary>',
+        bytes: 'ff00',
+        blob: 'aabb',
+        latitude: 1,
+        longitude: 2,
+        workorderGuid: 'visible-guid'
+      });
+
+      expect(redacted.gps).toBe('[REDACTED]');
+      expect(redacted.photo).toBe('[REDACTED]');
+      expect(redacted.bytes).toBe('[REDACTED]');
+      expect(redacted.blob).toBe('[REDACTED]');
+      expect(redacted.latitude).toBe('[REDACTED]');
+      expect(redacted.longitude).toBe('[REDACTED]');
+      expect(redacted.workorderGuid).toBe('visible-guid');
+    });
   });
 });

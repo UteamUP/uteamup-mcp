@@ -40,9 +40,30 @@ describe('Safety incident MCP tools', () => {
     });
   });
 
+  describe('UteamupOshaItaExport tool', () => {
+    test('forwards includeCases for Form 300/301 case CSV', async () => {
+      const response = await call(
+        'UteamupOshaItaExport',
+        { yearFilingFor: 2025, includeCases: true },
+        successReply({
+          jobId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          status: 'Completed',
+          hasCaseCsv: true,
+          casesRequired: true,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.hasCaseCsv).toBe(true);
+      expect(data.casesRequired).toBe(true);
+    });
+  });
+
   describeJsonRpcCompliance(call, [
     { name: 'UteamupSafetyincidentList', args: { skip: 0, take: 10 } },
     { name: 'UteamupSafetyincidentGet', args: { incidentGuid: incident.guid } },
+    { name: 'UteamupOshaItaExport', args: { yearFilingFor: 2025, includeCases: true } },
   ]);
   describe401Unauthorized(BASE_URL, [
     { name: 'UteamupSafetyincidentList', args: {} },
