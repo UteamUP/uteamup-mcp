@@ -23,6 +23,23 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
+      # CRA / NIS2 evidence: CycloneDX SBOM is a CI + GitHub Release artifact.
+      # Fail this job if the generator crashes. Do not fail on advisory/CVE noise.
+      - name: Generate CycloneDX SBOM
+        run: |
+          set -euo pipefail
+          npx --yes @cyclonedx/cyclonedx-npm@6.0.1 \
+            --output-file sbom-mcp.cdx.json \
+            --output-format JSON \
+            --spec-version 1.6 \
+            --ignore-npm-errors
+          test -s sbom-mcp.cdx.json
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-mcp-cyclonedx
+          path: sbom-mcp.cdx.json
+          if-no-files-found: error
       - name: Unit tests
         run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js
       - name: AI governance boundary
