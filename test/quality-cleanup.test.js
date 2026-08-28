@@ -133,7 +133,6 @@ describe('Quality cleanup operator MCP tools', () => {
         receiptGuid: 'b08547c6-b670-451b-b080-485c5f161ab8',
         redrivenAtUtc: '2026-08-28T15:10:00Z',
         concurrencyToken: 'cleanup-etag-v4',
-        idempotencyReplayed: false,
       }),
       redriveTool.args,
     );
