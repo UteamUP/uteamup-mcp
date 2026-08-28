@@ -54,7 +54,9 @@ describe('Quality cleanup operator MCP tools', () => {
         items: [{
           cleanupJobGuid: CLEANUP_JOB_GUID,
           documentGuid: DOCUMENT_GUID,
-          status: 'DeadLetter',
+          targetKind: 'document',
+          storageKind: 'azureBlob',
+          status: 'deadLetter',
           lastFailureCode: 'DOCUMENT_STORAGE_CLEANUP_PROVIDER_TIMEOUT',
           canRedrive: true,
         }],
@@ -94,7 +96,9 @@ describe('Quality cleanup operator MCP tools', () => {
       successReply({
         cleanupJobGuid: CLEANUP_JOB_GUID,
         documentGuid: DOCUMENT_GUID,
-        status: 'DeadLetter',
+        targetKind: 'document',
+        storageKind: 'azureBlob',
+        status: 'deadLetter',
         lastFailureCode: 'DOCUMENT_STORAGE_CLEANUP_PROVIDER_TIMEOUT',
         canRedrive: true,
         previewToken: 'preview-token-redacted-and-bounded',
@@ -129,7 +133,7 @@ describe('Quality cleanup operator MCP tools', () => {
       redriveTool.args,
       successReply({
         cleanupJobGuid: CLEANUP_JOB_GUID,
-        status: 'Pending',
+        status: 'pending',
         receiptGuid: 'b08547c6-b670-451b-b080-485c5f161ab8',
         redrivenAtUtc: '2026-08-28T15:10:00Z',
         concurrencyToken: 'cleanup-etag-v4',
@@ -139,7 +143,7 @@ describe('Quality cleanup operator MCP tools', () => {
 
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.cleanupJobGuid).toBe(CLEANUP_JOB_GUID);
-    expect(data.status).toBe('Pending');
+    expect(data.status).toBe('pending');
     expect(redriveTool.args.confirmed).toBe(true);
     expect(redriveTool.args.idempotencyKey).toBe(IDEMPOTENCY_KEY);
     expect(redriveTool.args).not.toHaveProperty('tenantGuid');
