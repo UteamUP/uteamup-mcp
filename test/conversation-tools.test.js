@@ -105,6 +105,41 @@ describe('Conversation MCP tools', () => {
     expect(JSON.parse(response.body.result.content[0].text)).toHaveLength(1);
   });
 
+  test('toggles a reaction and returns the updated summary', async () => {
+    const args = {
+      conversationGuid: CONVERSATION_GUID,
+      messageGuid: 'a1b2c3d4-0000-4000-8000-00000000000e',
+      model: { emoji: '\u{1F44D}' },
+    };
+
+    const response = await call(
+      'UteamupConversationMessageReactionToggle',
+      args,
+      successReply({
+        guid: args.messageGuid,
+        reactions: [{ emoji: '\u{1F44D}', count: 2, mine: true }],
+      }),
+      args,
+    );
+
+    const message = JSON.parse(response.body.result.content[0].text);
+    expect(message.reactions[0]).toEqual({ emoji: '\u{1F44D}', count: 2, mine: true });
+  });
+
+  test('surfaces the fixed-vocabulary refusal for an unsupported emoji', async () => {
+    const response = await call(
+      'UteamupConversationMessageReactionToggle',
+      {
+        conversationGuid: CONVERSATION_GUID,
+        messageGuid: 'a1b2c3d4-0000-4000-8000-00000000000e',
+        model: { emoji: '\u{1F4A9}' },
+      },
+      errorReply(-32602, 'Unsupported reaction emoji.'),
+    );
+
+    expect(response.body.error.message).toMatch(/Unsupported reaction emoji/);
+  });
+
   // Regression guard. The acting user comes from the bearer token, so exposing an identity
   // argument would let a caller read someone else's inbox or post as them. Asserting the
   // absence here means a future contributor adding one has to delete a test to do it.
@@ -140,6 +175,14 @@ describe('Conversation MCP tools', () => {
     {
       name: 'UteamupConversationMessagesSearch',
       args: { conversationGuid: CONVERSATION_GUID, query: 'filter' },
+    },
+    {
+      name: 'UteamupConversationMessageReactionToggle',
+      args: {
+        conversationGuid: CONVERSATION_GUID,
+        messageGuid: 'a1b2c3d4-0000-4000-8000-00000000000e',
+        model: { emoji: '\u{1F44D}' },
+      },
     },
   ];
 
