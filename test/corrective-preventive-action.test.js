@@ -205,7 +205,12 @@ describe('Corrective and preventive action MCP tools', () => {
           correctivePreventiveActionGuid: CAPA_GUID,
           canApply: true,
           retainsImmutableHistory: true,
-          transition: { actionKey: 'capa.submit', toStatus: 'Assessment', isAvailable: true },
+          transition: {
+            actionKey: 'capa.submit',
+            fromStatus: 'Draft',
+            toStatus: 'Assessment',
+            requirements: 'None',
+          },
         },
       }),
       tools[4].args,
@@ -225,22 +230,27 @@ describe('Corrective and preventive action MCP tools', () => {
         applied: false,
         previewToken: 'retained-evidence-preview-token',
         consequencePreview: {
-          operation: 'evidence.revoke',
+          operation: 'capa.evidence.revoke',
           correctivePreventiveActionGuid: CAPA_GUID,
           canApply: true,
-          retainsDocument: true,
-          retainsDocumentVersion: true,
-          retainsProviderContent: true,
+          summary: 'The exact document version and external provider content remain retained.',
+          retainsDocumentAndProviderContent: true,
           retainsImmutableHistory: true,
+          evidenceRevocation: {
+            evidenceGuid: EVIDENCE_GUID,
+            documentGuid: DOCUMENT_GUID,
+            documentVersionGuid: DOCUMENT_VERSION_GUID,
+          },
         },
       }),
       tools[6].args,
     );
 
     const data = JSON.parse(response.body.result.content[0].text);
-    expect(data.consequencePreview.retainsDocument).toBe(true);
-    expect(data.consequencePreview.retainsDocumentVersion).toBe(true);
-    expect(data.consequencePreview.retainsProviderContent).toBe(true);
+    expect(data.consequencePreview.retainsDocumentAndProviderContent).toBe(true);
+    expect(data.consequencePreview.evidenceRevocation.documentGuid).toBe(DOCUMENT_GUID);
+    expect(data.consequencePreview.evidenceRevocation.documentVersionGuid)
+      .toBe(DOCUMENT_VERSION_GUID);
   });
 
   test('source revocation preview explicitly retains the NCR and immutable history', async () => {
@@ -251,18 +261,22 @@ describe('Corrective and preventive action MCP tools', () => {
         applied: false,
         previewToken: 'retained-source-preview-token',
         consequencePreview: {
-          operation: 'source-non-conformance.revoke',
+          operation: 'capa.source-non-conformance.revoke',
           correctivePreventiveActionGuid: CAPA_GUID,
           canApply: true,
-          retainsSourceNonConformance: true,
+          summary: 'The source NCR and complete immutable link history remain retained.',
           retainsImmutableHistory: true,
+          sourceRevocation: {
+            sourceLinkGuid: SOURCE_LINK_GUID,
+            nonConformanceGuid: NCR_GUID,
+          },
         },
       }),
       tools[8].args,
     );
 
     const data = JSON.parse(response.body.result.content[0].text);
-    expect(data.consequencePreview.retainsSourceNonConformance).toBe(true);
+    expect(data.consequencePreview.sourceRevocation.nonConformanceGuid).toBe(NCR_GUID);
     expect(data.consequencePreview.retainsImmutableHistory).toBe(true);
   });
 
