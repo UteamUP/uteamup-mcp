@@ -51,9 +51,22 @@ describe('MCP AI governance CI contracts', () => {
   });
 
   test('keeps the transitive YAML parser above the patched security floor', () => {
-    expect(packageJson.overrides).toMatchObject({
-      'js-yaml@<3.15.0': '3.15.0'
-    });
+    // The floor is the intent, not a particular override shape: either the
+    // range-pin that patched 3.x or a blanket js-yaml override whose minimum
+    // version is at or above the patched 3.15.0 satisfies it.
+    const overrides = packageJson.overrides ?? {};
+    const rangePin = overrides['js-yaml@<3.15.0'];
+    const blanket = overrides['js-yaml'];
+    const minVersion = (range) => {
+      const match = /^[\^~>=]*\s*(\d+)\.(\d+)\.(\d+)/.exec(range ?? '');
+      return match ? match.slice(1, 4).map(Number) : null;
+    };
+    const atOrAboveFloor = (v) => v && (v[0] > 3 || (v[0] === 3 && (v[1] > 15 || (v[1] === 15 && v[2] >= 0))));
+
+    const verdict = rangePin === '3.15.0' || atOrAboveFloor(minVersion(blanket))
+      ? 'floor-ok'
+      : `floor-violated: js-yaml override must keep the parser at or above 3.15.0; overrides=${JSON.stringify(overrides)}`;
+    expect(verdict).toBe('floor-ok');
   });
 
   test('uses a tracked lockfile and reproducible CI install', () => {
