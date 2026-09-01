@@ -201,12 +201,14 @@ describe('Bugs & Features MCP Tools', () => {
       expect(data.status).toBe('Validated');
     });
 
-    test('parks a report New → WaitList', async () => {
+    // The wait list is feature-only (the backend rejects a bug with waitlist_features_only),
+    // so these two use featureRow rather than bugRow.
+    test('parks a feature request New → WaitList', async () => {
       // Backend serializes the enum camelCase, so WaitList comes back as "waitList".
-      const updated = { ...bugRow, status: 'waitList' };
+      const updated = { ...featureRow, status: 'waitList' };
       const response = await call(
         'UteamupBugsAndFeaturesUpdateStatus',
-        { externalGuid: bugRow.externalGuid, toStatus: 'WaitList' },
+        { externalGuid: featureRow.externalGuid, toStatus: 'WaitList' },
         successReply(updated),
       );
       expect(response.status).toBe(200);
@@ -214,11 +216,11 @@ describe('Bugs & Features MCP Tools', () => {
       expect(data.status).toBe('waitList');
     });
 
-    test('returns a parked report WaitList → New', async () => {
-      const updated = { ...bugRow, status: 'New' };
+    test('returns a parked feature request WaitList → New', async () => {
+      const updated = { ...featureRow, status: 'New' };
       const response = await call(
         'UteamupBugsAndFeaturesUpdateStatus',
-        { externalGuid: bugRow.externalGuid, toStatus: 'New' },
+        { externalGuid: featureRow.externalGuid, toStatus: 'New' },
         successReply(updated),
       );
       expect(response.status).toBe(200);

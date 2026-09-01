@@ -57,7 +57,8 @@
     "@types/node": "^25.7.0"
   },
   "overrides": {
-    "js-yaml@<3.15.0": "3.15.0"
+    "js-yaml": "^4.3.2",
+    "@babel/core": "^7.29.7"
   },
   "files": [
     "index.js",
