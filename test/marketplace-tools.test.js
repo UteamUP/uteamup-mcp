@@ -234,6 +234,14 @@ describe('Marketplace MCP Tools', () => {
   });
 
   describe('private requirement draft editing', () => {
+    test('publishing propagates a reviewed revision conflict without claiming success', async () => {
+      const response = await call('UteamupMarketplaceRequirementPublish', {
+        requirementGuid: mockRequirement.requirementGuid, draftVersion: 'A'.repeat(64),
+      }, errorReply(-32000, 'This draft changed. Review its latest version before publishing.'));
+      expect(response.body.error.message).toContain('draft changed');
+      expect(response.body.result).toBeUndefined();
+    });
+
     test('owner reads preserve the editable draft revision', async () => {
       const draft = { guid: mockRequirement.requirementGuid, status: 'Draft', draftVersion: 'A'.repeat(64) };
       const response = await call('UteamupMarketplaceRequirementGet', { requirementGuid: draft.guid }, successReply(draft));

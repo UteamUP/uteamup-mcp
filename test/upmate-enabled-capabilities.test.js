@@ -54,7 +54,7 @@ describe('enabled UPMate capability contracts', () => {
       name: 'UteamupMarketplaceRequirementCreateDraft',
       args: { itemName: 'Bearing', itemType: 'Part', requestedQuantity: 4, audience: 'Both' },
     },
-    { name: 'UteamupMarketplaceRequirementPublish', args: { requirementGuid: GUID_A } },
+    { name: 'UteamupMarketplaceRequirementPublish', args: { requirementGuid: GUID_A, draftVersion: 'A'.repeat(64) } },
     { name: 'UteamupMarketplaceRequirementOffersCompare', args: { requirementGuid: GUID_A } },
     {
       name: 'UteamupMarketplaceRequirementOfferAccept',
