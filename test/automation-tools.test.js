@@ -103,6 +103,7 @@ describe('Automation runtime MCP Tools', () => {
       const response = await call('UteamupAutomationWorkflowGet', { automationGuid: AUTOMATION_GUID }, successReply({ workflowDefinitionJson: '{"nodes":[],"edges":[]}' }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('"nodes"');
     });
 
     test('UteamupAutomationWorkflowSave — the saved graph is echoed back', async () => {
@@ -110,6 +111,7 @@ describe('Automation runtime MCP Tools', () => {
       const response = await call('UteamupAutomationWorkflowSave', { automationGuid: AUTOMATION_GUID, workflowDefinitionJson: graph }, successReply({ workflowDefinitionJson: graph }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('trigger-1');
     });
 
     test('UteamupAutomationApprovalsList — pending approvals pass through as a page', async () => {
@@ -117,30 +119,35 @@ describe('Automation runtime MCP Tools', () => {
       const response = await call('UteamupAutomationApprovalsList', { status: 'pending' }, successReply({ items: [approval], currentPage: 1, pageSize: 20, totalItems: 1, totalPages: 1 }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('Create a work order?');
     });
 
     test('UteamupAutomationApprovalDecide — the standing decision passes through', async () => {
       const response = await call('UteamupAutomationApprovalDecide', { requestGuid: APPROVAL_GUID, approve: true, comment: 'Go ahead' }, successReply({ guid: APPROVAL_GUID, status: 'approved', decisionComment: 'Go ahead' }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('Go ahead');
     });
 
     test('UteamupUpmateAgentsList — agents with their budgets pass through', async () => {
       const response = await call('UteamupUpmateAgentsList', {}, successReply([{ guid: AGENT_GUID, name: 'Alert triage', isEnabled: true, dailyCreditBudget: 200, maxCreditsPerRun: 15, creditsSpentToday: 12 }]));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('Alert triage');
     });
 
     test('UteamupUpmateAgentGet — one agent passes through', async () => {
       const response = await call('UteamupUpmateAgentGet', { agentGuid: AGENT_GUID }, successReply({ guid: AGENT_GUID, name: 'Alert triage', isEnabled: true }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('Alert triage');
     });
 
     test('UteamupUpmateAgentRun — a spent budget comes back as an answer, not an error', async () => {
       const response = await call('UteamupUpmateAgentRun', { agentGuid: AGENT_GUID, entityType: 'Workorder', entityGuid: RUN_GUID }, successReply({ maxCredits: 15, remaining: 0, quotaBlockedReason: "The agent's daily budget of 200 credits is spent." }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      expect(JSON.stringify(response.body.result)).toContain('daily budget');
     });
   });
 
