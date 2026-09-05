@@ -98,7 +98,8 @@ describe('bookable resource MCP tools', () => {
       name: 'UteamupBookableResourceList',
       args: {
         search: 'van',
-        resourceType: 4,
+        resourceType: 6,
+        poolMemberResourceType: 4,
         territoryGuid,
         isActive: true,
         page: 1,
