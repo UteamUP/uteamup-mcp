@@ -113,6 +113,16 @@ describe('bookable resource MCP tools', () => {
       },
     },
     {
+      name: 'UteamupBookableResourceCrewList',
+      args: { search: 'North', crewGuid: sourceGuid, page: 1, pageSize: 25 },
+      response: {
+        items: [{ guid: sourceGuid, name: 'Field crew', organizationName: 'North services', capacity: 4, isActive: false }],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+      },
+    },
+    {
       name: 'UteamupBookableResourceGet',
       args: { resourceGuid },
       response: resource,
