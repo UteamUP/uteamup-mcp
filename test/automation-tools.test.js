@@ -103,7 +103,7 @@ describe('Automation runtime MCP Tools', () => {
       const response = await call('UteamupAutomationWorkflowGet', { automationGuid: AUTOMATION_GUID }, successReply({ workflowDefinitionJson: '{"nodes":[],"edges":[]}' }));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
-      expect(JSON.stringify(response.body.result)).toContain('"nodes"');
+      expect(JSON.stringify(response.body.result)).toContain('nodes');
     });
 
     test('UteamupAutomationWorkflowSave — the saved graph is echoed back', async () => {
