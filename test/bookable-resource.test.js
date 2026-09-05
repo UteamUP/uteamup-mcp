@@ -130,6 +130,7 @@ describe('bookable resource MCP tools', () => {
       name: 'UteamupBookableResourcePoolMembersSet',
       args: {
         poolGuid: resourceGuid,
+        expectedUpdatedAt,
         model: {
           members: [{
             memberResourceGuid: sourceGuid,
