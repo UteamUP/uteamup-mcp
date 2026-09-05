@@ -37,7 +37,7 @@ describe('Labour Rate MCP Tools', () => {
   // ---------------------------------------------------------------------------
   const effectiveRate = {
     effectiveHourlyRate: 75.00,
-    currencyId: 1,
+    effectiveRateIssue: null,
     currencyCode: 'GBP',
     currencySymbol: '£',
     isVisible: true
