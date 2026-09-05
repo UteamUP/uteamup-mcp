@@ -129,7 +129,7 @@ describe('bookable resource MCP tools', () => {
     },
     {
       name: 'UteamupBookableResourceCreate',
-      args: { model: resourceModel },
+      args: { model: resourceModel, idempotencyKey: '66666666-6666-4666-8666-666666666666' },
       response: resource,
     },
     {
