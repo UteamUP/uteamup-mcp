@@ -96,6 +96,19 @@ describe('On-Call MCP Tools', () => {
   const SCHEDULE_GUID = '11111111-2222-3333-4444-555555555555';
   const AT_UTC = '2026-07-18T02:30:00Z';
 
+  test('pages coverage history with saved decision evidence and public schedule GUIDs', async () => {
+    const args = { history: true, page: 2, pageSize: 25, scheduleGuid: SCHEDULE_GUID };
+    const saved = { requestGuid: '11111111-2222-3333-4444-555555555556',
+      approvedCoverUserGuid: '11111111-2222-3333-4444-555555555557', approvedCoverUserName: 'Approved Worker',
+      reviewedByUserName: 'Reviewing Manager', decisionEvidenceVersion: 1, reviewNotes: 'Agreed with the team' };
+    const response = await callWithArgCapture('UteamupOncallCoverageRequests', args,
+      successReply({ items: [saved], totalItems: 26, page: 2, pageSize: 25, totalPages: 2 }));
+    expect(response.capturedArgs).toEqual(args);
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.items[0]).toEqual(saved);
+    expect(result.page).toBe(2);
+  });
+
   const scheduleList = [
     {
       scheduleGuid: SCHEDULE_GUID,
@@ -302,6 +315,7 @@ describe('On-Call MCP Tools', () => {
   // Reusable error suites (JSON-RPC compliance, 401, 503)
   // ---------------------------------------------------------------------------
   const allTools = [
+    { name: 'UteamupOncallCoverageRequests', args: { history: true, page: 1, pageSize: 25 } },
     { name: 'UteamupOncallScheduleList', args: {} },
     { name: 'UteamupOncallWhoIsOnCall', args: { scheduleGuid: SCHEDULE_GUID, atUtc: AT_UTC } },
     { name: 'UteamupOncallActiveCallouts', args: {} }
