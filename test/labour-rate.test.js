@@ -71,11 +71,11 @@ describe('Labour Rate MCP Tools', () => {
     startTime: null, endTime: null,
     appliesToHolidays: false,
     scopeType: null, scopeRoleId: null, scopeRoleName: null,
-    scopeSkillId: null, scopeSkillName: null,
-    scopeCertificateId: null, scopeCertificateName: null,
+    scopeSkillGuid: null, scopeSkillName: null,
+    scopeCertificateGuid: null, scopeCertificateName: null,
     rateDefinitionType: 0,  // Multiplier
     rateValue: 1.5,
-    currencyId: null, currencyCode: null, currencySymbol: null,
+    currencyGuid: null, currencyCode: null, currencySymbol: null,
     isActive: true, priority: 0,
     createdAt: '2026-02-24T00:00:00Z',
     updatedAt: '2026-02-24T00:00:00Z'
