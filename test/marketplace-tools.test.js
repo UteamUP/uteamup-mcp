@@ -233,6 +233,23 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  describe('private requirement draft editing', () => {
+    test('owner reads preserve the editable draft revision', async () => {
+      const draft = { guid: mockRequirement.requirementGuid, status: 'Draft', draftVersion: 'A'.repeat(64) };
+      const response = await call('UteamupMarketplaceRequirementGet', { requirementGuid: draft.guid }, successReply(draft));
+      expect(JSON.parse(response.body.result.content[0].text).draftVersion).toBe(draft.draftVersion);
+    });
+
+    test('draft updates carry the reviewed version and propagate a conflict without reporting success', async () => {
+      const response = await call('UteamupMarketplaceRequirementUpdateDraft', {
+        requirementGuid: mockRequirement.requirementGuid, draftVersion: 'A'.repeat(64),
+        itemName: 'Pump seals', itemType: 'Part', requestedQuantity: 25, audience: 'Both', currency: 'EUR',
+      }, errorReply(-32000, 'This draft changed. Review its latest version before saving again.'));
+      expect(response.body.error.message).toContain('draft changed');
+      expect(response.body.result).toBeUndefined();
+    });
+  });
+
   describe('UteamupMarketplaceMyOffersList tool', () => {
     test('returns the tenant\'s submitted offers with status', async () => {
       const response = await call('UteamupMarketplaceMyOffersList', {}, successReply([mockMyOffer]));
