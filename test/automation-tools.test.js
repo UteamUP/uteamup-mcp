@@ -28,6 +28,8 @@ describe('Automation runtime MCP Tools', () => {
   const ACCESS_TOKEN = 'test_access_token_automation_runtime';
   const AUTOMATION_GUID = '99999999-8888-4777-8666-555555555555';
   const RUN_GUID = '11111111-2222-4333-8444-555555555555';
+  const APPROVAL_GUID = '22222222-3333-4444-8555-666666666666';
+  const AGENT_GUID = '33333333-4444-4555-8666-777777777777';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -97,6 +99,49 @@ describe('Automation runtime MCP Tools', () => {
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
     });
+    test('UteamupAutomationWorkflowGet — the draft graph passes through', async () => {
+      const response = await call('UteamupAutomationWorkflowGet', { automationGuid: AUTOMATION_GUID }, successReply({ workflowDefinitionJson: '{"nodes":[],"edges":[]}' }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupAutomationWorkflowSave — the saved graph is echoed back', async () => {
+      const graph = '{"nodes":[{"id":"trigger-1","type":"trigger"}],"edges":[]}';
+      const response = await call('UteamupAutomationWorkflowSave', { automationGuid: AUTOMATION_GUID, workflowDefinitionJson: graph }, successReply({ workflowDefinitionJson: graph }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupAutomationApprovalsList — pending approvals pass through as a page', async () => {
+      const approval = { guid: APPROVAL_GUID, runGuid: RUN_GUID, automationGuid: AUTOMATION_GUID, automationName: 'Pump 1 overheating', nodeId: 'approval-1', title: 'Create a work order?', status: 'pending' };
+      const response = await call('UteamupAutomationApprovalsList', { status: 'pending' }, successReply({ items: [approval], currentPage: 1, pageSize: 20, totalItems: 1, totalPages: 1 }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupAutomationApprovalDecide — the standing decision passes through', async () => {
+      const response = await call('UteamupAutomationApprovalDecide', { requestGuid: APPROVAL_GUID, approve: true, comment: 'Go ahead' }, successReply({ guid: APPROVAL_GUID, status: 'approved', decisionComment: 'Go ahead' }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupUpmateAgentsList — agents with their budgets pass through', async () => {
+      const response = await call('UteamupUpmateAgentsList', {}, successReply([{ guid: AGENT_GUID, name: 'Alert triage', isEnabled: true, dailyCreditBudget: 200, maxCreditsPerRun: 15, creditsSpentToday: 12 }]));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupUpmateAgentGet — one agent passes through', async () => {
+      const response = await call('UteamupUpmateAgentGet', { agentGuid: AGENT_GUID }, successReply({ guid: AGENT_GUID, name: 'Alert triage', isEnabled: true }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
+
+    test('UteamupUpmateAgentRun — a spent budget comes back as an answer, not an error', async () => {
+      const response = await call('UteamupUpmateAgentRun', { agentGuid: AGENT_GUID, entityType: 'Workorder', entityGuid: RUN_GUID }, successReply({ maxCredits: 15, remaining: 0, quotaBlockedReason: "The agent's daily budget of 200 credits is spent." }));
+      expect(response.status).toBe(200);
+      expect(response.body.result).toBeDefined();
+    });
   });
 
   describe('Error pass-through', () => {
@@ -118,7 +163,14 @@ describe('Automation runtime MCP Tools', () => {
     { name: 'UteamupAutomationRunGet', args: { runGuid: RUN_GUID } },
     { name: 'UteamupAutomationWorkflowValidate', args: { automationGuid: AUTOMATION_GUID } },
     { name: 'UteamupAutomationWorkflowPublish', args: { automationGuid: AUTOMATION_GUID } },
-    { name: 'UteamupAutomationWorkflowGenerate', args: { prompt: 'when pump 1 overheats, email ops@acme.com' } }
+    { name: 'UteamupAutomationWorkflowGenerate', args: { prompt: 'when pump 1 overheats, email ops@acme.com' } },
+    { name: 'UteamupAutomationWorkflowGet', args: { automationGuid: AUTOMATION_GUID } },
+    { name: 'UteamupAutomationWorkflowSave', args: { automationGuid: AUTOMATION_GUID, workflowDefinitionJson: '{}' } },
+    { name: 'UteamupAutomationApprovalsList', args: {} },
+    { name: 'UteamupAutomationApprovalDecide', args: { requestGuid: APPROVAL_GUID, approve: false } },
+    { name: 'UteamupUpmateAgentsList', args: {} },
+    { name: 'UteamupUpmateAgentGet', args: { agentGuid: AGENT_GUID } },
+    { name: 'UteamupUpmateAgentRun', args: { agentGuid: AGENT_GUID } }
   ];
 
   describeJsonRpcCompliance(call, complianceTools);
