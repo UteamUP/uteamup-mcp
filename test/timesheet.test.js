@@ -115,22 +115,25 @@ describe('Timesheet MCP Tools', () => {
 
   const pendingApprovals = [
     {
-      timesheetGuid: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff',
+      guid: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff',
       userName: 'Jane Technician',
-      weekStart: WEEK_START,
-      weekTotal: 40.0,
-      submittedAtUtc: '2026-07-17T16:05:00Z',
-      status: 'Submitted'
+      periodStart: WEEK_START,
+      totalHours: 40.0,
+      submittedAt: '2026-07-17T16:05:00Z',
+      status: 'submitted'
     },
     {
-      timesheetGuid: 'cccccccc-dddd-eeee-ffff-000000000001',
+      guid: 'cccccccc-dddd-eeee-ffff-000000000001',
       userName: 'John Operator',
-      weekStart: '2026-07-06',
-      weekTotal: 37.5,
-      submittedAtUtc: '2026-07-10T14:40:00Z',
-      status: 'Submitted'
+      periodStart: '2026-07-06',
+      totalHours: 37.5,
+      submittedAt: '2026-07-10T14:40:00Z',
+      status: 'submitted'
     }
   ];
+
+  const pendingPage = (items = pendingApprovals) => ({ items, totalItems: items.length, page: 1,
+    pageSize: 25, totalPages: Math.ceil(items.length / 25), hasNext: false, hasPrevious: false });
 
   // ---------------------------------------------------------------------------
   // UteamupTimesheetWeeklyMine
@@ -191,28 +194,36 @@ describe('Timesheet MCP Tools', () => {
       const response = await call(
         'UteamupTimesheetPendingApprovals',
         {},
-        successReply(pendingApprovals)
+        successReply(pendingPage())
       );
 
       expect(response.status).toBe(200);
       expect(response.body.error).toBeUndefined();
       const approvals = JSON.parse(response.body.result.content[0].text);
-      expect(Array.isArray(approvals)).toBe(true);
-      expect(approvals).toHaveLength(2);
-      expect(approvals[0].timesheetGuid).toBe('bbbbbbbb-cccc-dddd-eeee-ffffffffffff');
-      expect(approvals[0].status).toBe('Submitted');
+      expect(Array.isArray(approvals.items)).toBe(true);
+      expect(approvals.items).toHaveLength(2);
+      expect(approvals.totalItems).toBe(2);
+      expect(approvals.items[0].guid).toBe('bbbbbbbb-cccc-dddd-eeee-ffffffffffff');
+      expect(approvals.items[0].status).toBe('submitted');
     });
 
-    test('returns an empty array when nothing awaits approval', async () => {
+    test('returns an empty page when nothing awaits approval', async () => {
       const response = await call(
         'UteamupTimesheetPendingApprovals',
         {},
-        successReply([])
+        successReply(pendingPage([]))
       );
 
       expect(response.status).toBe(200);
       const approvals = JSON.parse(response.body.result.content[0].text);
-      expect(approvals).toEqual([]);
+      expect(approvals.items).toEqual([]);
+      expect(approvals.totalItems).toBe(0);
+    });
+
+    test('round-trips queue filters without injecting an identity', async () => {
+      const args = { page: 2, pageSize: 10, search: 'Jane', weekFrom: '2026-07-01', weekTo: '2026-07-31' };
+      const response = await callWithArgCapture('UteamupTimesheetPendingApprovals', args, successReply(pendingPage()));
+      expect(response.capturedArgs).toEqual(args);
     });
 
     test('handles backend error responses in JSON-RPC error shape', async () => {
