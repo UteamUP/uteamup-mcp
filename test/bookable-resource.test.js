@@ -218,6 +218,14 @@ describe('bookable resource MCP tools', () => {
     },
   );
 
+  it('finds an existing resource by source GUID across all statuses', async () => {
+    const expected = { items: [{ ...resource, isActive: false }], page: 1, pageSize: 1, totalCount: 1 };
+    const response = await call('UteamupBookableResourceList',
+      { assetGuid: sourceGuid, isActive: null, page: 1, pageSize: 1 }, successReply(expected));
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
+  });
+
   it.each([
     ['UteamupBookableResourceList', { items: [], page: 1, pageSize: 25, totalCount: 0 }],
     ['UteamupServiceTerritoryList', []],
