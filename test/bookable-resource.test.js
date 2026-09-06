@@ -95,6 +95,11 @@ describe('bookable resource MCP tools', () => {
 
   const tools = [
     {
+      name: 'UteamupCustomerBookingServiceTypeList',
+      args: { search: 'Repair & service', serviceTypeGuid: sourceGuid, page: 2, pageSize: 25 },
+      response: { items: [{ guid: sourceGuid, name: 'Repair & service' }], page: 2, pageSize: 25, totalCount: 26 },
+    },
+    {
       name: 'UteamupBookableResourceSourceList',
       args: { resourceType: 4, search: 'North', sourceGuid, page: 1, pageSize: 25 },
       response: { items: [{ guid: sourceGuid, name: 'Service van', detail: 'North', capacity: null, isActive: false }],
