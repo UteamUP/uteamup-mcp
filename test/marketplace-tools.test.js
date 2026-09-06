@@ -8,8 +8,8 @@
  * Tools under test:
  *   UteamupMarketplaceBrowse(search, itemType, condition, sourceKind, page, pageSize)
  *   UteamupMarketplaceListingGet(guid)
- *   UteamupMarketplaceRequirementsList()
- *   UteamupMarketplaceMyOffersList()
+ *   UteamupMarketplaceRequirementsList(page, pageSize, search)
+ *   UteamupMarketplaceMyOffersList(page, pageSize, status, search)
  *   UteamupMarketplaceTransactionsList(page, pageSize)
  *   UteamupMarketplaceSettingsGet()
  *   UteamupMarketplaceListingReport(guid, reasonCode, details?)   ← C14 write tool
@@ -87,6 +87,7 @@ describe('Marketplace MCP Tools', () => {
     neededByDate: '2026-08-01T00:00:00Z',
     expiresAt: '2026-07-20T00:00:00Z',
     status: 'Open',
+    hasSubmittedOffer: false,
     offerCount: 2,
     publishedAt: '2026-07-01T10:00:00Z'
   };
@@ -204,12 +205,14 @@ describe('Marketplace MCP Tools', () => {
     test('returns open anonymous requirements', async () => {
       const response = await call(
         'UteamupMarketplaceRequirementsList',
-        {},
-        successReply({ items: [mockRequirement], totalCount: 1, page: 1, pageSize: 20 })
+        { page: 2, pageSize: 20, search: 'Hydraulic' },
+        successReply({ items: [mockRequirement], totalItems: 21, page: 2, pageSize: 20 })
       );
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.items[0].anonymousCode).toBe('REQ-4F2A9B');
       expect(data.items[0].quantityBucket).toBe('51–200');
+      expect(data.items[0].hasSubmittedOffer).toBe(false);
+      expect(data.page).toBe(2);
     });
 
     test('ANONYMITY: requirement rows carry no tenant identity fields', async () => {
