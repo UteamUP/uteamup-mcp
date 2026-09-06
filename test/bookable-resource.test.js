@@ -232,6 +232,27 @@ describe('bookable resource MCP tools', () => {
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
   });
 
+  it.each(['UteamupBookableResourceCreate', 'UteamupBookableResourceUpdate'])(
+    '%s sends a complete pool definition in one request', async (name) => {
+      const poolMembers = [{
+        memberResourceGuid: sourceGuid, priority: 35, capacityContribution: 0.5,
+        effectiveFromUtc: '2026-09-06T10:00:00Z', effectiveToUtc: '2026-09-13T10:00:00Z', isActive: false,
+      }];
+      const model = { ...resourceModel, name: 'Response pool', resourceType: 6, assetGuid: null, poolMembers };
+      const args = name === 'UteamupBookableResourceCreate'
+        ? { model, idempotencyKey: '66666666-6666-4666-8666-666666666666' }
+        : { resourceGuid, expectedUpdatedAt, model };
+      const expected = { ...resource, ...model, poolMembers: [{
+        ...poolMembers[0], membershipGuid: requirementGuid, memberResourceName: 'Vehicle', memberResourceType: 4,
+      }] };
+
+      const response = await call(name, args, successReply(expected));
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
+    },
+  );
+
   it.each([
     ['UteamupBookableResourceList', { items: [], page: 1, pageSize: 25, totalCount: 0 }],
     ['UteamupBookableResourceSourceList', { items: [], page: 1, pageSize: 25, totalCount: 0 }],
