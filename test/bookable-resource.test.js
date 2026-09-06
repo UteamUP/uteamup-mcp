@@ -140,7 +140,7 @@ describe('bookable resource MCP tools', () => {
     },
     {
       name: 'UteamupBookableResourceUpdate',
-      args: { resourceGuid, expectedUpdatedAt, model: resourceModel },
+      args: { resourceGuid, expectedUpdatedAt, model: resourceModel, idempotencyKey: '66666666-6666-4666-8666-666666666666' },
       response: resource,
     },
     {
@@ -241,7 +241,7 @@ describe('bookable resource MCP tools', () => {
       const model = { ...resourceModel, name: 'Response pool', resourceType: 6, assetGuid: null, poolMembers };
       const args = name === 'UteamupBookableResourceCreate'
         ? { model, idempotencyKey: '66666666-6666-4666-8666-666666666666' }
-        : { resourceGuid, expectedUpdatedAt, model };
+        : { resourceGuid, expectedUpdatedAt, model, idempotencyKey: '66666666-6666-4666-8666-666666666666' };
       const expected = { ...resource, ...model, poolMembers: [{
         ...poolMembers[0], membershipGuid: requirementGuid, memberResourceName: 'Vehicle', memberResourceType: 4,
       }] };
