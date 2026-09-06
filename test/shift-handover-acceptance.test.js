@@ -74,9 +74,9 @@ describe('Shift Handover Acceptance MCP Tools', () => {
     shiftName: 'Morning Shift',
     shiftDate: '2026-03-01T00:00:00Z',
     status: 'Reviewed',
-    outgoingOperatorId: 'user-alice-001',
+    outgoingOperatorGuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     outgoingOperatorName: 'Alice Smith',
-    incomingOperatorId: 'user-bob-002',
+    incomingOperatorGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     incomingOperatorName: 'Bob Jones',
     incomingOperatorStatus: 'PendingAcceptance',
     incomingOperatorRespondedAt: null,
@@ -522,11 +522,11 @@ describe('Shift Handover Acceptance MCP Tools', () => {
 
     test('only returns handovers where the current user is the incomingOperator', async () => {
       const bobPending = [
-        { ...handover, incomingOperatorId: 'user-bob-002', incomingOperatorName: 'Bob Jones' },
+        { ...handover, incomingOperatorGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', incomingOperatorName: 'Bob Jones' },
         {
           ...handover,
           guid: SECOND_HANDOVER_GUID,
-          incomingOperatorId: 'user-bob-002',
+          incomingOperatorGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           incomingOperatorName: 'Bob Jones'
         }
       ];
@@ -547,7 +547,7 @@ describe('Shift Handover Acceptance MCP Tools', () => {
       const result = JSON.parse(response.body.result.content[0].text);
       expect(result.length).toBe(2);
       result.forEach(h => {
-        expect(h.incomingOperatorId).toBe('user-bob-002');
+        expect(h.incomingOperatorGuid).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
         expect(h.guid).toMatch(/^[0-9a-f-]{36}$/i);
         expect(h.tenantGuid).toBe(TENANT_GUID);
         expect(h).not.toHaveProperty('id');
