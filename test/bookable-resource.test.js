@@ -95,6 +95,12 @@ describe('bookable resource MCP tools', () => {
 
   const tools = [
     {
+      name: 'UteamupBookableResourceSourceList',
+      args: { resourceType: 4, search: 'North', sourceGuid, page: 1, pageSize: 25 },
+      response: { items: [{ guid: sourceGuid, name: 'Service van', detail: 'North', capacity: null, isActive: false }],
+        page: 1, pageSize: 25, totalCount: 1 },
+    },
+    {
       name: 'UteamupBookableResourceList',
       args: {
         search: 'van',
@@ -228,6 +234,7 @@ describe('bookable resource MCP tools', () => {
 
   it.each([
     ['UteamupBookableResourceList', { items: [], page: 1, pageSize: 25, totalCount: 0 }],
+    ['UteamupBookableResourceSourceList', { items: [], page: 1, pageSize: 25, totalCount: 0 }],
     ['UteamupServiceTerritoryList', []],
     ['UteamupBookableResourceRequirementList', []],
   ])('%s preserves an empty result', async (name, expected) => {
