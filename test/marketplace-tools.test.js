@@ -260,16 +260,17 @@ describe('Marketplace MCP Tools', () => {
 
   describe('UteamupMarketplaceMyOffersList tool', () => {
     test('returns the tenant\'s submitted offers with status', async () => {
-      const response = await call('UteamupMarketplaceMyOffersList', {}, successReply([mockMyOffer]));
+      const response = await call('UteamupMarketplaceMyOffersList', { page: 2, pageSize: 20, status: 'Submitted', search: 'Bearing' }, successReply({ items: [mockMyOffer], page: 2, pageSize: 20, totalItems: 21 }));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data[0].requirementAnonymousCode).toBe('REQ-4F2A9B');
-      expect(data[0].status).toBe('Submitted');
+      expect(data.items[0].requirementAnonymousCode).toBe('REQ-4F2A9B');
+      expect(data.items[0].status).toBe('Submitted');
     });
 
     test('returns empty list when no offers submitted', async () => {
-      const response = await call('UteamupMarketplaceMyOffersList', {}, successReply([]));
+      const response = await call('UteamupMarketplaceMyOffersList', {}, successReply({ items: [], page: 1, pageSize: 20, totalItems: 0 }));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data).toHaveLength(0);
+      expect(data.items).toHaveLength(0);
+      expect(data.totalItems).toBe(0);
     });
   });
 
