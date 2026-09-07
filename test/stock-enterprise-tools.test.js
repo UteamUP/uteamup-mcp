@@ -56,6 +56,13 @@ describe('Stock enterprise MCP tools', () => {
     return captured;
   };
 
+  it('forwards reviewed receipt quantities, prices and unit codes without conversion', async () => {
+    const lines = [{ description: 'Bulk powder', quantity: 0.125001, unitPrice: 15.25,
+      unitOfMeasure: 'kg', stockItemGuid: STOCK_GUID }];
+    const captured = await captureCall('UteamupStockCreatePoFromReceipt', { lines });
+    expect(captured.params.arguments.lines).toEqual(lines);
+  });
+
   // ---------------------------------------------------------------------------
   // UteamupStockGetItemsByLocation — GUID-migrated
   // ---------------------------------------------------------------------------
@@ -255,7 +262,21 @@ describe('Stock enterprise MCP tools', () => {
   // ---------------------------------------------------------------------------
   // Shared compliance / error handling
   // ---------------------------------------------------------------------------
+  it('starts a pending count by public GUID and preserves quantity precision', async () => {
+    const tool = 'UteamupStockStartStockTake';
+    const args = { stockTakeGuid: STOCK_GUID };
+    expect((await captureCall(tool, args)).params.arguments).toEqual(args);
+    const response = await call(tool, args, successReply({
+      guid: STOCK_GUID, status: 'InProgress',
+      items: [{ expectedQuantity: 0.125001, actualQuantity: null, unitOfMeasure: 'kg', quantityDecimalPlaces: 6 }],
+    }));
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.status).toBe('InProgress');
+    expect(data.items[0].expectedQuantity).toBe(0.125001);
+  });
+
   const allTools = [
+    { name: 'UteamupStockStartStockTake', args: { stockTakeGuid: STOCK_GUID } },
     { name: 'UteamupStockGetItemsByLocation', args: { stockGuid: STOCK_GUID } },
     { name: 'UteamupStockListAlerts', args: { stockGuid: STOCK_GUID } },
     { name: 'UteamupStockAcknowledgeAlert', args: { alertGuid: ALERT_GUID } },
