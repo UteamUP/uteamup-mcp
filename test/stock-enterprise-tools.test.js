@@ -56,6 +56,12 @@ describe('Stock enterprise MCP tools', () => {
     return captured;
   };
 
+  it.each([true, false])('forwards an explicit acknowledged=%s inbox filter without changing pagination', async acknowledged => {
+    const args = { page: 2, pageSize: 25, acknowledged, includeAcknowledged: true, stockGuid: STOCK_GUID };
+    const captured = await captureCall('UteamupStockGetTenantAlerts', args);
+    expect(captured.params.arguments).toEqual(args);
+  });
+
   it('forwards reviewed receipt quantities, prices and unit codes without conversion', async () => {
     const lines = [{ description: 'Bulk powder', quantity: 0.125001, unitPrice: 15.25,
       unitOfMeasure: 'kg', stockItemGuid: STOCK_GUID }];

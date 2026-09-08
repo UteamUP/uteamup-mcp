@@ -217,6 +217,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **security:** add dependency release cooldown ([a9de3c1](https://github.com/UteamUP/uteamup-mcp/commit/a9de3c174679fe2ff1be4f499f82f9a1626eb397))
 
 ## [Unreleased]
+- test(stock): cover forwarding both acknowledgement states through the tenant alert inbox tool.
 
 ### Tests
 
