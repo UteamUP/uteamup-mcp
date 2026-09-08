@@ -14,6 +14,7 @@ const tools = [
   { name: 'UteamupAssetrentalExtend', args: { rentalGuid: GUID, model: { expectedUpdatedAtUtc: VERSION, expectedEndDate: '2026-09-12T10:00:00Z', reason: 'Tour extended' } } },
   { name: 'UteamupAssetrentalCancel', args: { rentalGuid: GUID, model: { expectedUpdatedAtUtc: VERSION, reason: 'Customer cancelled' } } },
   { name: 'UteamupAssetrentalCheckout', args: { rentalGuid: GUID, model: handover } },
+  { name: 'UteamupAssetrentalCheckout', args: { rentalGuid: GUID, model: { expectedUpdatedAtUtc: VERSION, inspectionGuid: GUID, observedAtUtc: VERSION, odometerKm: 12345, photoUrls: ['https://evidence.example.test/condition.jpg'] } } },
   { name: 'UteamupAssetrentalEnd', args: { rentalGuid: GUID, model: { ...handover, meterValue: 1465, requiresCleaning: true } } },
   { name: 'UteamupAssetrentalReady', args: { assetGuid: GUID, model: handover } },
   { name: 'UteamupAssetreadinessCreateHold', args: { assetGuid: GUID, model: { requestGuid: GUID, holdType: 'Cleaning', reason: 'Clean cabin' } } },
