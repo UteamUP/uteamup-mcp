@@ -146,7 +146,7 @@ describe('Stock enterprise MCP tools', () => {
     });
 
     it('forwards all filters and paging verbatim', async () => {
-      const args = { q: 'bearing', itemType: 'Part', stockGuid: STOCK_GUID, page: 2, pageSize: 25 };
+      const args = { q: 'bearing', itemType: 'Part', stockGuid: STOCK_GUID, sameItemAsGuid: STOCK_GUID, page: 2, pageSize: 25 };
       const captured = await captureCall('UteamupStockSearchItems', args);
       expect(captured.params.arguments).toEqual(args);
     });
