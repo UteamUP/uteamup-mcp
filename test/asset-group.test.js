@@ -478,7 +478,16 @@ describe('Asset group MCP tools', () => {
     expect(response.body.error.message).toContain('already been applied');
   });
 
+  test('forwards the exact reviewed maintenance revision and rejects a stale review', async () => {
+    const args = { groupGuid: GROUP_GUID, model: { revision: 'a'.repeat(64) } };
+    const success = await call('UteamupAssetGroupMaintenanceAcknowledge', args, successReply(true), args);
+    expect(JSON.parse(success.body.result.content[0].text)).toBe(true);
+    const stale = await call('UteamupAssetGroupMaintenanceAcknowledge', args, errorReply(-32000, 'The maintenance plan changed.'));
+    expect(stale.body.error.message).toContain('changed');
+  });
+
   const allTools = [
+    { name: 'UteamupAssetGroupMaintenanceAcknowledge', args: { groupGuid: GROUP_GUID, model: { revision: 'a'.repeat(64) } } },
     { name: 'UteamupAssetGroupList', args: { page: 1, pageSize: 10 } },
     { name: 'UteamupAssetGroupGet', args: { groupGuid: GROUP_GUID } },
     { name: 'UteamupAssetGroupCreate', args: { model: { name: 'Boiler House' } } },
@@ -503,7 +512,7 @@ describe('Asset group MCP tools', () => {
   ];
 
   test('the tool matrix covers every asset group tool exactly once', () => {
-    expect(allTools).toHaveLength(21);
+    expect(allTools).toHaveLength(22);
     expect(new Set(allTools.map((tool) => tool.name)).size).toBe(allTools.length);
   });
 
