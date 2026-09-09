@@ -72,6 +72,15 @@ describe('Asset dependency MCP tools', () => {
     }
   });
 
+  test('forwards independent AND/OR conditions without reshaping asset GUIDs', async () => {
+    const model = { conditions: { match: 'all', items: [
+      { assetGuid: SOURCE_GUID, state: 'offline' }, { assetGuid: TARGET_GUID, state: 'notWorking' }
+    ] } };
+    const args = { dependencyGuid: DEPENDENCY_GUID, model };
+    const response = await call('UteamupAssetDependencyUpdate', args, successReply({ ...edge, ...model }), args);
+    expect(JSON.parse(response.body.result.content[0].text).conditions).toEqual(model.conditions);
+  });
+
   test('an asset with no edges returns an empty list, not null', async () => {
     const response = await call(
       'UteamupAssetDependencyListByAsset',
