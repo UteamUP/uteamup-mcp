@@ -39,7 +39,8 @@ describe('Project governance MCP tools', () => {
     { name: 'UteamupProjectCommentsUpdate', args: { projectGuid: PROJECT_GUID, commentGuid: RESOURCE_GUID, model: { text: 'Updated decision', isDecision: true, mentionedUserGuids: [] } } },
     { name: 'UteamupProjectCommentsRemove', args: { projectGuid: PROJECT_GUID, commentGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectBaselinesList', args: { projectGuid: PROJECT_GUID } },
-    { name: 'UteamupProjectBaselinesCapture', args: { projectGuid: PROJECT_GUID, model: { label: 'Approved plan' } } },
+    { name: 'UteamupProjectBaselinesCapture', args: { projectGuid: PROJECT_GUID, model: { label: 'Comparison plan', requestGuid: RESOURCE_GUID, expectedBaselineGuid: '00000000-0000-0000-0000-000000000000', expectedProjectUpdatedAt: '2026-09-12T10:00:00Z' } } },
+    { name: 'UteamupProjectBaselineScopeGet', args: { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectVarianceGet', args: { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectChangeRequestsList', args: { projectGuid: PROJECT_GUID } },
     { name: 'UteamupProjectChangeRequestsCreate', args: { projectGuid: PROJECT_GUID, model: { summary: 'Move finish date', reason: 'Supplier delay', proposedChanges: { endDate: '2026-09-01' } } } },
@@ -50,6 +51,12 @@ describe('Project governance MCP tools', () => {
   ];
 
   const listTools = tools.filter(({ name }) => name.endsWith('List'));
+
+  test('baseline scope preserves unavailable historical evidence rather than inventing an empty plan', async () => {
+    const scope = { baselineGuid: RESOURCE_GUID, isAvailable: false, isCompleteForViewer: false, unavailableSections: ['legacyScopeNotRecorded'], snapshot: null };
+    const response = await call('UteamupProjectBaselineScopeGet', { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID }, successReply(scope));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(scope);
+  });
 
   test.each(tools)('$name forwards arguments and returns a success result', async ({ name, args }) => {
     const response = await call(name, args, successReply({ ok: true }));
