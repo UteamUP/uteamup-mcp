@@ -43,6 +43,11 @@ describe('Project governance MCP tools', () => {
     { name: 'UteamupProjectBaselineScopeGet', args: { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectVarianceGet', args: { projectGuid: PROJECT_GUID, baselineGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectChangeRequestsList', args: { projectGuid: PROJECT_GUID } },
+    { name: 'UteamupProjectChangeRequestsGet', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectChangeRequestsHistory', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectSourceLinesList', args: { projectGuid: PROJECT_GUID, intakeGuid: RESOURCE_GUID, page: 3, pageSize: 25 } },
+    { name: 'UteamupProjectRequirementGet', args: { projectGuid: PROJECT_GUID, requirementGuid: RESOURCE_GUID } },
+    { name: 'UteamupProjectVerificationReferenceGet', args: { projectGuid: PROJECT_GUID, stepGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectChangeRequestsCreate', args: { projectGuid: PROJECT_GUID, model: { summary: 'Move finish date', reason: 'Supplier delay', proposedChanges: { endDate: '2026-09-01' } } } },
     { name: 'UteamupProjectChangeRequestsSubmit', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
     { name: 'UteamupProjectChangeRequestsApprove', args: { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID } },
@@ -51,6 +56,40 @@ describe('Project governance MCP tools', () => {
   ];
 
   const listTools = tools.filter(({ name }) => name.endsWith('List'));
+
+  test('scope patches preserve explicit clears and decision versions', async () => {
+    const model = {
+      requestGuid: RESOURCE_GUID,
+      expectedProjectUpdatedAt: '2026-09-12T10:00:00Z',
+      expectedBaselineGuid: '00000000-0000-0000-0000-000000000000',
+      summary: 'Review supplier scope', reason: 'Customer accepted revised interface',
+      proposedChanges: { deliverableChanges: [{
+        deliverableGuid: RESOURCE_GUID, expectedUpdatedAt: '2026-09-12T09:00:00Z',
+        changes: { acceptanceCriteria: null, description: 'Reviewed interface' },
+      }] },
+    };
+    const response = await call('UteamupProjectChangeRequestsCreate', { projectGuid: PROJECT_GUID, model }, successReply(model));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(model);
+    const decision = { requestGuid: PROJECT_GUID, expectedUpdatedAt: '2026-09-12T10:01:00Z', expectedReviewFingerprint: 'a'.repeat(64) };
+    const approved = await call('UteamupProjectChangeRequestsApprove', { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID, model: decision }, successReply(decision));
+    expect(JSON.parse(approved.body.result.content[0].text)).toEqual(decision);
+  });
+
+  test('a redacted review remains unavailable for approval', async () => {
+    const review = { guid: RESOURCE_GUID, hasDetailedChanges: true, isReviewAvailable: true, isCompleteForViewer: false,
+      unavailableSections: ['requirementEvidence'], reviewFingerprint: null };
+    const response = await call('UteamupProjectChangeRequestsGet', { projectGuid: PROJECT_GUID, requestGuid: RESOURCE_GUID }, successReply(review));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(review);
+  });
+
+  test('current source lines retain retired history without duplicating current sales', async () => {
+    const page = { items: [{ guid: RESOURCE_GUID, salesValue: 600, currencyCode: 'EUR', allocations: [
+      { guid: PROJECT_GUID, quantity: 1, allocatedSalesValue: 500, isRetired: true },
+      { guid: RESOURCE_GUID, quantity: 1, allocatedSalesValue: 600, isRetired: false },
+    ] }], totalItems: 51, currentPage: 3, pageSize: 25, totalPages: 3 };
+    const response = await call('UteamupProjectSourceLinesList', { projectGuid: PROJECT_GUID, page: 3, pageSize: 25 }, successReply(page));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(page);
+  });
 
   test('baseline scope preserves unavailable historical evidence rather than inventing an empty plan', async () => {
     const scope = { baselineGuid: RESOURCE_GUID, isAvailable: false, isCompleteForViewer: false, unavailableSections: ['legacyScopeNotRecorded'], snapshot: null };
