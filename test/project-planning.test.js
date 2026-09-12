@@ -438,6 +438,26 @@ describe('Project Planning MCP Tools', () => {
   // Insights: portfolio + conflicts
   // ---------------------------------------------------------------------------
   describe('UteamupProjectPortfolio tool', () => {
+    test('forwards server filters and paging without restricting search to loaded rows', async () => {
+      const response = await call(
+        'UteamupProjectPortfolio',
+        {
+          page: 2, pageSize: 10, search: 'layout', status: 1,
+          sortBy: 'endDate', sortDescending: false,
+          ownerGuid: 'bbbbbbbb-1111-2222-3333-444444444444', priority: 2, overdueOnly: true,
+        },
+        successReply({
+          items: [{ guid: PROJECT_GUID, name: 'Layout installation' }],
+          totalItems: 11, currentPage: 2, pageSize: 10, totalPages: 2, allocationConflicts: [],
+        }),
+      );
+      expect(response.status).toBe(200);
+      const portfolio = JSON.parse(response.body.result.content[0].text);
+      expect(portfolio.totalItems).toBe(11);
+      expect(portfolio.currentPage).toBe(2);
+      expect(portfolio.items[0].guid).toBe(PROJECT_GUID);
+    });
+
     test('returns the paginated portfolio sorted by schedule risk', async () => {
       const response = await call(
         'UteamupProjectPortfolio',
