@@ -9,6 +9,15 @@ describe('Project cost reconciliation evidence contracts', () => {
   const sourceGuid = 'bbbbbbbb-1111-2222-3333-444444444444';
   afterEach(() => nock.cleanAll());
 
+  test('manual cost retries preserve the request identity and original accounting date', async () => {
+    const model = { requestGuid: sourceGuid, amount: 50, accountingDate: null, currencyGuid: null, description: 'One invoice' };
+    const original = { guid: projectGuid, projectGuid, amount: 50, accountingDate: '2026-09-12', currencyGuid: null };
+    const first = await callMcpTool(baseUrl, 'test-token', 'UteamupProjectCostRecordCreate', { projectGuid, model }, successReply(original));
+    const replay = await callMcpTool(baseUrl, 'test-token', 'UteamupProjectCostRecordCreate', { projectGuid, model }, successReply(original));
+    expect(JSON.parse(first.body.result.content[0].text)).toEqual(original);
+    expect(JSON.parse(replay.body.result.content[0].text)).toEqual(original);
+  });
+
   test('retains null provenance and separate receipt evidence in previews', async () => {
     const preview = {
       source: { guid: sourceGuid, sourceGuid, amount: 100, currencyGuid: null },
