@@ -24,7 +24,7 @@ describe('Project cost reconciliation evidence contracts', () => {
   test('retains reviewed decision identity and stale status on replay', async () => {
     const model = {
       requestGuid: 'cccccccc-1111-2222-3333-444444444444', costRecordGuid: sourceGuid,
-      sourceFingerprint: 'A'.repeat(64), previousDecisionGuid: null, outcome: 'independent',
+      sourceFingerprint: 'A'.repeat(64), previousDecisionGuid: null, outcome: 'Independent',
       currencyGuid: 'dddddddd-1111-2222-3333-444444444444', coveredAmount: 0,
       receiptCostRecordGuid: null, receiptFingerprint: null, reason: 'Reviewed against the invoice and stock issue.',
     };
