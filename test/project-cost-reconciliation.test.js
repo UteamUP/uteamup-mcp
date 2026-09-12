@@ -33,4 +33,12 @@ describe('Project cost reconciliation evidence contracts', () => {
       { projectGuid, model }, successReply(decision));
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(decision);
   });
+  test('preserves unknown direct plan inputs instead of filling them from subtree totals', async () => {
+    const plan = { deliverableGuid: sourceGuid, currencyGuid: null, currencyCode: null,
+      approvedSalesValue: null, approvedCostBudget: null, estimatedRemainingCost: null,
+      workStatus: 'Draft', updatedAt: '2026-09-12T20:00:00Z' };
+    const response = await callMcpTool(baseUrl, 'test-token', 'UteamupProjectDeliverableCostPlanGet',
+      { projectGuid, deliverableGuid: sourceGuid }, successReply(plan));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(plan);
+  });
 });
