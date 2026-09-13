@@ -107,7 +107,10 @@ describe('versioned schedule publication MCP tools', () => {
         end: endUtc,
         allocationPercent: 25,
         workorderGuid,
-        handoffNotes: 'Coordinate with the shift lead'
+        handoffNotes: 'Coordinate with the shift lead',
+        idempotencyKey: newerPublicationGuid,
+        expectedReviewFingerprint: 'a'.repeat(64),
+        acknowledgedPlanningIssueCodes: ['schedule.project.forecast_dependency']
       }
     }
   ];
@@ -133,6 +136,17 @@ describe('versioned schedule publication MCP tools', () => {
     expect(JSON.stringify(args)).not.toMatch(
       /"(?:tenantId|userId|draftId|entryId|publicationId|projectId|workorderId)"/
     );
+  });
+
+  test('reservation retry preserves original confirmation when the current booking is unavailable', async () => {
+    const args = tools.find(tool => tool.name === 'UteamupWorkforceReservationCreate').args;
+    const expected = { created: true, isReplay: true, idempotencyKey: args.idempotencyKey,
+      recordedAtUtc: startUtc, assignment: null, originalAssignment: { guid: entryGuid, workorderGuid, status: 'scheduled' },
+      readiness: { reviewFingerprint: args.expectedReviewFingerprint, projectDependencyFingerprint: 'b'.repeat(64),
+        workerEligible: true, qualificationChecks: [{ requirementName: 'Electrical', isSatisfied: true }],
+        planningIssues: [{ code: 'schedule.project.forecast_dependency', severity: 'warning', overrideable: true }] } };
+    const response = await call('UteamupWorkforceReservationCreate', args, successReply(expected), args);
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
   });
 
   test('draft list preserves an empty result', async () => {
