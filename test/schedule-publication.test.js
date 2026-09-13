@@ -40,6 +40,7 @@ describe('versioned schedule publication MCP tools', () => {
   };
 
   const tools = [
+    { name: 'UteamupWorkforceProjectReservations', args: { projectGuid, fromUtc: startUtc, toUtc: endUtc } },
     { name: 'UteamupScheduleDraftList', args: { weekStart } },
     { name: 'UteamupScheduleDraftGet', args: { draftGuid } },
     {
