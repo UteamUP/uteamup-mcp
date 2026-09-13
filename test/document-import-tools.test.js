@@ -180,102 +180,81 @@ describe("Document Import / Review / AI Usage MCP tools", () => {
 
   // ── UteamupDocumentReviewQueue ─────────────────────────────────────────
 
+  const DOCUMENT_GUID = "22222222-2222-4222-8222-222222222222";
+  const VERSION_GUID = "33333333-3333-4333-8333-333333333333";
+  const ACK_GUID = "44444444-4444-4444-8444-444444444444";
+  const REVIEWER_GUID = "55555555-5555-4555-8555-555555555555";
+  const documentStamp = "2026-09-13T10:30:00Z";
+  const exactVersion = {
+    documentVersionGuid: VERSION_GUID, versionNumber: 2, fileName: "drawing-v2.pdf",
+    contentSha256: "a".repeat(64), contentLengthBytes: 100,
+    storageCommitmentHash: "b".repeat(64), integrityVerified: true,
+  };
+
   describe("UteamupDocumentReviewQueue", () => {
-    it("returns paginated queue items with ack thresholds", async () => {
-      const items = [
-        {
-          documentId: 1001,
-          fileName: "turbine.jpg",
-          contentType: "image/jpeg",
-          sourceType: 1,
-          aiAnalysisStatus: 3,
-          aiDescription: "Turbine inspection",
-          importBatchId: 42,
-          importBatchTitle: "Turbine PM",
-          acknowledgmentCount: 1,
-          effectiveReviewerThreshold: 2,
-          createdAt: "2026-04-15T10:00:00Z",
-          ackedByCurrentUser: false,
-        },
-      ];
-      const response = await call(
-        "UteamupDocumentReviewQueue",
-        { page: 1, pageSize: 25 },
-        successReply(items),
-      );
+    it("preserves the exact observed version and document token with peer-review counts", async () => {
+      const items = [{
+        documentGuid: DOCUMENT_GUID, fileName: "drawing-v2.pdf", contentType: "application/pdf",
+        sourceType: 1, aiAnalysisStatus: 3, aiDescription: "Reviewed source",
+        importBatchGuid: "66666666-6666-4666-8666-666666666666", importBatchTitle: "Turbine PM",
+        acknowledgmentCount: 1, effectiveReviewerThreshold: 2, createdAt: documentStamp,
+        ackedByCurrentUser: false, isVersioned: true, documentUpdatedAt: documentStamp, version: exactVersion,
+      }];
+      const response = await call("UteamupDocumentReviewQueue", { page: 1, pageSize: 25 }, successReply(items));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data[0].effectiveReviewerThreshold).toBe(2);
-      expect(data[0].ackedByCurrentUser).toBe(false);
+      expect(data[0]).toEqual(items[0]);
+      expect(data[0]).not.toHaveProperty("documentId");
     });
 
-    it("accepts optional batchId filter", async () => {
-      const response = await call(
-        "UteamupDocumentReviewQueue",
-        { page: 1, pageSize: 50, batchId: 42 },
-        successReply([]),
-      );
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data).toEqual([]);
+    it("passes the tenant-scoped batch GUID filter", async () => {
+      const args = { page: 1, pageSize: 50, batchGuid: "66666666-6666-4666-8666-666666666666" };
+      const response = await call("UteamupDocumentReviewQueue", args, successReply([]), args);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual([]);
     });
 
-    it("surfaces 503 from the backend as JSON-RPC error", async () => {
-      const response = await call(
-        "UteamupDocumentReviewQueue",
-        { page: 1, pageSize: 25 },
-        errorReply(-32000, "Backend unavailable"),
-      );
-      expect(response.body.error).toBeDefined();
+    it("surfaces queue unavailability without an empty successful result", async () => {
+      const response = await call("UteamupDocumentReviewQueue", { page: 1, pageSize: 25 },
+        errorReply(-32000, "Backend unavailable"));
       expect(response.body.error.code).toBe(-32000);
     });
   });
 
-  // ── UteamupDocumentReviewAcknowledge ──────────────────────────────────
-
   describe("UteamupDocumentReviewAcknowledge", () => {
-    it("returns ack response model on success", async () => {
-      const ackPayload = {
-        id: 7001,
-        documentId: 1001,
-        userId: "user-A",
-        userName: "Alex",
-        ackedAt: "2026-04-15T10:30:00Z",
-        comment: "Looks good",
-      };
-      const response = await call(
-        "UteamupDocumentReviewAcknowledge",
-        { documentId: 1001, comment: "Looks good" },
-        successReply(ackPayload),
-      );
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.id).toBe(7001);
-      expect(data.documentId).toBe(1001);
-      expect(data.comment).toBe("Looks good");
+    it("passes the exact version and observed token and retains the bound receipt", async () => {
+      const args = { documentGuid: DOCUMENT_GUID, documentVersionGuid: VERSION_GUID,
+        expectedDocumentUpdatedAt: documentStamp, comment: "Reviewed exact drawing" };
+      const receipt = { guid: ACK_GUID, documentGuid: DOCUMENT_GUID, userGuid: REVIEWER_GUID,
+        ackedAt: documentStamp, comment: args.comment, isVersionBound: true, version: exactVersion };
+      const response = await call("UteamupDocumentReviewAcknowledge", args, successReply(receipt), args);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(receipt);
     });
 
-    it("works without an optional comment", async () => {
-      const ackPayload = {
-        id: 7002,
-        documentId: 1002,
-        userId: "user-B",
-        ackedAt: "2026-04-15T10:31:00Z",
-      };
-      const response = await call(
-        "UteamupDocumentReviewAcknowledge",
-        { documentId: 1002 },
-        successReply(ackPayload),
-      );
+    it("keeps a legacy unversioned receipt explicitly unbound", async () => {
+      const receipt = { guid: ACK_GUID, documentGuid: DOCUMENT_GUID, userGuid: REVIEWER_GUID,
+        ackedAt: documentStamp, isVersionBound: false, version: null };
+      const response = await call("UteamupDocumentReviewAcknowledge", { documentGuid: DOCUMENT_GUID },
+        successReply(receipt));
       const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.documentId).toBe(1002);
+      expect(data.isVersionBound).toBe(false);
+      expect(data.version).toBeNull();
     });
 
-    it("surfaces 404 from the backend (cross-tenant rejection)", async () => {
-      const response = await call(
-        "UteamupDocumentReviewAcknowledge",
-        { documentId: 9999 },
-        errorReply(-32602, "Document not found for tenant"),
-      );
-      expect(response.body.error.message).toMatch(/not found/i);
+    it("preserves a stale-review conflict for the caller to refresh", async () => {
+      const response = await call("UteamupDocumentReviewAcknowledge",
+        { documentGuid: DOCUMENT_GUID, documentVersionGuid: VERSION_GUID, expectedDocumentUpdatedAt: documentStamp },
+        errorReply(-32602, "The document review changed. Open the exact current version."));
+      expect(response.body.error.message).toMatch(/review changed/i);
+    });
+  });
+
+  describe("UteamupDocumentReviewAcknowledgment", () => {
+    it("returns the same receipt GUID and old exact version after archival", async () => {
+      const args = { documentGuid: DOCUMENT_GUID, acknowledgmentGuid: ACK_GUID };
+      const receipt = { guid: ACK_GUID, documentGuid: DOCUMENT_GUID, userGuid: REVIEWER_GUID,
+        ackedAt: documentStamp, isVersionBound: true, version: exactVersion,
+        archivedAt: "2026-09-14T08:00:00Z", clearedOnVersionNumber: 3 };
+      const response = await call("UteamupDocumentReviewAcknowledgment", args, successReply(receipt), args);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(receipt);
     });
   });
 
