@@ -24,8 +24,9 @@ describe('Project schedule workspace MCP contracts', () => {
     { name: 'UteamupProjectScheduleDependencyRemove', args: { projectGuid, dependencyGuid, model: {
       requestGuid, expectedSnapshotFingerprint, reviewNote: 'Review removed relationship' } } },
     { name: 'UteamupProjectScheduleCalendarSet', args: { projectGuid, model: { requestGuid, expectedSnapshotFingerprint,
+      expectedHolidayVersions: [{ guid: dependencyGuid, expectedUpdatedAt: '2026-09-13T10:00:00.123456Z' }],
       reviewNote: 'Adopt factory calendar', calendar: { useWorkingTime: true, timeZoneId: 'Atlantic/Reykjavik',
-        weeklyWindows: [{ dayOfWeek: 1, startMinute: 480, finishMinute: 960 }], holidayGuids: [] } } } },
+        weeklyWindows: [{ dayOfWeek: 1, startMinute: 480, finishMinute: 960 }], holidayGuids: [dependencyGuid] } } } },
     { name: 'UteamupProjectScheduleHistory', args: { projectGuid, page: 3, pageSize: 25 } },
   ];
   beforeEach(() => nock.cleanAll());
@@ -46,7 +47,8 @@ describe('Project schedule workspace MCP contracts', () => {
 
   test('retained history exposes its permission completeness', async () => {
     const history = { currentPage: 3, totalItems: 60, items: [{ actorName: 'Project owner', dateReview: null,
-      isCompleteForViewer: false, unavailableSections: ['publishedBookings'] }] };
+      calendarHolidaysBefore: null, calendarHolidaysAfter: null, calendarMissingHolidayGuidsBefore: null,
+      isCompleteForViewer: false, unavailableSections: ['publishedBookings', 'calendarHolidays'] }] };
     const response = await call('UteamupProjectScheduleHistory', { projectGuid, page: 3, pageSize: 25 }, successReply(history));
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(history);
   });
