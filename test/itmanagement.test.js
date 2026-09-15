@@ -92,6 +92,18 @@ describe('IT Management MCP tools', () => {
     }
   });
 
+  test('connections quota reports how many Entra directories the plan still allows', async () => {
+    const response = await call('UteamupITManagementConnectionsQuota', {}, successReply({
+      current: 1,
+      limit: 2,
+      canAdd: true,
+    }));
+    const quota = parse(response);
+    expect(quota.current).toBe(1);
+    expect(quota.limit).toBe(2);
+    expect(quota.canAdd).toBe(true);
+  });
+
   test('resources, rules, service map and flows return their summaries', async () => {
     const resources = await call('UteamupITManagementResourcesList', { unmappedOnly: true, page: 1, pageSize: 50 },
       successReply({ items: [{ resourceGuid: ASSET_GUID, name: 'vm-web-01', assetGuid: null }], totalItems: 1, page: 1, pageSize: 50, totalPages: 1, hasPrevious: false, hasNext: false }));
@@ -183,6 +195,7 @@ describe('IT Management MCP tools', () => {
     { name: 'UteamupITManagementAlertResolve', args: { alertGuid: ALERT_GUID, reasonCode: 'fixed' } },
     { name: 'UteamupITManagementRulesList', args: {} },
     { name: 'UteamupITManagementConnectionsList', args: {} },
+    { name: 'UteamupITManagementConnectionsQuota', args: {} },
     { name: 'UteamupITManagementResourcesList', args: { unmappedOnly: true } },
     { name: 'UteamupITManagementServiceMapSummary', args: { windowHours: 24 } },
     { name: 'UteamupITManagementFlowsSummary', args: { window: '24h' } },
