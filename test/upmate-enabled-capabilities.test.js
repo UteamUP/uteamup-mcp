@@ -184,7 +184,7 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(51);
+    expect(capabilities).toHaveLength(61);
     expect(new Set(capabilities.map(capability => capability.name)).size).toBe(capabilities.length);
   });
 
