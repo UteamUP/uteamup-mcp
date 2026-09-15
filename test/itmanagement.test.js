@@ -78,11 +78,15 @@ describe('IT Management MCP tools', () => {
       consecutiveFailures: 0,
       enabledSources: 12,
       availableSources: 5,
+      monitoredSubscriptions: 3,
+      subscriptionsNeedingAccess: 1,
       webhookVerified: true,
     }]));
     const rows = parse(response);
     expect(rows[0].connectionGuid).toMatch(GUID);
-    for (const forbidden of ['clientSecret', 'encryptedClientSecret', 'webhookKey', 'webhookKeyHash', 'webhookKeyPlaintext', 'id']) {
+    expect(rows[0].monitoredSubscriptions).toBe(3);
+    expect(rows[0].subscriptionsNeedingAccess).toBe(1);
+    for (const forbidden of ['clientSecret', 'encryptedClientSecret', 'webhookKey', 'webhookKeyHash', 'webhookKeyPlaintext', 'subscriptionId', 'id']) {
       expect(rows[0]).not.toHaveProperty(forbidden);
     }
   });
