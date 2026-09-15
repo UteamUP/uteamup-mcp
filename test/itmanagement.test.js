@@ -14,6 +14,7 @@ describe('IT Management MCP tools', () => {
   const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const ALERT_GUID = '11111111-1111-4111-8111-111111111111';
   const ASSET_GUID = '22222222-2222-4222-8222-222222222222';
+  const SUBSCRIPTION_GUID = '33333333-3333-4333-8333-333333333333';
   const call = (name, args, reply) => callTool(BASE_URL, ACCESS_TOKEN, name, args, reply);
   const parse = (response) => JSON.parse(response.body.result.content[0].text);
 
@@ -105,6 +106,70 @@ describe('IT Management MCP tools', () => {
     expect(parse(flows).items).toEqual([]);
   });
 
+  test('activity log forwards its filters verbatim and returns masked rows without ids or IP addresses', async () => {
+    const args = {
+      fromUtc: '2026-09-14T00:00:00Z',
+      toUtc: '2026-09-15T00:00:00Z',
+      failedOnly: true,
+      textContains: 'delete',
+      resourceGroup: 'rg-prod',
+      subscriptionId: SUBSCRIPTION_GUID,
+      limit: 50,
+    };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupITManagementActivityLog', args, successReply({
+      available: true,
+      rows: [
+        {
+          timeGeneratedUtc: '2026-09-14T08:15:00Z',
+          operationName: 'Microsoft.Compute/virtualMachines/delete',
+          status: 'Failed',
+          level: 'Error',
+          resourceId: `/subscriptions/${SUBSCRIPTION_GUID}/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/vm-web-01`,
+          resourceName: 'vm-web-01',
+          resourceGroup: 'rg-prod',
+          subscriptionId: SUBSCRIPTION_GUID,
+          caller: 'j***@contoso.com',
+          correlationId: '44444444-4444-4444-8444-444444444444',
+          category: 'Administrative',
+        },
+        {
+          timeGeneratedUtc: '2026-09-14T07:02:00Z',
+          operationName: 'Microsoft.Resources/deployments/write',
+          status: 'Failed',
+          level: 'Error',
+          resourceId: null,
+          resourceName: null,
+          resourceGroup: null,
+          subscriptionId: null,
+          caller: 'a***@contoso.com',
+          correlationId: '55555555-5555-4555-8555-555555555555',
+          category: 'Administrative',
+        },
+      ],
+      truncated: false,
+      durationMs: 412,
+    }), args);
+    const log = parse(response);
+    expect(log.available).toBe(true);
+    expect(log.rows).toHaveLength(2);
+    for (const row of log.rows.filter(r => r.subscriptionId !== null)) {
+      expect(row.subscriptionId).toMatch(GUID);
+    }
+    for (const row of log.rows) {
+      for (const forbidden of ['id', 'ipAddress', 'callerIpAddress']) {
+        expect(row).not.toHaveProperty(forbidden);
+      }
+    }
+  });
+
+  test('activity log reports unavailable with no rows when the workspace has no AzureActivity table', async () => {
+    const response = await call('UteamupITManagementActivityLog', {},
+      successReply({ available: false, rows: [], truncated: false, durationMs: 0 }));
+    const log = parse(response);
+    expect(log.available).toBe(false);
+    expect(log.rows).toEqual([]);
+  });
+
   test('preserves backend JSON-RPC errors', async () => {
     const response = await call('UteamupITManagementDashboard', {}, errorReply(-32603, 'Feature not enabled: IT Management Preview access is required.'));
     expect(response.body.error.message).toContain('IT Management');
@@ -121,6 +186,7 @@ describe('IT Management MCP tools', () => {
     { name: 'UteamupITManagementResourcesList', args: { unmappedOnly: true } },
     { name: 'UteamupITManagementServiceMapSummary', args: { windowHours: 24 } },
     { name: 'UteamupITManagementFlowsSummary', args: { window: '24h' } },
+    { name: 'UteamupITManagementActivityLog', args: { failedOnly: true, limit: 50 } },
   ];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);

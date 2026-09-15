@@ -27,6 +27,7 @@ describe('enabled UPMate capability contracts', () => {
     { name: 'UteamupITManagementResourcesList', args: { unmappedOnly: true, page: 1, pageSize: 25 } },
     { name: 'UteamupITManagementServiceMapSummary', args: { windowHours: 24 } },
     { name: 'UteamupITManagementFlowsSummary', args: { sourceAssetGuid: GUID_A, window: '24h' } },
+    { name: 'UteamupITManagementActivityLog', args: { failedOnly: true, subscriptionId: GUID_B, limit: 50 } },
     { name: 'UteamupDocumentListVersionsByGuid', args: { externalGuid: GUID_A } },
     { name: 'UteamupDocumentGetMetadata', args: { guid: GUID_A } },
     { name: 'UteamupFleetDashboardGet', args: {} },
@@ -183,7 +184,7 @@ describe('enabled UPMate capability contracts', () => {
   afterEach(() => nock.cleanAll());
 
   test('matrix contains every currently enabled capability exactly once', () => {
-    expect(capabilities).toHaveLength(50);
+    expect(capabilities).toHaveLength(51);
     expect(new Set(capabilities.map(capability => capability.name)).size).toBe(capabilities.length);
   });
 
