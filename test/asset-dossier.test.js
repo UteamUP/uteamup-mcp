@@ -207,6 +207,31 @@ describe('Asset dossier MCP tools', () => {
     expect(data[1].creditsRefunded).toBe(8);
   });
 
+  test('forwards the subject pair so a part can be documented, not only an asset', async () => {
+    // The proxy is generic: it does not know what a subject is, and must not start filtering
+    // arguments it does not recognise. This pins that a part request reaches the backend intact
+    // — the whole dossier feature now depends on subjectType surviving the hop.
+    const PART_GUID = '7b2f9c14-3e85-4a60-b1d7-9c04e8f26a3b';
+    const request = {
+      subjectType: 'Part',
+      subjectGuid: PART_GUID,
+      requestGuid: REQUEST_GUID,
+      options: {}
+    };
+
+    const response = await call(
+      'UteamupAssetDossierRequest',
+      { request },
+      successReply({ ...queuedJob, subjectType: 'Part', subjectGuid: PART_GUID }),
+      { request }
+    );
+    const data = JSON.parse(response.body.result.content[0].text);
+
+    expect(response.body.error).toBeUndefined();
+    expect(data.subjectType).toBe('Part');
+    expect(data.subjectGuid).toBe(PART_GUID);
+  });
+
   test('an asset with no dossier returns an empty list', async () => {
     const response = await call(
       'UteamupAssetDossierListByAsset',
