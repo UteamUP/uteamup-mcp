@@ -182,6 +182,40 @@ describe('IT Management MCP tools', () => {
     expect(log.rows).toEqual([]);
   });
 
+  test('resource children come back GUID-keyed and each names the parent it hangs off', async () => {
+    const VM_GUID = '44444444-4444-4444-8444-444444444444';
+    const response = await call('UteamupITManagementResourceChildren', { resourceGuid: VM_GUID }, successReply([
+      { resourceGuid: '55555555-5555-4555-8555-555555555555', name: 'web-01-osdisk', resourceType: 'microsoft.compute/disks', suggestedAssetTypeName: 'External Service', relationshipKind: 'disk', parentResourceGuid: VM_GUID, hasChildren: false, childCount: 0 },
+      { resourceGuid: '66666666-6666-4666-8666-666666666666', name: 'web-01-nic', resourceType: 'microsoft.network/networkinterfaces', suggestedAssetTypeName: 'External Service', relationshipKind: 'networkInterface', parentResourceGuid: VM_GUID, hasChildren: false, childCount: 0 },
+    ]));
+    const children = parse(response);
+    expect(children).toHaveLength(2);
+    for (const child of children) {
+      expect(child.resourceGuid).toMatch(GUID);
+      expect(child.parentResourceGuid).toBe(VM_GUID);
+      expect(child).not.toHaveProperty('id');
+      expect(child).not.toHaveProperty('assetId');
+      expect(child).not.toHaveProperty('discoveredResourceId');
+    }
+    expect(children.map((child) => child.relationshipKind)).toEqual(['disk', 'networkInterface']);
+  });
+
+  test('asset proposals carry the verdict, the suggested type and the reasoning, never an integer id', async () => {
+    const response = await call('UteamupITManagementResourceProposals', {}, successReply([
+      { proposalGuid: '77777777-7777-4777-8777-777777777777', resourceGuid: ASSET_GUID, resourceName: 'stcontoso', resourceType: 'microsoft.storage/storageaccounts', suggestedAssetTypeName: 'Storage Account', shouldBeAsset: true, confidence: 0.92, reasoning: 'Holds production data the team backs up.', status: 'proposed', proposedAtUtc: '2026-09-17T09:00:00Z', decidedAtUtc: null, assetGuid: null },
+      { proposalGuid: '88888888-8888-4888-8888-888888888888', resourceGuid: SUBSCRIPTION_GUID, resourceName: 'ag-oncall', resourceType: 'microsoft.insights/actiongroups', suggestedAssetTypeName: 'External Service', shouldBeAsset: false, confidence: 0.88, reasoning: 'Alert routing configuration; nobody services it.', status: 'proposed', proposedAtUtc: '2026-09-17T09:00:00Z', decidedAtUtc: null, assetGuid: null },
+    ]));
+    const proposals = parse(response);
+    expect(proposals.map((proposal) => proposal.shouldBeAsset)).toEqual([true, false]);
+    for (const proposal of proposals) {
+      expect(proposal.proposalGuid).toMatch(GUID);
+      expect(proposal.resourceGuid).toMatch(GUID);
+      expect(['proposed', 'accepted', 'rejected', 'expired']).toContain(proposal.status);
+      expect(proposal).not.toHaveProperty('id');
+      expect(proposal).not.toHaveProperty('discoveredResourceId');
+    }
+  });
+
   test('preserves backend JSON-RPC errors', async () => {
     const response = await call('UteamupITManagementDashboard', {}, errorReply(-32603, 'Feature not enabled: IT Management Preview access is required.'));
     expect(response.body.error.message).toContain('IT Management');
@@ -197,6 +231,8 @@ describe('IT Management MCP tools', () => {
     { name: 'UteamupITManagementConnectionsList', args: {} },
     { name: 'UteamupITManagementConnectionsQuota', args: {} },
     { name: 'UteamupITManagementResourcesList', args: { unmappedOnly: true } },
+    { name: 'UteamupITManagementResourceChildren', args: { resourceGuid: ASSET_GUID } },
+    { name: 'UteamupITManagementResourceProposals', args: {} },
     { name: 'UteamupITManagementServiceMapSummary', args: { windowHours: 24 } },
     { name: 'UteamupITManagementFlowsSummary', args: { window: '24h' } },
     { name: 'UteamupITManagementActivityLog', args: { failedOnly: true, limit: 50 } },
