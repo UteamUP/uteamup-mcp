@@ -34,7 +34,7 @@ describe('Project share MCP tools', () => {
     callMcpToolRequest(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
 
   // The default grid the backend builds when `sections` is omitted: everything at the
-  // ceiling except budget, bom and team, which start withheld.
+  // ceiling except budget, bom, team and baselines, which start withheld.
   const defaultGrid = [
     { section: 'overview', accessLevel: 'read' },
     { section: 'health', accessLevel: 'read' },
@@ -48,7 +48,7 @@ describe('Project share MCP tools', () => {
     { section: 'team', accessLevel: 'none' },
     { section: 'dependencies', accessLevel: 'read' },
     { section: 'activity', accessLevel: 'read' },
-    { section: 'baselines', accessLevel: 'read' }
+    { section: 'baselines', accessLevel: 'none' }
   ];
 
   const linkShare = {
@@ -105,6 +105,7 @@ describe('Project share MCP tools', () => {
     expect(level('budget')).toBe('none');
     expect(level('bom')).toBe('none');
     expect(level('team')).toBe('none');
+    expect(level('baselines')).toBe('none');
     expect(level('overview')).toBe('read');
     expect(level('stages')).toBe('read');
     expect(data.share.sections).toHaveLength(13);
