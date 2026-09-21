@@ -39,6 +39,8 @@ describe('Asset dossier MCP tools', () => {
 
   const queuedJob = {
     jobGuid: JOB_GUID,
+    subjectType: 'Asset',
+    subjectGuid: ASSET_GUID,
     assetGuid: ASSET_GUID,
     assetName: 'Feed pump 1',
     status: 'queued',
@@ -48,6 +50,10 @@ describe('Asset dossier MCP tools', () => {
     downloadUrl: null,
     sections: ['identity', 'specifications', 'dependencies'],
     includeWebResearch: false,
+    includeDiagram: true,
+    createAsInfographic: false,
+    attachmentRequested: true,
+    attachedToSubject: null,
     creditsCharged: 8,
     creditsRefunded: 0,
     remaining: 92,
@@ -60,9 +66,16 @@ describe('Asset dossier MCP tools', () => {
 
   test('queues a dossier and forwards the whole request, including the idempotency key', async () => {
     const request = {
-      assetGuid: ASSET_GUID,
+      subjectType: 'Asset',
+      subjectGuid: ASSET_GUID,
       requestGuid: REQUEST_GUID,
-      options: { sections: ['identity', 'specifications', 'dependencies'], includeWebResearch: false, includeDiagram: true }
+      options: {
+        sections: ['identity', 'specifications', 'dependencies'],
+        includeWebResearch: false,
+        includeDiagram: true,
+        createAsInfographic: true,
+        attachToAsset: true
+      }
     };
     const response = await call(
       'UteamupAssetDossierRequest',
@@ -75,6 +88,8 @@ describe('Asset dossier MCP tools', () => {
     expect(data.jobGuid).toBe(JOB_GUID);
     expect(data.status).toBe('queued');
     expect(data.creditsCharged).toBe(8);
+    expect(request.options.createAsInfographic).toBe(true);
+    expect(request.options.attachToAsset).toBe(true);
     expect(data.progress.map((step) => step.step)).toEqual(pipeline);
     expect(data).not.toHaveProperty('id');
     expect(data).not.toHaveProperty('assetId');
@@ -166,6 +181,7 @@ describe('Asset dossier MCP tools', () => {
         currentStep: null,
         documentGuid: DOCUMENT_GUID,
         downloadUrl: `https://app.uteamup.com/documents/${DOCUMENT_GUID}`,
+        attachedToSubject: true,
         completedAt: '2026-09-08T10:02:00Z'
       })
     );
@@ -174,6 +190,8 @@ describe('Asset dossier MCP tools', () => {
     expect(data.status).toBe('completed');
     expect(data.documentGuid).toBe(DOCUMENT_GUID);
     expect(data.downloadUrl).toContain(DOCUMENT_GUID);
+    expect(data.attachmentRequested).toBe(true);
+    expect(data.attachedToSubject).toBe(true);
     expect(data).not.toHaveProperty('documentId');
   });
 
@@ -232,10 +250,45 @@ describe('Asset dossier MCP tools', () => {
     expect(data.subjectGuid).toBe(PART_GUID);
   });
 
-  test('an asset with no dossier returns an empty list', async () => {
+  test('forwards an infographic asset-group dossier and its attachment intent intact', async () => {
+    const GROUP_GUID = '8e197b0e-823f-4b8e-9dcb-61b25174e80e';
+    const request = {
+      subjectType: 'AssetGroup',
+      subjectGuid: GROUP_GUID,
+      requestGuid: REQUEST_GUID,
+      options: {
+        sections: ['identity', 'hierarchy', 'dependencies', 'documents'],
+        includeWebResearch: true,
+        includeDiagram: true,
+        createAsInfographic: true,
+        attachToAsset: true
+      }
+    };
+
+    const response = await call(
+      'UteamupAssetDossierRequest',
+      { request },
+      successReply({
+        ...queuedJob,
+        subjectType: 'AssetGroup',
+        subjectGuid: GROUP_GUID,
+        createAsInfographic: true,
+        attachmentRequested: true
+      }),
+      { request }
+    );
+    const data = JSON.parse(response.body.result.content[0].text);
+
+    expect(data.subjectType).toBe('AssetGroup');
+    expect(data.subjectGuid).toBe(GROUP_GUID);
+    expect(data.createAsInfographic).toBe(true);
+    expect(data.attachmentRequested).toBe(true);
+  });
+
+  test('a subject with no dossier returns an empty list', async () => {
     const response = await call(
       'UteamupAssetDossierListByAsset',
-      { assetGuid: ASSET_GUID },
+      { subjectGuid: ASSET_GUID, subjectType: 'Asset' },
       successReply([])
     );
     expect(JSON.parse(response.body.result.content[0].text)).toEqual([]);
@@ -263,9 +316,9 @@ describe('Asset dossier MCP tools', () => {
   });
 
   const allTools = [
-    { name: 'UteamupAssetDossierRequest', args: { request: { assetGuid: ASSET_GUID, requestGuid: REQUEST_GUID, options: {} } } },
+    { name: 'UteamupAssetDossierRequest', args: { request: { subjectType: 'Asset', subjectGuid: ASSET_GUID, requestGuid: REQUEST_GUID, options: {} } } },
     { name: 'UteamupAssetDossierGet', args: { jobGuid: JOB_GUID } },
-    { name: 'UteamupAssetDossierListByAsset', args: { assetGuid: ASSET_GUID, take: 10 } },
+    { name: 'UteamupAssetDossierListByAsset', args: { subjectGuid: ASSET_GUID, subjectType: 'Asset', take: 10 } },
     { name: 'UteamupAssetDossierCancel', args: { jobGuid: JOB_GUID } }
   ];
 
