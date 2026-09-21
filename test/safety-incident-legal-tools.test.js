@@ -1,9 +1,8 @@
 /**
  * Safety-incident legal + emergency-contact MCP tool tests.
  *
- * Covers the seven tools added with the people-and-legal change (backend SafetyIncidentTools →
- * the matching Commands/Handlers): contact link/unlink/list, legal report list/create/draft, and
- * the permissioned read of a colleague's emergency contacts. Asserts the proxy forwards a valid
+ * Covers contact link/unlink/list, legal report list/create/draft, the permissioned read of a
+ * colleague's emergency contacts, and contact-centric ICE assignment read/sync. Asserts the proxy forwards a valid
  * JSON-RPC 2.0 tools/call and passes the backend /mcp response through, plus the shared JSON-RPC
  * compliance + 401 + 503 suites.
  *
@@ -29,7 +28,8 @@ describe('Safety incident legal + emergency contact MCP Tools', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  const call = (toolName, toolArgs, mockReply) => _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
+  const call = (toolName, toolArgs, mockReply, expectedArgs) =>
+    _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply, expectedArgs);
 
   const contactsPayload = [
     {
@@ -81,6 +81,18 @@ describe('Safety incident legal + emergency contact MCP Tools', () => {
       relationship: 'Spouse',
       phone: '+354 555 9999',
       email: null,
+      isPrimary: true,
+      unreachable: false
+    }
+  ];
+
+  const assignmentPayload = [
+    {
+      guid: '77777777-7777-4777-8777-777777777777',
+      userGuid: USER_GUID,
+      userName: 'Worker One',
+      userEmail: 'worker@example.test',
+      relationship: null,
       isPrimary: true,
       unreachable: false
     }
@@ -187,6 +199,40 @@ describe('Safety incident legal + emergency contact MCP Tools', () => {
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
     });
+
+    test('UteamupEmergencycontactAssignmentsForContact — returns assigned employees', async () => {
+      const response = await call(
+        'UteamupEmergencycontactAssignmentsForContact',
+        { contactGuid: CONTACT_GUID },
+        successReply(assignmentPayload)
+      );
+
+      expect(JSON.parse(response.body.result.content[0].text)[0].userGuid).toBe(USER_GUID);
+    });
+
+    test('UteamupEmergencycontactAssignmentsSyncForContact — forwards every selected employee GUID', async () => {
+      const args = { contactGuid: CONTACT_GUID, userGuids: [USER_GUID] };
+      const response = await call(
+        'UteamupEmergencycontactAssignmentsSyncForContact',
+        args,
+        successReply(assignmentPayload),
+        args
+      );
+
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(assignmentPayload);
+    });
+
+    test('UteamupEmergencycontactAssignmentsSyncForContact — permits clearing all assignments', async () => {
+      const args = { contactGuid: CONTACT_GUID, userGuids: [] };
+      const response = await call(
+        'UteamupEmergencycontactAssignmentsSyncForContact',
+        args,
+        successReply([]),
+        args
+      );
+
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual([]);
+    });
   });
 
   describe('Error pass-through', () => {
@@ -230,6 +276,16 @@ describe('Safety incident legal + emergency contact MCP Tools', () => {
       expect(response.status).toBeGreaterThanOrEqual(200);
       expect(response.body).toBeDefined();
     });
+
+    test('UteamupEmergencycontactAssignmentsSyncForContact — rejects an employee outside the tenant', async () => {
+      const response = await call(
+        'UteamupEmergencycontactAssignmentsSyncForContact',
+        { contactGuid: CONTACT_GUID, userGuids: [USER_GUID] },
+        errorReply(404, 'One or more selected users were not found in the active tenant.')
+      );
+
+      expect(response.body.error).toBeDefined();
+    });
   });
 
   const complianceTools = [
@@ -239,7 +295,12 @@ describe('Safety incident legal + emergency contact MCP Tools', () => {
     { name: 'UteamupSafetyincidentLegalreportList', args: { incidentGuid: INCIDENT_GUID } },
     { name: 'UteamupSafetyincidentLegalreportCreate', args: { incidentGuid: INCIDENT_GUID, title: 'T', bodyHtml: '<p>b</p>' } },
     { name: 'UteamupSafetyincidentLegalreportDraft', args: { incidentGuid: INCIDENT_GUID } },
-    { name: 'UteamupEmergencycontactListForUser', args: { userGuid: USER_GUID } }
+    { name: 'UteamupEmergencycontactListForUser', args: { userGuid: USER_GUID } },
+    { name: 'UteamupEmergencycontactAssignmentsForContact', args: { contactGuid: CONTACT_GUID } },
+    {
+      name: 'UteamupEmergencycontactAssignmentsSyncForContact',
+      args: { contactGuid: CONTACT_GUID, userGuids: [USER_GUID] }
+    }
   ];
 
   describeJsonRpcCompliance(call, complianceTools);
