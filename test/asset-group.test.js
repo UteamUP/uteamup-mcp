@@ -31,6 +31,7 @@ describe('Asset group MCP tools', () => {
   const DEPENDENCY_GUID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   const GENERATION_GUID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
   const REQUEST_GUID = '11111111-2222-4333-8444-555555555555';
+  const DOCUMENT_GUID = '22222222-3333-4444-8555-666666666666';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -443,6 +444,52 @@ describe('Asset group MCP tools', () => {
     expect(data.links).toEqual([]);
   });
 
+  test('document draft generation forwards document GUIDs and returns matched members without writing', async () => {
+    const request = {
+      prompt: 'Find the cooling-water system and its supported failure effects.',
+      documentGuids: [DOCUMENT_GUID],
+      requestGuid: REQUEST_GUID
+    };
+    const response = await call(
+      'UteamupAssetGroupDocumentDraftGenerate',
+      { request },
+      successReply({
+        generationGuid: GENERATION_GUID,
+        status: 'completed',
+        mode: 'assetGroupDraft',
+        proposedGroup: { name: 'Cooling water', description: 'From PID-4', kind: 'system' },
+        proposedMembers: [{ assetGuid: ASSET_GUID, name: 'Feed pump 1', code: 'P-101', confidence: 1 }],
+        links: [],
+        unresolvedReferences: [],
+        warnings: [],
+        creditsCharged: 8
+      }),
+      { request }
+    );
+    const data = JSON.parse(response.body.result.content[0].text);
+
+    expect(data.mode).toBe('assetGroupDraft');
+    expect(data.proposedMembers[0].assetGuid).toBe(ASSET_GUID);
+    expect(data.proposedMembers[0]).not.toHaveProperty('assetId');
+  });
+
+  test('document draft generation can return an empty review proposal', async () => {
+    const response = await call(
+      'UteamupAssetGroupDocumentDraftGenerate',
+      { request: { prompt: 'Find supported assets in this drawing.', documentGuids: [DOCUMENT_GUID], requestGuid: REQUEST_GUID } },
+      successReply({
+        generationGuid: GENERATION_GUID,
+        status: 'needs-edit',
+        proposedMembers: [],
+        links: [],
+        unresolvedReferences: [],
+        warnings: ['No active asset matched.'],
+        creditsCharged: 0
+      })
+    );
+    expect(JSON.parse(response.body.result.content[0].text).proposedMembers).toEqual([]);
+  });
+
   test('re-reading a stored generation costs nothing', async () => {
     const response = await call(
       'UteamupAssetGroupLinksGenerationGet',
@@ -478,6 +525,45 @@ describe('Asset group MCP tools', () => {
     expect(response.body.error.message).toContain('already been applied');
   });
 
+  test('document draft apply forwards only the reviewed members and links', async () => {
+    const request = {
+      name: 'Reviewed cooling water',
+      description: 'Approved from PID-4.',
+      kind: 'Utility',
+      acceptedMemberGuids: [ASSET_GUID, SECOND_ASSET_GUID],
+      acceptedLinkIds: ['l1']
+    };
+    const response = await call(
+      'UteamupAssetGroupDocumentDraftApply',
+      { generationGuid: GENERATION_GUID, request },
+      successReply({
+        generationGuid: GENERATION_GUID,
+        group: { ...listRow, guid: GROUP_GUID, name: request.name, memberCount: 2 },
+        createdConnections: 1,
+        skippedConnections: 0,
+        dependencies: [],
+        warnings: []
+      }),
+      { generationGuid: GENERATION_GUID, request }
+    );
+    const data = JSON.parse(response.body.result.content[0].text);
+
+    expect(data.group.guid).toBe(GROUP_GUID);
+    expect(data.createdConnections).toBe(1);
+  });
+
+  test('document draft apply surfaces a stale or already-used review receipt', async () => {
+    const response = await call(
+      'UteamupAssetGroupDocumentDraftApply',
+      {
+        generationGuid: GENERATION_GUID,
+        request: { name: 'Cooling water', kind: 'System', acceptedMemberGuids: [ASSET_GUID], acceptedLinkIds: [] }
+      },
+      errorReply(-32000, 'This proposal has already been applied.')
+    );
+    expect(response.body.error.message).toContain('already been applied');
+  });
+
   test('forwards the exact reviewed maintenance revision and rejects a stale review', async () => {
     const args = { groupGuid: GROUP_GUID, model: { revision: 'a'.repeat(64) } };
     const success = await call('UteamupAssetGroupMaintenanceAcknowledge', args, successReply(true), args);
@@ -507,12 +593,14 @@ describe('Asset group MCP tools', () => {
     { name: 'UteamupAssetGroupLiveStatus', args: { groupGuid: GROUP_GUID } },
     { name: 'UteamupAssetGroupLabelPayload', args: { groupGuid: GROUP_GUID } },
     { name: 'UteamupAssetGroupLinksGenerate', args: { request: { prompt: 'Describe the wiring please.', assetGroupGuid: GROUP_GUID, requestGuid: REQUEST_GUID } } },
+    { name: 'UteamupAssetGroupDocumentDraftGenerate', args: { request: { prompt: 'Find supported assets.', documentGuids: [DOCUMENT_GUID], requestGuid: REQUEST_GUID } } },
     { name: 'UteamupAssetGroupLinksGenerationGet', args: { generationGuid: GENERATION_GUID } },
-    { name: 'UteamupAssetGroupLinksApply', args: { generationGuid: GENERATION_GUID, request: { acceptedLinkIds: ['l1'] } } }
+    { name: 'UteamupAssetGroupLinksApply', args: { generationGuid: GENERATION_GUID, request: { acceptedLinkIds: ['l1'] } } },
+    { name: 'UteamupAssetGroupDocumentDraftApply', args: { generationGuid: GENERATION_GUID, request: { name: 'Cooling water', kind: 'System', acceptedMemberGuids: [ASSET_GUID], acceptedLinkIds: [] } } }
   ];
 
   test('the tool matrix covers every asset group tool exactly once', () => {
-    expect(allTools).toHaveLength(22);
+    expect(allTools).toHaveLength(24);
     expect(new Set(allTools.map((tool) => tool.name)).size).toBe(allTools.length);
   });
 
