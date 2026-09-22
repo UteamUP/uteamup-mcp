@@ -23,6 +23,13 @@ describe('tenant coding profile review tools', () => {
   const accessToken = 'tenant-coding-profile-token';
   const validateTool = 'UteamupTenantcodingProfileValidate';
   const applyTool = 'UteamupTenantcodingProfileApply';
+  const proposeTool = 'UteamupTenantcodingProfileProposeFromDocuments';
+  const proposeArgs = {
+    documentGuids: [
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    ],
+  };
   const profile = {
     profileName: 'First Water RDS',
     context: 'Landeldi / Custom RDS',
@@ -154,6 +161,51 @@ describe('tenant coding profile review tools', () => {
     expect(response.body.error.message).toMatch(/tenant or actor/i);
   });
 
+  test('proposal forwards multiple tenant Document GUIDs and returns source-backed review data', async () => {
+    const response = await callMcpTool(
+      baseUrl,
+      accessToken,
+      proposeTool,
+      proposeArgs,
+      successReply({
+        proposedProfile: profile,
+        sourceFingerprint: 'b'.repeat(64),
+        creditsCharged: 20,
+        fileOutcomes: [{ fileName: 'rules.xlsx', status: 'succeeded' }],
+        evidence: [{ canonicalAspect: 'Function', excerpt: 'Function =', fileName: 'rules.xlsx' }],
+      }),
+      proposeArgs,
+    );
+    const value = JSON.parse(response.body.result.content[0].text);
+    expect(value.proposedProfile.aspects[0].canonicalAspect).toBe('Function');
+    expect(value.evidence[0].fileName).toBe('rules.xlsx');
+    expect(value.creditsCharged).toBe(20);
+  });
+
+  test('proposal keeps empty evidence as a review result, not a transport error', async () => {
+    const response = await callMcpTool(
+      baseUrl,
+      accessToken,
+      proposeTool,
+      proposeArgs,
+      successReply({ proposedProfile: null, evidence: [], fileOutcomes: [], error: 'No rules found.' }),
+    );
+    const value = JSON.parse(response.body.result.content[0].text);
+    expect(value.proposedProfile).toBeNull();
+    expect(value.evidence).toEqual([]);
+  });
+
+  test('proposal surfaces permission denial', async () => {
+    const response = await callMcpTool(
+      baseUrl,
+      accessToken,
+      proposeTool,
+      proposeArgs,
+      errorReply(-32000, 'Coding.Update and AI.Use permissions are required.'),
+    );
+    expect(response.body.error.message).toMatch(/AI.Use/);
+  });
+
   test('identity cannot be supplied as tool arguments', async () => {
     const spoofed = {
       ...validateArgs,
@@ -174,6 +226,7 @@ describe('tenant coding profile review tools', () => {
   const tools = [
     { name: validateTool, args: validateArgs },
     { name: applyTool, args: applyArgs },
+    { name: proposeTool, args: proposeArgs },
   ];
   describeJsonRpcCompliance(
     (name, args, reply) => callMcpTool(baseUrl, accessToken, name, args, reply),
