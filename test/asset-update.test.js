@@ -38,11 +38,15 @@ describe('UteamupAssetUpdate MCP tool', () => {
 
   it('forwards an invalid_reference tool error unchanged', async () => {
     const args = { id: assetId, model: { name: 'Feed pump', vendorGuid: foreignVendorGuid } };
+    // The shape ModelContextProtocol 2.2.0 gives a tool that throws McpException: the SDK puts its
+    // own prefix before the backend's "code: reason" text.
     const toolError = {
       content: [
         {
           type: 'text',
-          text: `invalid_reference: The vendor ${foreignVendorGuid} does not exist in this tenant.`,
+          text:
+            `An error occurred invoking '${TOOL_NAME}': invalid_reference: These associated items do not ` +
+            `exist in this tenant — VendorGuid: ${foreignVendorGuid} (Parameter 'VendorGuid')`,
         },
       ],
       isError: true,
@@ -59,7 +63,7 @@ describe('UteamupAssetUpdate MCP tool', () => {
     expect(response.status).toBe(200);
     expect(response.body.error).toBeUndefined();
     expect(response.body.result).toEqual(toolError);
-    expect(response.body.result.content[0].text).toMatch(/^invalid_reference:/);
+    expect(response.body.result.content[0].text).toContain('invalid_reference: ');
   });
 
   const complianceTools = [{ name: TOOL_NAME, args: { id: assetId, model: { name: 'Feed pump' } } }];

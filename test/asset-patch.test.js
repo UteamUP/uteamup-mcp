@@ -74,23 +74,39 @@ describe('UteamupAssetPatch MCP tool', () => {
     expect(data.categoryGuid).toBeNull();
   });
 
-  it('surfaces a stale token as a JSON-RPC error naming asset_changed', async () => {
-    const response = await call(
-      { assetGuid, serialNumber: 'SN-3', expectedUpdatedAtUtc: '2020-01-01T00:00:00Z' },
-      errorReply(-32000, 'asset_changed: The asset was changed by someone else. Refresh and try again.'),
-    );
-
-    expect(response.body.error).toBeDefined();
-    expect(response.body.error.message).toMatch(/^asset_changed/);
+  // The backend throws McpException for a coded refusal. ModelContextProtocol 2.2.0 returns that as a
+  // tool result with isError set, its text the SDK's prefix followed by the backend's "code: reason".
+  const toolError = (text) => ({
+    status: 200,
+    body: {
+      jsonrpc: '2.0',
+      result: {
+        content: [{ type: 'text', text: `An error occurred invoking 'uteamup_asset_patch': ${text}` }],
+        isError: true,
+      },
+      id: 1,
+    },
   });
 
-  it('surfaces a cross-tenant category as a JSON-RPC error naming invalid_reference', async () => {
+  it('surfaces a stale token as a tool error naming asset_changed', async () => {
     const response = await call(
-      { assetGuid, categoryGuid },
-      errorReply(-32000, `invalid_reference: The category ${categoryGuid} does not exist in this tenant.`),
+      { assetGuid, serialNumber: 'SN-3', expectedUpdatedAtUtc: '2020-01-01T00:00:00Z' },
+      toolError('asset_changed: The asset was changed by someone else. Refresh and try again.'),
     );
 
-    expect(response.body.error.message).toMatch(/^invalid_reference/);
+    expect(response.body.error).toBeUndefined();
+    expect(response.body.result.isError).toBe(true);
+    expect(response.body.result.content[0].text).toContain('asset_changed: ');
+  });
+
+  it('surfaces a cross-tenant category as a tool error naming invalid_reference', async () => {
+    const response = await call(
+      { assetGuid, categoryGuid },
+      toolError(`invalid_reference: The category ${categoryGuid} does not exist in this tenant.`),
+    );
+
+    expect(response.body.result.isError).toBe(true);
+    expect(response.body.result.content[0].text).toContain('invalid_reference: ');
   });
 
   it('surfaces backend permission-denied as a JSON-RPC error', async () => {
