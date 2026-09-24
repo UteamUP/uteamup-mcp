@@ -163,6 +163,15 @@ describe('Stock enterprise MCP tools', () => {
       expect(captured.params.arguments).toEqual(args);
       expect(captured.params.arguments.condition).toBe('Used');
     });
+
+    it.each(['near', 'over', 'attention'])(
+      'forwards stockStatus=%s with sortBy, sortDirection and sheet verbatim',
+      async stockStatus => {
+        const args = { q: 'bearing', stockStatus, sortBy: 'level', sortDirection: 'desc', sheet: 'attention', page: 1, pageSize: 50 };
+        const captured = await captureCall('UteamupStockSearchItems', args);
+        expect(captured.params.arguments).toEqual(args);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
