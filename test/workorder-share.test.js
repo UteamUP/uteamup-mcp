@@ -104,6 +104,47 @@ describe('Workorder share MCP tools', () => {
     expect(response.body.error.message).toContain('No UteamUP account');
   });
 
+  test('forwards includeCompletionSummary verbatim', async () => {
+    const summaryArgs = { workorderGuid: WORKORDER_GUID, expiresInDays: 14, includeCompletionSummary: true };
+    const expected = JSON.parse(JSON.stringify(summaryArgs));
+
+    const response = await callMcpToolRequest(
+      BASE_URL,
+      ACCESS_TOKEN,
+      'UteamupWorkorderShareCreate',
+      summaryArgs,
+      successReply({
+        share: { ...linkShare, includeCompletionSummary: true },
+        shareUrl: 'https://app.uteamup.com/public/shared-workorder/tok'
+      }),
+      expected
+    );
+
+    expect(nock.isDone()).toBe(true);
+    expect(summaryArgs).toEqual(expected);
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.share.includeCompletionSummary).toBe(true);
+    expect(data.share).not.toHaveProperty('costs');
+  });
+
+  test('surfaces a 403 for includeCompletionSummary without Report.Export as a JSON-RPC error', async () => {
+    const summaryArgs = { workorderGuid: WORKORDER_GUID, includeCompletionSummary: true };
+    const message = 'Permission denied: including the completion summary requires Report.Export';
+
+    const response = await callMcpToolRequest(
+      BASE_URL,
+      ACCESS_TOKEN,
+      'UteamupWorkorderShareCreate',
+      summaryArgs,
+      errorReply(-32000, message),
+      summaryArgs
+    );
+
+    expect(nock.isDone()).toBe(true);
+    expect(response.body.result).toBeUndefined();
+    expect(response.body.error).toEqual({ code: -32000, message });
+  });
+
   test('lists shares by workorderGuid with GUID-only rows', async () => {
     const revoked = { ...linkShare, guid: '44444444-4444-4444-8444-444444444444', revokedAt: '2026-09-04T09:00:00Z', isActive: false };
     const response = await call(

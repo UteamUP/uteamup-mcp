@@ -167,6 +167,56 @@ describe('Work report MCP tools', () => {
     expect(JSON.parse(response.body.result.content[0].text)).toBe(true);
   });
 
+  test('update forwards overrideReason verbatim', async () => {
+    const overrideArgs = { ...updateArgs, overrideReason: 'Customer name misspelled' };
+    const expected = JSON.parse(JSON.stringify(overrideArgs));
+
+    const response = await call(
+      'UteamupWorkReportUpdate',
+      overrideArgs,
+      successReply({ ...reportResponse, description: updateArgs.description, isFinalized: true }),
+    );
+
+    expect(nock.isDone()).toBe(true);
+    expect(overrideArgs).toEqual(expected);
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result.isFinalized).toBe(true);
+    expect(result.description).toBe('Replaced the pump seal and gasket');
+  });
+
+  test('delete forwards overrideReason verbatim', async () => {
+    const overrideArgs = { reportGuid: REPORT_GUID, overrideReason: 'Filed on the wrong workorder' };
+    const expected = JSON.parse(JSON.stringify(overrideArgs));
+
+    const response = await call('UteamupWorkReportDelete', overrideArgs, successReply(true));
+
+    expect(nock.isDone()).toBe(true);
+    expect(overrideArgs).toEqual(expected);
+    expect(JSON.parse(response.body.result.content[0].text)).toBe(true);
+  });
+
+  test('a finalized report without overrideReason round-trips OverrideReasonRequired', async () => {
+    // The SDK shows a handler's McpException as an isError tool result carrying the refusal code.
+    const toolError = {
+      content: [{
+        type: 'text',
+        text: 'An error occurred invoking \'uteamup_work_report_delete\': '
+          + 'OverrideReasonRequired: A finalized report needs an override reason of 10-500 characters.',
+      }],
+      isError: true,
+    };
+
+    const response = await call(
+      'UteamupWorkReportDelete',
+      deleteArgs,
+      { status: 200, body: { jsonrpc: '2.0', result: toolError, id: 1 } },
+    );
+
+    expect(response.body.error).toBeUndefined();
+    expect(response.body.result).toEqual(toolError);
+    expect(response.body.result.content[0].text).toContain('OverrideReasonRequired: ');
+  });
+
   test('a JSON-RPC error from the backend round-trips unchanged', async () => {
     const response = await call(
       'UteamupWorkReportCreate',

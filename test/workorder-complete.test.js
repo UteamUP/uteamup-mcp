@@ -152,6 +152,76 @@ describe('Workorder completion MCP tool', () => {
     expect(text).toContain(reasons);
   });
 
+  const failureArgs = {
+    workorderGuid,
+    description: 'Replaced the failed pump seal',
+    failure: {
+      assetGuids: ['66666666-6666-4666-8666-666666666666'],
+      failureCodeGuid: '77777777-7777-4777-8777-777777777777',
+      failureDescription: 'Seal leaking at the shaft',
+      symptoms: 'Water on the floor',
+      rootCause: 'Worn seal face',
+      resolution: 'Seal replaced',
+      downtimeMinutes: 90,
+      failureStartedAt: '2026-09-23T08:00:00Z',
+      severity: 'High',
+      isRepeatFailure: false,
+    },
+  };
+
+  test('forwards failure object verbatim', async () => {
+    const expectedArgs = JSON.parse(JSON.stringify(failureArgs));
+    const createdFailureGuid = '88888888-8888-4888-8888-888888888888';
+    const receipt = {
+      workorderGuid,
+      status: 'Completed',
+      reportGuid: '55555555-5555-4555-8555-555555555555',
+      createdFailureGuids: [createdFailureGuid],
+    };
+
+    const response = await callMcpTool(
+      BASE_URL,
+      ACCESS_TOKEN,
+      'UteamupWorkorderComplete',
+      failureArgs,
+      successReply(receipt),
+      expectedArgs,
+    );
+
+    expect(nock.isDone()).toBe(true);
+    expect(failureArgs).toEqual(expectedArgs);
+    expect(failureArgs.failure).not.toHaveProperty('assetIds');
+    expect(failureArgs.failure).not.toHaveProperty('failureCodeId');
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.createdFailureGuids).toEqual([createdFailureGuid]);
+  });
+
+  test('400 FailureAssetNotLinked round-trips as JSON-RPC error', async () => {
+    // The REST route answers 400; the MCP handler throws an McpException carrying the same code,
+    // which the SDK returns as an isError tool result. Nothing is completed.
+    const toolError = {
+      content: [
+        {
+          type: 'text',
+          text: `An error occurred invoking 'uteamup_workorder_complete': `
+            + 'FailureAssetNotLinked: Every failed asset must be linked to the workorder.',
+        },
+      ],
+      isError: true,
+    };
+
+    const response = await call(
+      'UteamupWorkorderComplete',
+      failureArgs,
+      { status: 200, body: { jsonrpc: '2.0', result: toolError, id: 1 } },
+    );
+
+    expect(nock.isDone()).toBe(true);
+    expect(response.status).toBe(200);
+    expect(response.body.result).toEqual(toolError);
+    expect(response.body.result.content[0].text).toContain('FailureAssetNotLinked: ');
+  });
+
   const tools = [{ name: 'UteamupWorkorderComplete', args }];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
