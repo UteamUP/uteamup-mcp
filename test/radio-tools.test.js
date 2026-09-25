@@ -7,6 +7,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 const baseUrl = 'https://api.test.com';
 const recordingGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const tools = [
+  { name: 'UteamupRadioTransmissionTranscriptGet', args: { channelGuid: recordingGuid, transmissionGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' } },
   { name: 'UteamupRadioTransmissionsList', args: { channelGuid: recordingGuid, skip: 0, take: 25 } },
   { name: 'UteamupRadioEnvironmentGet', args: {} },
   { name: 'UteamupRadioPolicyUpdate', args: { model: { companyMode: 'SeparateChannel', recordTransmissions: true, retentionDays: 30 } } },
