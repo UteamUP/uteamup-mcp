@@ -7,6 +7,10 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 const baseUrl = 'https://api.test.com';
 const recordingGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const tools = [
+  { name: 'UteamupRadioPilotStop', args: { model: { grantGuid: recordingGuid, reason: 'Customer no longer needs radio' } } },
+  { name: 'UteamupRadioAdministrationGet', args: {} },
+  { name: 'UteamupRadioComplimentaryGrant', args: { model: { requestGuid: recordingGuid, expiresAt: null, reason: 'Approved pilot' } } },
+  { name: 'UteamupRadioComplimentaryRevoke', args: { model: { grantGuid: recordingGuid, reason: 'Pilot complete' } } },
   { name: 'UteamupRadioTransmissionTranscriptGet', args: { channelGuid: recordingGuid, transmissionGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' } },
   { name: 'UteamupRadioTransmissionsList', args: { channelGuid: recordingGuid, skip: 0, take: 25 } },
   { name: 'UteamupRadioEnvironmentGet', args: {} },
@@ -31,6 +35,14 @@ describe('Radio administration and authorized history', () => {
   test('empty authorized history remains empty', async () => {
     const result = await call('UteamupRadioRecordingsList', {}, successReply([]));
     expect(JSON.parse(result.body.result.content[0].text)).toEqual([]);
+  });
+  test('customer decommissioning preserves membership denial', async () => {
+    const result = await call('UteamupRadioPilotStop', { model: { grantGuid: recordingGuid, reason: 'Stop pilot' } }, errorReply(-32603, 'RADIO_ACCESS_DENIED'));
+    expect(result.body.error.message).toBe('RADIO_ACCESS_DENIED');
+  });
+  test.each(tools.filter(tool => /Administration|Complimentary/.test(tool.name)))('$name preserves platform-admin denial', async ({ name, args }) => {
+    const result = await call(name, args, errorReply(-32603, 'RADIO_ADMIN_REQUIRED'));
+    expect(result.body.error.message).toBe('RADIO_ADMIN_REQUIRED');
   });
   test('private recording denial is never converted to a recording', async () => {
     const result = await call('UteamupRadioRecordingGet', { recordingGuid }, errorReply(-32603, 'RADIO_RECORDING_NOT_FOUND'));
