@@ -7,6 +7,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 const baseUrl = 'https://api.test.com';
 const recordingGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const tools = [
+  { name: 'UteamupRadioBackupSharePointAvailability', args: {} },
   { name: 'UteamupRadioValidate', args: {} },
   { name: 'UteamupRadioAdministrationValidate', args: {} },
   { name: 'UteamupRadioPilotStop', args: { model: { grantGuid: recordingGuid, reason: 'Customer no longer needs radio' } } },
@@ -37,6 +38,34 @@ describe('Radio administration and authorized history', () => {
   test('empty authorized history remains empty', async () => {
     const result = await call('UteamupRadioRecordingsList', {}, successReply([]));
     expect(JSON.parse(result.body.result.content[0].text)).toEqual([]);
+  });
+  test('SharePoint availability has no tenant or configuration override and preserves library metadata', async () => {
+    const data = {
+      configurationGuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      available: true,
+      libraryName: 'Crew Documents',
+      defaultFolder: 'Radio recordings',
+      errorCode: null,
+    };
+    const response = await callMcpTool(baseUrl, 'synthetic-token', 'UteamupRadioBackupSharePointAvailability', {}, successReply(data), {});
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(data);
+    expect(nock.isDone()).toBe(true);
+  });
+  test.each([
+    'RADIO_SHAREPOINT_NOT_CONFIGURED',
+    'RADIO_SHAREPOINT_DISABLED',
+    'RADIO_SHAREPOINT_NOT_VALIDATED',
+    'RADIO_SHAREPOINT_CAPABILITIES_REQUIRED',
+    'RADIO_SHAREPOINT_CONFIGURATION_INCOMPLETE',
+  ])('SharePoint unavailability preserves %s without inventing configuration', async errorCode => {
+    const data = { configurationGuid: null, available: false, libraryName: null, defaultFolder: null, errorCode };
+    const response = await callMcpTool(baseUrl, 'synthetic-token', 'UteamupRadioBackupSharePointAvailability', {}, successReply(data), {});
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(data);
+  });
+  test('SharePoint availability preserves membership or Radio.Manage denial', async () => {
+    const response = await call('UteamupRadioBackupSharePointAvailability', {}, errorReply(-32603, 'RADIO_ACCESS_DENIED'));
+    expect(response.body.error.message).toBe('RADIO_ACCESS_DENIED');
+    expect(response.body.result).toBeUndefined();
   });
   test.each(['UteamupRadioValidate', 'UteamupRadioAdministrationValidate'])('%s preserves failed and unverified checks', async name => {
     const data = {
