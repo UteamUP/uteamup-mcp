@@ -7,6 +7,8 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 const baseUrl = 'https://api.test.com';
 const recordingGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const tools = [
+  { name: 'UteamupRadioValidate', args: {} },
+  { name: 'UteamupRadioAdministrationValidate', args: {} },
   { name: 'UteamupRadioPilotStop', args: { model: { grantGuid: recordingGuid, reason: 'Customer no longer needs radio' } } },
   { name: 'UteamupRadioAdministrationGet', args: {} },
   { name: 'UteamupRadioComplimentaryGrant', args: { model: { requestGuid: recordingGuid, expiresAt: null, reason: 'Approved pilot' } } },
@@ -35,6 +37,29 @@ describe('Radio administration and authorized history', () => {
   test('empty authorized history remains empty', async () => {
     const result = await call('UteamupRadioRecordingsList', {}, successReply([]));
     expect(JSON.parse(result.body.result.content[0].text)).toEqual([]);
+  });
+  test.each(['UteamupRadioValidate', 'UteamupRadioAdministrationValidate'])('%s preserves failed and unverified checks', async name => {
+    const data = {
+      tenantGuid: recordingGuid,
+      environmentGuid: null,
+      checkedAt: '2026-09-27T16:00:00Z',
+      status: 'Failed',
+      services: [
+        { service: 'Control', status: 'Failed', detailCode: 'RADIO_RUNTIME_UNREACHABLE' },
+        { service: 'TurnConnectivity', status: 'NotChecked', detailCode: 'RADIO_DEVICE_TEST_REQUIRED' },
+      ],
+    };
+    const response = await call(name, {}, successReply(data));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(data);
+  });
+  test('tenant validation preserves access denial', async () => {
+    const result = await call('UteamupRadioValidate', {}, errorReply(-32603, 'RADIO_ACCESS_DENIED'));
+    expect(result.body.error.message).toBe('RADIO_ACCESS_DENIED');
+  });
+  test('validation without returned checks remains unverified', async () => {
+    const data = { tenantGuid: recordingGuid, environmentGuid: null, checkedAt: '2026-09-27T16:00:00Z', status: 'NotChecked', services: [] };
+    const result = await call('UteamupRadioValidate', {}, successReply(data));
+    expect(JSON.parse(result.body.result.content[0].text)).toEqual(data);
   });
   test('customer decommissioning preserves membership denial', async () => {
     const result = await call('UteamupRadioPilotStop', { model: { grantGuid: recordingGuid, reason: 'Stop pilot' } }, errorReply(-32603, 'RADIO_ACCESS_DENIED'));
