@@ -22,6 +22,9 @@ const tools = [
   { name: 'UteamupRadioRecordingsList', args: { channelGuid: recordingGuid, skip: 10, take: 25 } },
   { name: 'UteamupRadioRecordingGet', args: { recordingGuid } },
   { name: 'UteamupRadioPlaybackGet', args: { recordingGuid } },
+  { name: 'UteamupRadioLicenseList', args: {} },
+  { name: 'UteamupRadioLicenseAssign', args: { model: { userGuid: recordingGuid } } },
+  { name: 'UteamupRadioLicenseRemove', args: { model: { userGuid: recordingGuid } } },
 ];
 const call = (name, args, reply) => callMcpTool(baseUrl, 'synthetic-token', name, args, reply);
 
@@ -101,6 +104,24 @@ describe('Radio administration and authorized history', () => {
   test('private recording denial is never converted to a recording', async () => {
     const result = await call('UteamupRadioRecordingGet', { recordingGuid }, errorReply(-32603, 'RADIO_RECORDING_NOT_FOUND'));
     expect(result.body.error.message).toBe('RADIO_RECORDING_NOT_FOUND');
+  });
+  test('license list preserves seat counts including grandfathered over-capacity seats', async () => {
+    const data = {
+      info: { totalRadioLicenses: 25, usedRadioLicenses: 26, availableRadioLicenses: 0, radioEnabled: true },
+      users: [{ userGuid: recordingGuid, email: 'crew@example.invalid', displayName: 'Crew', assignedAt: null, backfilled: true }],
+    };
+    const response = await call('UteamupRadioLicenseList', {}, successReply(data));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(data);
+  });
+  test.each([
+    ['UteamupRadioLicenseAssign', 'RADIO_LICENSE_POOL_EXHAUSTED'],
+    ['UteamupRadioLicenseAssign', 'RADIO_LICENSE_USER_NOT_FOUND'],
+    ['UteamupRadioLicenseAssign', 'RADIO_ACCESS_DENIED'],
+    ['UteamupRadioLicenseRemove', 'RADIO_ACCESS_DENIED'],
+  ])('%s preserves %s', async (name, code) => {
+    const result = await call(name, { model: { userGuid: recordingGuid } }, errorReply(-32603, code));
+    expect(result.body.error.message).toBe(code);
+    expect(result.body.result).toBeUndefined();
   });
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(baseUrl, tools);
