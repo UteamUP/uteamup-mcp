@@ -136,6 +136,29 @@ describe('User UI State MCP Tools', () => {
       const response = await call('UteamupUserPreferencesSet', {}, errorReply(-32602, 'Invalid params'));
       expect(response.body.error.code).toBe(-32602);
     });
+
+    test('mobile opt-in: mobileFeatureOptIn is forwarded verbatim and echoed back', async () => {
+      const response = await _callMcpTool(
+        BASE_URL,
+        ACCESS_TOKEN,
+        'UteamupUserPreferencesSet',
+        { mobileFeatureOptIn: 2 },
+        successReply({ ...prefs, mobileFeatureOptIn: 2 }),
+        { mobileFeatureOptIn: 2 },
+      );
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.result.content[0].text).mobileFeatureOptIn).toBe(2);
+    });
+
+    test('mobile opt-in: an out-of-range level (Internal) is rejected by the backend', async () => {
+      const response = await call(
+        'UteamupUserPreferencesSet',
+        { mobileFeatureOptIn: 3 },
+        errorReply(-32602, 'mobileFeatureOptIn must be 0 (off), 1 (Preview) or 2 (Beta).'),
+      );
+      expect(response.body.error.code).toBe(-32602);
+      expect(response.body.result).toBeUndefined();
+    });
   });
 
   // ── UteamupUserStateGetLastPage ──────────────────────────────────────────
