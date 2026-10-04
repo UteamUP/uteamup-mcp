@@ -74,6 +74,29 @@ describe('UteamupAssetPatch MCP tool', () => {
     expect(data.categoryGuid).toBeNull();
   });
 
+  it('forwards tool, chemical and part sets verbatim, including an empty list that removes them', async () => {
+    const toolGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const partGuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const args = {
+      assetGuid,
+      toolGuids: [toolGuid],
+      chemicalGuids: [],
+      assetParts: [{ partGuid, assignedQuantity: 2 }],
+    };
+
+    const response = await call(
+      args,
+      successReply({ ...patchedAsset, toolGuids: [toolGuid], chemicalGuids: [], assetParts: args.assetParts }),
+      args,
+    );
+
+    expect(response.status).toBe(200);
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.toolGuids).toEqual([toolGuid]);
+    expect(data.chemicalGuids).toEqual([]);
+    expect(data.assetParts).toEqual([{ partGuid, assignedQuantity: 2 }]);
+  });
+
   // The backend throws McpException for a coded refusal. ModelContextProtocol 2.2.0 returns that as a
   // tool result with isError set, its text the SDK's prefix followed by the backend's "code: reason".
   const toolError = (text) => ({
@@ -107,6 +130,17 @@ describe('UteamupAssetPatch MCP tool', () => {
 
     expect(response.body.result.isError).toBe(true);
     expect(response.body.result.content[0].text).toContain('invalid_reference: ');
+  });
+
+  it('surfaces a duplicated tool as a tool error naming invalid_assignment', async () => {
+    const toolGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const response = await call(
+      { assetGuid, toolGuids: [toolGuid, toolGuid] },
+      toolError('invalid_assignment: Each tool must be a distinct, nonempty GUID.'),
+    );
+
+    expect(response.body.result.isError).toBe(true);
+    expect(response.body.result.content[0].text).toContain('invalid_assignment: ');
   });
 
   it('surfaces backend permission-denied as a JSON-RPC error', async () => {
