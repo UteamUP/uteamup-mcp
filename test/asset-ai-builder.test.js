@@ -89,6 +89,48 @@ describe('Asset AI builder MCP tools', () => {
     expect(data.skipped[0].reasonKey).toBe('assetTypeCreationRequiresPremium');
   });
 
+  it('forwards P2 knowledge and compliance kinds and reports an unmatched standard as skipped', async () => {
+    const p2Generate = { assetGuid, kinds: ['Knowledge', 'ComplianceCodes'] };
+    const generated = await callTool('UteamupAssetAiBuilderGenerate', p2Generate, successReply({
+      generationGuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      assetGuid,
+      knowledgeArticles: [{
+        clientKey: 'Knowledge-0', title: 'Pump P-101 operating guide', htmlContent: '<p>Prime before start.</p>',
+        relatedAssetGuids: ['bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'], sourceDocumentGuids: [],
+      }],
+      complianceCodes: [{
+        clientKey: 'ComplianceCodes-0', standardName: 'Made-up standard', code: 'X-1', alreadyLinked: false, sourceDocumentGuids: [],
+      }],
+      generatedKinds: [6, 8],
+      creditsCharged: 15,
+    }), p2Generate);
+
+    const proposal = parse(generated);
+    expect(proposal.knowledgeArticles[0].relatedAssetGuids).toHaveLength(1);
+    expect(proposal.complianceCodes[0].complianceStandardGuid).toBeUndefined();
+
+    const p2Apply = {
+      assetGuid,
+      request: {
+        requestGuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+        generationGuid: proposal.generationGuid,
+        knowledgeArticles: proposal.knowledgeArticles,
+        complianceCodes: proposal.complianceCodes,
+      },
+    };
+    const applied = await callTool('UteamupAssetAiBuilderApply', p2Apply, successReply({
+      createdByKind: { Knowledge: ['ffffffff-ffff-ffff-ffff-ffffffffffff'] },
+      linkedByKind: {},
+      skipped: [{ clientKey: 'ComplianceCodes-0', kind: 8, reasonKey: 'standardNotInCatalog' }],
+      warnings: [],
+      wasReplay: false,
+    }), p2Apply);
+
+    const result = parse(applied);
+    expect(result.createdByKind.Knowledge).toHaveLength(1);
+    expect(result.skipped[0].reasonKey).toBe('standardNotInCatalog');
+  });
+
   it('history returns an empty list for an asset with no generations', async () => {
     const response = await callTool('UteamupAssetAiBuilderHistory', { assetGuid }, successReply([]));
     expect(parse(response)).toEqual([]);
