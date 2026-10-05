@@ -131,6 +131,39 @@ describe('Asset AI builder MCP tools', () => {
     expect(result.skipped[0].reasonKey).toBe('standardNotInCatalog');
   });
 
+  it('forwards P3 kinds and reports an open replacement plan and a past event as skipped', async () => {
+    const p3Apply = {
+      assetGuid,
+      request: {
+        requestGuid: 'ffffffff-0000-0000-0000-000000000001',
+        generationGuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        lifecycleEvents: [
+          { clientKey: 'LifecycleEvents-0', eventType: 'Overhaul', plannedDate: '2027-06-01T00:00:00Z' },
+          { clientKey: 'LifecycleEvents-1', eventType: 'Service', plannedDate: '2020-01-01T00:00:00Z' },
+        ],
+        failureModes: [{ clientKey: 'FailureModes-0', failureModeName: 'Seal leakage', severityScore: 7, detectabilityScore: 4 }],
+        replacementPlans: [{ clientKey: 'ReplacementPlan-0', title: 'Replace pump', alreadyPlanned: true }],
+      },
+    };
+    const applied = await callTool('UteamupAssetAiBuilderApply', p3Apply, successReply({
+      createdByKind: {
+        LifecycleEvents: ['11111111-1111-1111-1111-111111111111'],
+        FailureModes: ['22222222-2222-2222-2222-222222222222'],
+      },
+      linkedByKind: {},
+      skipped: [
+        { clientKey: 'LifecycleEvents-1', kind: 12, reasonKey: 'invalidSchedule' },
+        { clientKey: 'ReplacementPlan-0', kind: 15, reasonKey: 'draftAlreadyExists' },
+      ],
+      warnings: [],
+      wasReplay: false,
+    }), p3Apply);
+
+    const result = parse(applied);
+    expect(result.createdByKind.FailureModes).toHaveLength(1);
+    expect(result.skipped.map(skip => skip.reasonKey)).toEqual(['invalidSchedule', 'draftAlreadyExists']);
+  });
+
   it('history returns an empty list for an asset with no generations', async () => {
     const response = await callTool('UteamupAssetAiBuilderHistory', { assetGuid }, successReply([]));
     expect(parse(response)).toEqual([]);
