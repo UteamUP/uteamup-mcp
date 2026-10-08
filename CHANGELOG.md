@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Add protocol coverage for tenant SAML connection read, disabled metadata import, and owner-bound
+  setup tests, including argument forwarding and authentication/service error responses.
+
 ## [2.2.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.1.0-beta.9...2.2.0-beta.9) (2026-08-29)
 
 
