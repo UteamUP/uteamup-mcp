@@ -92,6 +92,59 @@ describe('bookable resource MCP tools', () => {
     isFromCache: true,
     explanation: 'Traffic-aware live road route.',
   };
+  const toolGuid = '77777777-7777-4777-8777-777777777777';
+  const availabilityArgs = {
+    fromUtc: '2026-10-09T08:00:00Z',
+    toUtc: '2026-10-09T12:00:00Z',
+    types: ['technician', 'tool', 'equipment', 'facility'],
+    search: 'drill',
+    availableOnly: true,
+    includeNotRostered: false,
+    pageSizePerType: 10,
+    cursor: 'eyJ0eXBlIjoidG9vbCIsIm9mZnNldCI6MTB9',
+  };
+  const availability = {
+    fromUtc: availabilityArgs.fromUtc,
+    toUtc: availabilityArgs.toUtc,
+    groups: [
+      {
+        resourceType: 'tool',
+        items: [{
+          sourceGuid: toolGuid,
+          resourceGuid,
+          name: 'Hammer drill',
+          detail: 'Workshop A',
+          resourceType: 'tool',
+          status: 'available',
+          reasons: [],
+        }, {
+          sourceGuid,
+          resourceGuid: null,
+          name: 'Angle grinder',
+          detail: 'Workshop B',
+          resourceType: 'tool',
+          status: 'notRostered',
+          reasons: ['Not registered as a bookable resource'],
+        }],
+        nextCursor: 'eyJ0eXBlIjoidG9vbCIsIm9mZnNldCI6MjB9',
+        scanCapped: false,
+      },
+      {
+        resourceType: 'technician',
+        items: [{
+          sourceGuid: territoryGuid,
+          resourceGuid: requirementGuid,
+          name: 'Anna Technician',
+          detail: 'Electrician',
+          resourceType: 'technician',
+          status: 'busy',
+          reasons: ['Booked 09:00-11:00'],
+        }],
+        nextCursor: null,
+        scanCapped: true,
+      },
+    ],
+  };
 
   const tools = [
     {
@@ -199,6 +252,11 @@ describe('bookable resource MCP tools', () => {
       args: { model: routeModel },
       response: route,
     },
+    {
+      name: 'UteamupBookableResourceAvailabilitySearch',
+      args: availabilityArgs,
+      response: availability,
+    },
   ];
 
   beforeEach(() => nock.cleanAll());
@@ -285,6 +343,76 @@ describe('bookable resource MCP tools', () => {
       message: 'ExpectedUpdatedAt is stale',
     });
     expect(response.body.result).toBeUndefined();
+  });
+
+  it('filters the resource list by tool GUID and the tool resource type', async () => {
+    const args = { toolGuid, resourceType: 'tool', isActive: null, page: 1, pageSize: 1 };
+    const expected = {
+      items: [{ ...resource, name: 'Hammer drill', resourceType: 'tool', toolGuid, assetGuid: null }],
+      page: 1,
+      pageSize: 1,
+      totalCount: 1,
+    };
+
+    const response = await call('UteamupBookableResourceList', args, successReply(expected));
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
+  });
+
+  describe('UteamupBookableResourceAvailabilitySearch', () => {
+    const name = 'UteamupBookableResourceAvailabilitySearch';
+
+    it('returns grouped availability with statuses, reasons and per-type cursors', async () => {
+      const response = await call(name, availabilityArgs, successReply(availability));
+      const result = JSON.parse(response.body.result.content[0].text);
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      expect(result).toEqual(availability);
+      expect(result.groups[0].items[1].resourceGuid).toBeNull();
+      expect(result.groups[1].nextCursor).toBeNull();
+      expect(result.groups[1].scanCapped).toBe(true);
+    });
+
+    it('preserves empty groups for a window with no matching resources', async () => {
+      const args = { fromUtc: availabilityArgs.fromUtc, toUtc: availabilityArgs.toUtc };
+      const expected = { fromUtc: args.fromUtc, toUtc: args.toUtc, groups: [] };
+
+      const response = await call(name, args, successReply(expected));
+
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
+    });
+
+    it('forwards the types array, flags and cursor verbatim', async () => {
+      const args = {
+        ...availabilityArgs,
+        types: ['tool', 'facility'],
+        availableOnly: false,
+        includeNotRostered: true,
+        pageSizePerType: 25,
+        cursor: 'opaque-cursor/+=',
+      };
+      const expected = { fromUtc: args.fromUtc, toUtc: args.toUtc, groups: [] };
+
+      // callMcpTool only matches the nock interceptor when the forwarded
+      // arguments deep-equal `args`, so a dropped or rewritten field fails here.
+      const response = await call(name, args, successReply(expected));
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
+    });
+
+    it('round-trips a validation error for an inverted window', async () => {
+      const response = await call(
+        name,
+        { fromUtc: availabilityArgs.toUtc, toUtc: availabilityArgs.fromUtc },
+        errorReply(-32602, 'toUtc must be after fromUtc'),
+      );
+
+      expect(response.body.error).toEqual({ code: -32602, message: 'toUtc must be after fromUtc' });
+      expect(response.body.result).toBeUndefined();
+    });
   });
 
   const errorTools = tools.map(({ name, args }) => ({ name, args }));
