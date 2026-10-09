@@ -473,6 +473,21 @@ describe('Asset group MCP tools', () => {
     expect(data.proposedMembers[0]).not.toHaveProperty('assetId');
   });
 
+  test('a description-only group draft forwards an empty document list', async () => {
+    const request = {
+      prompt: 'Create Salmon land aquafarming from linked industry codes.',
+      documentGuids: [],
+      requestGuid: REQUEST_GUID
+    };
+    const response = await call('UteamupAssetGroupDocumentDraftGenerate', { request }, successReply({
+      generationGuid: GENERATION_GUID,
+      status: 'completed',
+      proposedMembers: [{ assetGuid: ASSET_GUID, code: 'P-101', matchSource: 'catalogue' }],
+      creditsCharged: 5
+    }), { request });
+    expect(JSON.parse(response.body.result.content[0].text).creditsCharged).toBe(5);
+  });
+
   test('document draft generation can return an empty review proposal', async () => {
     const response = await call(
       'UteamupAssetGroupDocumentDraftGenerate',
