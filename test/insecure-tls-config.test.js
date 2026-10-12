@@ -10,7 +10,7 @@
  *      OAuth + token exchange just by exporting one env var.
  */
 
-const { loadConfig } = require('../lib/config');
+const { loadConfig, configSchema } = require('../lib/config');
 
 const REQUIRED_ENV = {
   UTEAMUP_API_KEY: 'a'.repeat(32),
@@ -76,6 +76,23 @@ describe('UTEAMUP-SEC-2026-05-02-008 — insecureTLS config', () => {
       loadConfig
     );
     expect(cfg.insecureTLS).toBe(false);
+  });
+
+  test.each([
+    'https://api.uteamup.com:443',
+    'https://API.UTEAMUP.COM:443/',
+    'https://api.uteamup.com.',
+    'https://api.uteamup.com.:8443',
+    'https://%61pi.uteamup.com'
+  ])('requires production TLS verification for %s', baseUrl => {
+    const cfg = withEnv({ UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: baseUrl }, loadConfig);
+    expect(cfg.insecureTLS).toBe(false);
+    expect(configSchema.parse({
+      apiKey: REQUIRED_ENV.UTEAMUP_API_KEY,
+      secret: REQUIRED_ENV.UTEAMUP_SECRET,
+      baseUrl,
+      insecureTLS: true
+    }).insecureTLS).toBe(false);
   });
 
   test('rejects a production base URL with a subpath before applying TLS settings', () => {
