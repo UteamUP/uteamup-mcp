@@ -58,6 +58,7 @@ ENVIRONMENT VARIABLES:
 
   Optional:
     UTEAMUP_API_BASE_URL     API endpoint (default: https://api.uteamup.com)
+    UTEAMUP_MCP_PATH         /mcp or /mcp/read-only (default: /mcp)
     UTEAMUP_LOG_LEVEL        Log level: TRACE, DEBUG, INFO, WARN, ERROR (default: INFO)
     UTEAMUP_LOG_FORMAT       Log format: text, json (default: text)
     UTEAMUP_DEBUG            Enable debug mode (1 or true) - legacy, use LOG_LEVEL instead
@@ -404,7 +405,7 @@ async function forwardRequest(request, requestId) {
     const response = await retryWithBackoff(
       async () => {
         return new Promise((resolve, reject) => {
-          const req = https.request(new URL('/mcp', config.baseUrl), {
+          const req = https.request(new URL(config.mcpPath, config.baseUrl), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,

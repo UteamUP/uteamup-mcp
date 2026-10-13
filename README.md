@@ -17,6 +17,50 @@
 
 This package enables AI assistants like Claude Desktop and Claude Code to connect to your UteamUP CMMS system using the Model Context Protocol (MCP). It handles OAuth 2.0 authentication automatically, so you can manage work orders, assets, inventory, and more through natural conversation.
 
+### Private read-only pilot: ChatGPT and Grok
+
+Configure this per tenant through the existing **API Keys → Set up AI Integration** wizard.
+Enable **Private read-only pilot for ChatGPT and Grok**, select an active role whose grants
+are exclusively `View`/`Read`, and create a separate MCP-enabled key for each assistant.
+The role must grant `Asset.View`, `WorkOrder.View`, or `WorkOrder.View.Own` for the
+corresponding tools to appear. Tenant administrators retain the normal key quotas,
+expiration, IP restrictions, rate limits, rotation, and revocation controls.
+
+Use the environment-specific HTTPS endpoint shown by the wizard:
+
+| Environment | MCP server URL |
+|---|---|
+| Production | `https://api.uteamup.com/mcp/read-only` |
+| Development | `https://devback.uteamup.com/mcp/read-only` |
+
+- **ChatGPT:** Open [Plugins](https://chatgpt.com/plugins), add a custom MCP server,
+  enter the endpoint, and configure OAuth with predefined client credentials.
+  Use the UteamUP API key as **Client ID**, and its secret as **Client Secret**.
+  Keep the plugin private and install it in the intended account/workspace.
+- **Grok:** Open [Connectors](https://grok.com/connectors), choose **New Connector → Custom**,
+  enter the same endpoint and configure the same OAuth credential pair for its dedicated key.
+  Business/Enterprise workspaces require their administrator to provision the connector.
+
+This pilot reuses the existing authorization-code + PKCE flow; customer self-service
+OAuth account linking and dynamic client registration are subsequent capabilities.
+Store credentials when the wizard displays them once. Access tokens use the existing
+configured expiry; complete OAuth again if an assistant requests reauthorization.
+
+Only the existing asset list, asset search, asset-by-GUID, work-order list and work-order
+search tools are advertised. Current UPMate capability settings, role permissions and
+tenant scope are checked before discovery and invocation. Guessed write/admin tool calls
+are denied before execution. The read-only endpoint also rejects a key if its persisted
+role gains a write or wildcard permission, or if the key is revoked, expired or rotated.
+These reads do not invoke a UteamUP AI provider or spend UteamUP AI credits.
+
+The Node proxy can use the same endpoint with `UTEAMUP_MCP_PATH=/mcp/read-only`.
+Its default `/mcp` transport retains the existing behavior and role-based authorization.
+The CLI continues to use existing API-key creation, role selection and revocation commands;
+no separate credential store or tool implementation is required.
+
+References: [OpenAI custom MCP servers](https://developers.openai.com/api/docs/guides/custom-mcp-server)
+and [Grok connectors](https://docs.x.ai/grok/connectors).
+
 **Key Features:**
 - ✅ Automatic OAuth 2.0 + PKCE authentication
 - ✅ Token caching (7-day expiration, auto-refresh)
