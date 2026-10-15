@@ -12,6 +12,7 @@
  *   UteamupStockSubmitPurchaseOrder / UteamupStockApprovePurchaseOrder /
  *   UteamupStockCancelPurchaseOrder — PO status transitions
  *   UteamupStockGetReorderPolicy / UteamupStockUpdateReorderPolicy — reorder policy
+ *   UteamupStockListTakes           — stock takes across every visible location (paged)
  */
 
 'use strict';
@@ -67,6 +68,41 @@ describe('Stock enterprise MCP tools', () => {
       unitOfMeasure: 'kg', stockItemGuid: STOCK_GUID }];
     const captured = await captureCall('UteamupStockCreatePoFromReceipt', { lines });
     expect(captured.params.arguments.lines).toEqual(lines);
+  });
+
+  // ---------------------------------------------------------------------------
+  // UteamupStockListTakes — tenant-wide stock takes in one paged call
+  // ---------------------------------------------------------------------------
+  describe('UteamupStockListTakes', () => {
+    it('returns a page of stock takes across locations', async () => {
+      const response = await call(
+        'UteamupStockListTakes',
+        { page: 1, pageSize: 200 },
+        successReply({
+          items: [{ guid: 'e5555555-5555-5555-5555-555555555555', stockGuid: STOCK_GUID, status: 'InProgress' }],
+          totalItems: 1, page: 1, pageSize: 200,
+        }),
+      );
+      expect(response.status).toBe(200);
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.items).toHaveLength(1);
+      expect(data.items[0].stockGuid).toBe(STOCK_GUID);
+      expect(data.totalItems).toBe(1);
+    });
+
+    it('forwards paging verbatim and sends no location or integer id', async () => {
+      const captured = await captureCall('UteamupStockListTakes', { page: 3, pageSize: 50 });
+      expect(captured.params.arguments).toEqual({ page: 3, pageSize: 50 });
+    });
+
+    it('surfaces a permission denial from the backend', async () => {
+      const response = await call(
+        'UteamupStockListTakes',
+        { page: 1 },
+        errorReply(-32603, 'StockTake.View permission is required.'),
+      );
+      expect(response.body.error.message).toContain('StockTake.View');
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -303,6 +339,7 @@ describe('Stock enterprise MCP tools', () => {
     { name: 'UteamupStockCancelPurchaseOrder', args: { guid: PO_GUID } },
     { name: 'UteamupStockGetReorderPolicy', args: {} },
     { name: 'UteamupStockUpdateReorderPolicy', args: { isEnabled: true, cronSchedule: '0 3 * * *' } },
+    { name: 'UteamupStockListTakes', args: { page: 1, pageSize: 200 } },
   ];
 
   describeJsonRpcCompliance(call, allTools);
