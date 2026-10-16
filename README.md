@@ -17,34 +17,42 @@
 
 This package enables AI assistants like Claude Desktop and Claude Code to connect to your UteamUP CMMS system using the Model Context Protocol (MCP). It handles OAuth 2.0 authentication automatically, so you can manage work orders, assets, inventory, and more through natural conversation.
 
-### Private read-only pilot: ChatGPT and Grok
+### Read-only access for Grok, Grok Bot and ChatGPT
 
-Configure this per tenant through the existing **API Keys → Set up AI Integration** wizard.
-Enable **Private read-only pilot for ChatGPT and Grok**, select an active role whose grants
-are exclusively `View`/`Read`, and create a separate MCP-enabled key for each assistant.
-The role must grant `Asset.View`, `WorkOrder.View`, or `WorkOrder.View.Own` for the
-corresponding tools to appear. Tenant administrators retain the normal key quotas,
-expiration, IP restrictions, rate limits, rotation, and revocation controls.
-
-Use the environment-specific HTTPS endpoint shown by the wizard:
+Use the environment-specific HTTPS endpoint:
 
 | Environment | MCP server URL |
 |---|---|
 | Production | `https://api.uteamup.com/mcp/read-only` |
 | Development | `https://devback.uteamup.com/mcp/read-only` |
 
-- **ChatGPT:** Open [Plugins](https://chatgpt.com/plugins), add a custom MCP server,
-  enter the endpoint, and configure OAuth with predefined client credentials.
-  Use the UteamUP API key as **Client ID**, and its secret as **Client Secret**.
-  Keep the plugin private and install it in the intended account/workspace.
-- **Grok:** Open [Connectors](https://grok.com/connectors), choose **New Connector → Custom**,
-  enter the same endpoint and configure the same OAuth credential pair for its dedicated key.
-  Business/Enterprise workspaces require their administrator to provision the connector.
+**Sign in with your UteamUP account (recommended).** A tenant administrator (`Tenant.Update`)
+first turns on **Allow members to connect AI assistants** in the company's **API Keys** tab.
+Then each member connects their own assistant; no API key or secret is involved:
 
-This pilot reuses the existing authorization-code + PKCE flow; customer self-service
-OAuth account linking and dynamic client registration are subsequent capabilities.
-Store credentials when the wizard displays them once. Access tokens use the existing
-configured expiry; complete OAuth again if an assistant requests reauthorization.
+- **Grok:** open [Connectors](https://grok.com/connectors), choose **New Connector → Custom**,
+  and enter the endpoint. Grok registers itself (RFC 7591), sends you to the UteamUP consent
+  page, and you pick the company and allow access. Business/Enterprise workspaces require
+  their administrator to provision the connector.
+- **Grok Bot:** add a **Custom MCP server, Remote HTTPS** with the endpoint on the Bot's
+  Setup → Plugins card; each teammate signs in the first time they use it.
+- **ChatGPT:** add a custom MCP server with the endpoint and choose OAuth; ChatGPT registers
+  itself and you approve on the same consent page.
+
+The assistant uses the member's own permissions in the chosen company, and only the read
+tools below. Access tokens last 60 minutes and refresh tokens rotate on every use. A member
+disconnects under **Profile → Accounts**; an administrator sees and revokes every link in the
+API Keys tab, or with the `uteamup_assistant_connection_list` /
+`uteamup_assistant_connection_revoke` MCP tools. Turning the company setting off stops all
+links immediately.
+
+**Tenant API key (service integrations).** The **API Keys → Set up UPMate Integration** wizard
+still offers the **Private read-only pilot for ChatGPT and Grok**: select an active role whose
+grants are exclusively `View`/`Read` and create a separate MCP-enabled key per assistant. In
+ChatGPT, configure OAuth with predefined client credentials (the API key as **Client ID**, its
+secret as **Client Secret**). Grok only supports sign-in, so use the option above for Grok.
+Tenant administrators retain the normal key quotas, expiration, IP restrictions, rate
+limits, rotation, and revocation controls.
 
 Only the existing asset list, asset search, asset-by-GUID, work-order list and work-order
 search tools are advertised. Current UPMate capability settings, role permissions and

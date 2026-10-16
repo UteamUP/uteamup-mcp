@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document sign-in account linking for Grok, Grok Bot and ChatGPT (dynamic client registration,
+  consent page, tenant opt-in) and cover the `UteamupAssistantConnectionList` / `Revoke` admin tools.
 - Add the tenant-configurable private ChatGPT/Grok pilot setup guide and optional
   `UTEAMUP_MCP_PATH=/mcp/read-only` forwarding through the existing OAuth transport.
 - Add protocol coverage for tenant SAML connection read, disabled metadata import, and owner-bound
