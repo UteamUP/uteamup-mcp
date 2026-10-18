@@ -74,6 +74,22 @@ describe('UteamupAssetPatch MCP tool', () => {
     expect(data.categoryGuid).toBeNull();
   });
 
+  it('forwards the manufacturer vendor GUID verbatim and returns its name', async () => {
+    const manufacturerVendorGuid = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+    const args = { assetGuid, manufacturerVendorGuid };
+
+    const response = await call(
+      args,
+      successReply({ ...patchedAsset, manufacturerVendorGuid, manufacturerVendorName: 'Mitsubishi' }),
+      args,
+    );
+
+    expect(response.status).toBe(200);
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.manufacturerVendorGuid).toBe(manufacturerVendorGuid);
+    expect(data.manufacturerVendorName).toBe('Mitsubishi');
+  });
+
   it('forwards tool, chemical and part sets verbatim, including an empty list that removes them', async () => {
     const toolGuid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
     const partGuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
