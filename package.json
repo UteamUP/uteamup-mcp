@@ -65,9 +65,11 @@
     "js-yaml": "^4.3.2",
     "@babel/core": "^7.29.7"
   },
+  "icon": "assets/logo.png",
   "files": [
     "index.js",
     "lib/",
+    "assets/",
     "server.json",
     "openapi-actions.json",
     "README.md",

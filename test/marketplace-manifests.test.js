@@ -140,10 +140,43 @@ describe('Marketplace & Registry Manifests', () => {
       'uteamup_workorder_search'
     ]);
 
+    expect(openapi.info?.['x-logo']?.url).toBe(
+      'https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png'
+    );
+
     const oauthFlow = openapi.components?.securitySchemes?.UteamupOAuth?.flows?.authorizationCode;
     expect(oauthFlow?.authorizationUrl).toBe('https://api.uteamup.com/oauth/authorize');
     expect(oauthFlow?.tokenUrl).toBe('https://api.uteamup.com/oauth/token');
     expect(oauthFlow?.scopes).toHaveProperty('mcp:read');
+  });
+
+  test('UteamUP logo assets exist and are referenced across all marketplace manifests', () => {
+    expect(fs.existsSync(path.join(ROOT, 'assets/logo.svg'))).toBe(true);
+    expect(fs.existsSync(path.join(ROOT, 'assets/logo.png'))).toBe(true);
+
+    const server = readJson('server.json');
+    expect(server.icons).toEqual([
+      {
+        src: 'https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.svg',
+        mimeType: 'image/svg+xml',
+        sizes: ['any']
+      },
+      {
+        src: 'https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png',
+        mimeType: 'image/png',
+        sizes: ['512x512']
+      }
+    ]);
+
+    expect(readJson('.grok-plugin/plugin.json').logo).toBe('assets/logo.svg');
+    expect(readJson('.grok-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
+    expect(readJson('.claude-plugin/plugin.json').logo).toBe('assets/logo.svg');
+    expect(readJson('.claude-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
+    expect(readJson('gemini-extension.json').icon).toBe('assets/logo.png');
+    expect(readJson('gemini-extension.json').logo).toBe('assets/logo.svg');
+    expect(readJson('glama.json').icon).toBe(
+      'https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png'
+    );
   });
 
   test('release-please-config.json tracks version fields across all JSON manifests', () => {

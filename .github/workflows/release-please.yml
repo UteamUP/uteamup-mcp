@@ -78,6 +78,13 @@ jobs:
             echo "npm version ${VERSION} does not yet expose mcpName on registry.npmjs.org; publishing remote streamable-http endpoints."
             jq 'del(.packages)' server.json > /tmp/server.publish.json
           fi
+          EXISTING_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.UteamUP%2Fmcp-server/versions/${VERSION}")
+          if [ "${EXISTING_CODE}" = "200" ]; then
+            PUBLISH_VERSION="${VERSION}.${GITHUB_RUN_NUMBER}"
+            echo "Version ${VERSION} already exists on registry; publishing revision ${PUBLISH_VERSION}"
+            jq --arg v "${PUBLISH_VERSION}" '.version = $v' /tmp/server.publish.json > /tmp/server.publish.next.json
+            mv /tmp/server.publish.next.json /tmp/server.publish.json
+          fi
           mcp-publisher validate /tmp/server.publish.json
           mcp-publisher login github-oidc
           mcp-publisher publish /tmp/server.publish.json

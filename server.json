@@ -5,6 +5,18 @@
   "description": "Connect AI assistants to UteamUP CMMS for work orders, assets, maintenance, and inventory.",
   "version": "2.2.0-beta.9",
   "websiteUrl": "https://uteamup.com",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    },
+    {
+      "src": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
   "repository": {
     "url": "https://github.com/UteamUP/uteamup-mcp",
     "source": "github"

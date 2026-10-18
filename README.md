@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="UteamUP Logo" width="88" />
+</p>
+
 # @uteamup/mcp-server
 
 > MCP server client for UteamUP - enables Claude Desktop/Code integration with automatic OAuth 2.0 authentication

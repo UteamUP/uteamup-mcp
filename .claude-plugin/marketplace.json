@@ -16,7 +16,9 @@
         "repo": "UteamUP/uteamup-mcp",
         "path": "."
       },
-      "homepage": "https://github.com/UteamUP/uteamup-mcp"
+      "homepage": "https://github.com/UteamUP/uteamup-mcp",
+      "logo": "assets/logo.svg",
+      "icon": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png"
     }
   ]
 }
