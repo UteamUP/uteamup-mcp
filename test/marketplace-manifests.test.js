@@ -172,6 +172,8 @@ describe('Marketplace & Registry Manifests', () => {
     expect(readJson('.grok-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
     expect(readJson('.claude-plugin/plugin.json').logo).toBe('assets/logo.svg');
     expect(readJson('.claude-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
+    expect(readJson('.cursor-plugin/plugin.json').logo).toBe('assets/logo.svg');
+    expect(readJson('.cursor-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
     expect(readJson('gemini-extension.json').icon).toBe('assets/logo.png');
     expect(readJson('gemini-extension.json').logo).toBe('assets/logo.svg');
     expect(readJson('glama.json').icon).toBe(
@@ -193,6 +195,8 @@ describe('Marketplace & Registry Manifests', () => {
         '.claude-plugin/marketplace.json:$.plugins[0].version',
         '.grok-plugin/plugin.json:$.version',
         '.grok-plugin/marketplace.json:$.plugins[0].version',
+        '.cursor-plugin/plugin.json:$.version',
+        '.cursor-plugin/marketplace.json:$.plugins[0].version',
         'openapi-actions.json:$.info.version'
       ])
     );

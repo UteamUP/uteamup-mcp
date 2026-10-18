@@ -1,0 +1,25 @@
+{
+  "name": "uteamup",
+  "displayName": "UteamUP CMMS",
+  "version": "2.2.0-beta.9",
+  "description": "Connect Cursor to UteamUP CMMS for work orders, assets, maintenance schedules, spare-parts inventory, and operations via Model Context Protocol (MCP).",
+  "author": {
+    "name": "UteamUP",
+    "email": "support@uteamup.com",
+    "url": "https://uteamup.com"
+  },
+  "homepage": "https://uteamup.com",
+  "repository": "https://github.com/UteamUP/uteamup-mcp",
+  "license": "MIT",
+  "logo": "assets/logo.svg",
+  "icon": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png",
+  "keywords": [
+    "mcp",
+    "uteamup",
+    "cmms",
+    "maintenance",
+    "work-orders",
+    "asset-management"
+  ],
+  "mcpServers": "./.mcp.json"
+}
