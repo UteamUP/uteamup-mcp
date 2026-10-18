@@ -23,9 +23,6 @@
   "security": [
     {
       "UteamupOAuth": ["mcp:read"]
-    },
-    {
-      "UteamupApiKeyBearer": []
     }
   ],
   "paths": {
@@ -81,11 +78,6 @@
             }
           }
         }
-      },
-      "UteamupApiKeyBearer": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "Static read-only MCP API key credential formatted as <apiKey>:<apiSecret>"
       }
     },
     "schemas": {

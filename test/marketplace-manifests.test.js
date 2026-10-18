@@ -144,6 +144,10 @@ describe('Marketplace & Registry Manifests', () => {
       'https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png'
     );
 
+    const schemeKeys = Object.keys(openapi.components?.securitySchemes || {});
+    expect(schemeKeys).toEqual(['UteamupOAuth']);
+    expect(openapi.security).toEqual([{ UteamupOAuth: ['mcp:read'] }]);
+
     const oauthFlow = openapi.components?.securitySchemes?.UteamupOAuth?.flows?.authorizationCode;
     expect(oauthFlow?.authorizationUrl).toBe('https://api.uteamup.com/oauth/authorize');
     expect(oauthFlow?.tokenUrl).toBe('https://api.uteamup.com/oauth/token');
