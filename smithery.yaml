@@ -1,0 +1,33 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - uteamupApiKey
+      - uteamupSecret
+    properties:
+      uteamupApiKey:
+        type: string
+        description: "Your 32-character MCP-enabled UteamUP tenant API key"
+      uteamupSecret:
+        type: string
+        description: "Your 64-character UteamUP tenant API key secret"
+      uteamupApiBaseUrl:
+        type: string
+        default: "https://api.uteamup.com"
+        description: "UteamUP API base origin (defaults to https://api.uteamup.com)"
+      uteamupMcpPath:
+        type: string
+        default: "/mcp"
+        description: "Backend MCP endpoint path (/mcp or /mcp/read-only)"
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['index.js'],
+      env: {
+        UTEAMUP_API_KEY: config.uteamupApiKey,
+        UTEAMUP_SECRET: config.uteamupSecret,
+        ...(config.uteamupApiBaseUrl ? { UTEAMUP_API_BASE_URL: config.uteamupApiBaseUrl } : {}),
+        ...(config.uteamupMcpPath ? { UTEAMUP_MCP_PATH: config.uteamupMcpPath } : {})
+      }
+    })

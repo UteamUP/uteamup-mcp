@@ -112,6 +112,22 @@ Or install globally:
 npm install -g @uteamup/mcp-server
 ```
 
+### Install via CLI Plugin Marketplaces
+
+- **Claude Code:**
+  ```bash
+  claude plugin marketplace add UteamUP/uteamup-mcp
+  claude plugin install uteamup@uteamup
+  ```
+- **Grok Build:**
+  ```bash
+  grok plugin install https://github.com/UteamUP/uteamup-mcp.git --trust
+  ```
+- **Gemini CLI:**
+  ```bash
+  gemini extensions install https://github.com/UteamUP/uteamup-mcp
+  ```
+
 ---
 
 ## Quick Start

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.UteamUP/mcp-server",
+  "title": "UteamUP CMMS",
+  "description": "Connect AI assistants to UteamUP CMMS for work orders, assets, maintenance, and inventory.",
+  "version": "2.2.0-beta.9",
+  "websiteUrl": "https://uteamup.com",
+  "repository": {
+    "url": "https://github.com/UteamUP/uteamup-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@uteamup/mcp-server",
+      "version": "2.2.0-beta.9",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "UTEAMUP_API_KEY",
+          "description": "32-character MCP-enabled UteamUP tenant API key",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "UTEAMUP_SECRET",
+          "description": "64-character UteamUP tenant API key secret",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "UTEAMUP_API_BASE_URL",
+          "description": "UteamUP API origin URL (defaults to https://api.uteamup.com)",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "https://api.uteamup.com"
+        },
+        {
+          "name": "UTEAMUP_MCP_PATH",
+          "description": "Backend MCP endpoint path (/mcp or /mcp/read-only)",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "/mcp"
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.uteamup.com/mcp/read-only"
+    },
+    {
+      "type": "streamable-http",
+      "url": "https://api.uteamup.com/mcp"
+    }
+  ]
+}

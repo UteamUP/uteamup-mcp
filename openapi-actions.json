@@ -1,0 +1,221 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UteamUP CMMS Read-Only Assistant Actions",
+    "description": "OpenAPI 3.1.0 Action schema for ChatGPT Custom GPTs (GPT Store) and Google Gemini / Vertex AI Extensions. Invokes the UteamUP read-only MCP endpoint (/mcp/read-only) to list and search assets and work orders using the caller's tenant-scoped permissions.",
+    "version": "2.2.0-beta.9",
+    "contact": {
+      "name": "UteamUP Support",
+      "email": "support@uteamup.com",
+      "url": "https://uteamup.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.uteamup.com",
+      "description": "UteamUP Production API"
+    }
+  ],
+  "security": [
+    {
+      "UteamupOAuth": ["mcp:read"]
+    },
+    {
+      "UteamupApiKeyBearer": []
+    }
+  ],
+  "paths": {
+    "/mcp/read-only": {
+      "post": {
+        "operationId": "callUteamupReadOnlyTool",
+        "summary": "Execute a read-only UteamUP CMMS tool (assets or work orders)",
+        "description": "Calls one of the five read-only UteamUP MCP tools over JSON-RPC 2.0: uteamup_asset_list, uteamup_asset_get_by_guid, uteamup_asset_search, uteamup_workorder_list, or uteamup_workorder_search.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcToolCallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC 2.0 tool execution result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcToolCallResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid OAuth token / API key credential"
+          },
+          "403": {
+            "description": "Caller or API key role does not hold read-only permission for the requested tool"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "UteamupOAuth": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 Authorization Code flow for UteamUP Assistant Connections",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://api.uteamup.com/oauth/authorize",
+            "tokenUrl": "https://api.uteamup.com/oauth/token",
+            "refreshUrl": "https://api.uteamup.com/oauth/token",
+            "scopes": {
+              "mcp:read": "Read-only access to UteamUP assets and work orders"
+            }
+          }
+        }
+      },
+      "UteamupApiKeyBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Static read-only MCP API key credential formatted as <apiKey>:<apiSecret>"
+      }
+    },
+    "schemas": {
+      "JsonRpcToolCallRequest": {
+        "type": "object",
+        "required": ["jsonrpc", "id", "method", "params"],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "const": "2.0",
+            "default": "2.0",
+            "description": "JSON-RPC protocol version (always '2.0')"
+          },
+          "id": {
+            "type": "integer",
+            "default": 1,
+            "description": "Request correlation identifier"
+          },
+          "method": {
+            "type": "string",
+            "const": "tools/call",
+            "default": "tools/call",
+            "description": "MCP JSON-RPC method (always 'tools/call')"
+          },
+          "params": {
+            "$ref": "#/components/schemas/ReadOnlyToolCallParams"
+          }
+        }
+      },
+      "ReadOnlyToolCallParams": {
+        "type": "object",
+        "required": ["name", "arguments"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "uteamup_asset_list",
+              "uteamup_asset_get_by_guid",
+              "uteamup_asset_search",
+              "uteamup_workorder_list",
+              "uteamup_workorder_search"
+            ],
+            "description": "Name of the read-only UteamUP MCP tool to invoke"
+          },
+          "arguments": {
+            "type": "object",
+            "description": "Tool arguments matching the selected tool name",
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number (for uteamup_asset_list and uteamup_workorder_list)"
+              },
+              "pageSize": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 10,
+                "description": "Results per page (1-100, for uteamup_asset_list and uteamup_workorder_list)"
+              },
+              "guid": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Asset ExternalGuid (required for uteamup_asset_get_by_guid)"
+              },
+              "searchFilter": {
+                "type": "string",
+                "description": "Case-insensitive search term (required for uteamup_asset_search and uteamup_workorder_search)"
+              },
+              "assetGuid": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Optional asset GUID filter (for uteamup_workorder_list)"
+              },
+              "search": {
+                "type": "string",
+                "description": "Optional name, ticket ID, or workorder GUID filter (for uteamup_workorder_list)"
+              },
+              "openOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, return only non-completed and non-cancelled work orders (for uteamup_workorder_list)"
+              }
+            }
+          }
+        }
+      },
+      "JsonRpcToolCallResponse": {
+        "type": "object",
+        "required": ["jsonrpc", "id"],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "const": "2.0"
+          },
+          "id": {
+            "type": ["integer", "string", "null"]
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "isError": {
+                "type": "boolean"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -41,7 +41,7 @@ jobs:
           path: sbom-mcp.cdx.json
           if-no-files-found: error
       - name: Unit tests
-        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js
+        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js test/marketplace-manifests.test.js
       - name: AI governance boundary
         run: npm run test:ai-governance
       - name: Lint

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/partial-json",
+  "name": "uteamup",
+  "owner": {
+    "name": "UteamUP",
+    "email": "support@uteamup.com",
+    "url": "https://uteamup.com"
+  },
+  "plugins": [
+    {
+      "name": "uteamup",
+      "version": "2.2.0-beta.9",
+      "description": "Connect Grok Build to UteamUP CMMS for work orders, assets, maintenance, inventory, and operations via Model Context Protocol (MCP).",
+      "category": "operations",
+      "source": {
+        "source": "github",
+        "repo": "UteamUP/uteamup-mcp",
+        "path": "."
+      },
+      "homepage": "https://github.com/UteamUP/uteamup-mcp"
+    }
+  ]
+}
