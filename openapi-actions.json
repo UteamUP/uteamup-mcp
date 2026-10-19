@@ -3,7 +3,7 @@
   "info": {
     "title": "UteamUP CMMS Read-Only Assistant Actions",
     "description": "OpenAPI 3.1.0 Action schema for ChatGPT Custom GPTs (GPT Store) and Google Gemini / Vertex AI Extensions. Invokes the UteamUP read-only MCP endpoint (/mcp/read-only) to list and search assets and work orders using the caller's tenant-scoped permissions.",
-    "version": "2.2.0-beta.9",
+    "version": "2.3.0-beta.9",
     "x-logo": {
       "url": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png",
       "altText": "UteamUP CMMS"
@@ -22,7 +22,9 @@
   ],
   "security": [
     {
-      "UteamupOAuth": ["mcp:read"]
+      "UteamupOAuth": [
+        "mcp:read"
+      ]
     }
   ],
   "paths": {
@@ -83,7 +85,12 @@
     "schemas": {
       "JsonRpcToolCallRequest": {
         "type": "object",
-        "required": ["jsonrpc", "id", "method", "params"],
+        "required": [
+          "jsonrpc",
+          "id",
+          "method",
+          "params"
+        ],
         "properties": {
           "jsonrpc": {
             "type": "string",
@@ -109,7 +116,10 @@
       },
       "ReadOnlyToolCallParams": {
         "type": "object",
-        "required": ["name", "arguments"],
+        "required": [
+          "name",
+          "arguments"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -168,14 +178,21 @@
       },
       "JsonRpcToolCallResponse": {
         "type": "object",
-        "required": ["jsonrpc", "id"],
+        "required": [
+          "jsonrpc",
+          "id"
+        ],
         "properties": {
           "jsonrpc": {
             "type": "string",
             "const": "2.0"
           },
           "id": {
-            "type": ["integer", "string", "null"]
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ]
           },
           "result": {
             "type": "object",

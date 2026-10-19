@@ -1,6 +1,6 @@
 {
   "name": "uteamup",
-  "version": "2.2.0-beta.9",
+  "version": "2.3.0-beta.9",
   "description": "Connect Gemini CLI to UteamUP CMMS to query and manage work orders, assets, maintenance schedules, and inventory via MCP.",
   "icon": "assets/logo.png",
   "logo": "assets/logo.svg",
@@ -8,7 +8,9 @@
     "uteamup": {
       "description": "UteamUP CMMS MCP server (OAuth 2.0 + PKCE stdio proxy)",
       "command": "node",
-      "args": ["${extensionPath}/index.js"],
+      "args": [
+        "${extensionPath}/index.js"
+      ],
       "env": {
         "UTEAMUP_API_KEY": "$UTEAMUP_API_KEY",
         "UTEAMUP_SECRET": "$UTEAMUP_SECRET"
