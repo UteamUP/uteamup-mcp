@@ -9,7 +9,7 @@
     {
       "name": "uteamup",
       "displayName": "UteamUP CMMS",
-      "version": "2.2.0-beta.9",
+      "version": "2.3.0-beta.9",
       "description": "Connect Cursor to UteamUP CMMS for work orders, assets, maintenance schedules, spare-parts inventory, and operations via Model Context Protocol (MCP).",
       "category": "operations",
       "source": {
