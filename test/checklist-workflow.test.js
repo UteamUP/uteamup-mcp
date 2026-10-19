@@ -28,17 +28,17 @@ const tools = [
 
 // Run the actual stdio proxy in an isolated child. Only the HTTP backend is
 // mocked; OAuth, request forwarding, protocol output and errors are production code.
-function runProxy(tool, status, backendReply) {
+function runProxy(tool, status, backendReply, expectedCalls = 1) {
   const request = { jsonrpc: '2.0', id: 37, method: 'tools/call', params: { name: tool.name, arguments: tool.args } };
   const bootstrap = [
     'const nock = require("nock");',
     'const { isDeepStrictEqual } = require("node:util");',
     'nock.disableNetConnect();',
-    'nock("https://api.test.com").get("/oauth/authorize").query(true).reply(302, "", { location: "http://localhost:3000/callback?code=fixture-code" });',
-    'nock("https://api.test.com").post("/oauth/token").reply(200, { access_token: "fixture-access-token", token_type: "Bearer", expires_in: 3600 });',
+    'nock("https://api.test.com").get("/oauth/authorize").query(true).times(' + expectedCalls + ').reply(302, "", { location: "http://localhost:3000/callback?code=fixture-code" });',
+    'nock("https://api.test.com").post("/oauth/token").times(' + expectedCalls + ').reply(200, { access_token: "fixture-access-token", token_type: "Bearer", expires_in: 3600 });',
     'let calls = 0;',
     'const expected = ' + JSON.stringify(request) + ';',
-    'nock("https://api.test.com").matchHeader("Authorization", "Bearer fixture-access-token").post("/mcp", body => { calls++; return isDeepStrictEqual(body, expected); }).reply(' + status + ', ' + JSON.stringify(backendReply) + ');',
+    'nock("https://api.test.com").matchHeader("Authorization", "Bearer fixture-access-token").post("/mcp", body => { calls++; return isDeepStrictEqual(body, expected); }).times(' + expectedCalls + ').reply(' + status + ', ' + JSON.stringify(backendReply) + ');',
     'process.on("exit", () => process.stderr.write("\\nPROXY_PROOF:" + JSON.stringify({ calls, pending: nock.pendingMocks() }) + "\\n"));',
     'require(' + JSON.stringify(proxyPath) + ');',
   ].join('\n');
@@ -61,7 +61,7 @@ function runProxy(tool, status, backendReply) {
   expect(child.status).toBe(0);
   const proof = child.stderr.match(/PROXY_PROOF:([^\n]+)/);
   expect(proof).not.toBeNull();
-  expect(JSON.parse(proof[1])).toEqual({ calls: 1, pending: [] });
+  expect(JSON.parse(proof[1])).toEqual({ calls: expectedCalls, pending: [] });
   return JSON.parse(child.stdout.trim());
 }
 
@@ -92,9 +92,11 @@ describe('production MCP proxy: checklist workflows and required-list policies',
     expect(runProxy(invalid, 200, rejected)).toEqual(rejected);
   });
 
+  // A 401 clears the cached token and replays once with a fresh one before giving up.
   test.each(tools)('$name surfaces unauthorized access through JSON-RPC', tool => {
-    expect(runProxy(tool, 401, 'Unauthorized')).toEqual({
-      jsonrpc: '2.0', id: 37, error: { code: -32603, message: 'MCP request failed (HTTP 401)' },
+    expect(runProxy(tool, 401, 'Unauthorized', 2)).toEqual({
+      jsonrpc: '2.0', id: 37,
+      error: { code: -32603, message: 'Authentication failed: the backend rejected the access token' },
     });
   });
 

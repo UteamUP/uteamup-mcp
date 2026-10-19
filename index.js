@@ -116,8 +116,11 @@ if (args.includes('--validate-config')) {
 // Token cache
 let accessToken = null;
 let tokenExpiry = null;
+let pendingTokenRequest = null;
 let requestIdCounter = 0;
 const OAUTH_REDIRECT_URI = 'http://localhost:3000/callback';
+const STDIN_CLOSE_GRACE_MS = 2000;
+const MAX_FORWARDED_ERROR_LENGTH = 500;
 
 /**
  * Generates a unique request ID
@@ -173,6 +176,28 @@ async function getAccessToken() {
     return accessToken;
   }
 
+  // Requests run concurrently, so share one OAuth flow instead of starting one per request.
+  if (!pendingTokenRequest) {
+    pendingTokenRequest = requestNewAccessToken().finally(() => {
+      pendingTokenRequest = null;
+    });
+  }
+  return pendingTokenRequest;
+}
+
+/**
+ * Drops the cached token after the backend rejected it, unless a newer token
+ * has already replaced it.
+ * @param {string} rejectedToken
+ */
+function clearAccessToken(rejectedToken) {
+  if (accessToken === rejectedToken) {
+    accessToken = null;
+    tokenExpiry = null;
+  }
+}
+
+async function requestNewAccessToken() {
   recordCacheMiss();
   info('Getting new access token');
 
@@ -378,8 +403,168 @@ function parseSSE(sseData) {
 }
 
 /**
+ * Builds the error for a failed backend HTTP response. Keeps the backend's own
+ * JSON-RPC error or ProblemDetails message so the client sees why the call failed.
+ * @param {number} statusCode
+ * @param {string} responseData
+ * @returns {ProxyTransportError} error with statusCode, plus jsonRpcError when the backend sent one
+ */
+function createBackendHttpError(statusCode, responseData) {
+  let body = parseSSE(responseData);
+  if (!body) {
+    try {
+      body = JSON.parse(responseData);
+    } catch {
+      body = null;
+    }
+  }
+
+  const rpcError = body?.error;
+  if (rpcError && Number.isInteger(rpcError.code) && typeof rpcError.message === 'string') {
+    const transportError = createHttpError(rpcError.message, statusCode);
+    transportError.jsonRpcError = rpcError;
+    return transportError;
+  }
+
+  const detail = [body?.detail, body?.title, body?.message]
+    .find(value => typeof value === 'string' && value.trim().length > 0);
+  if (detail) {
+    return createHttpError(
+      `MCP request failed (HTTP ${statusCode}): ${detail.trim().slice(0, MAX_FORWARDED_ERROR_LENGTH)}`,
+      statusCode
+    );
+  }
+
+  return createHttpError(`MCP request failed (HTTP ${statusCode})`, statusCode);
+}
+
+/**
+ * Posts one JSON-RPC message to the backend /mcp endpoint with the given token.
+ * Each attempt has a total deadline: the socket `timeout` only fires on an idle
+ * socket, so a backend that keeps sending bytes (e.g. SSE keepalives) would
+ * otherwise hold the request open forever.
+ * @param {object} request - JSON-RPC 2.0 request object
+ * @param {string} requestId - Unique request ID for tracing
+ * @param {string} data - Serialized request body
+ * @param {string} token - OAuth access token
+ * @returns {Promise<object|null>} JSON-RPC 2.0 response object, or null for an acknowledged notification
+ */
+function postToBackend(request, requestId, data, token) {
+  return retryWithBackoff(
+    async () => {
+      return new Promise((resolvePromise, rejectPromise) => {
+        let deadline;
+        const resolve = value => {
+          clearTimeout(deadline);
+          resolvePromise(value);
+        };
+        const reject = err => {
+          clearTimeout(deadline);
+          rejectPromise(err);
+        };
+
+        const req = https.request(new URL(config.mcpPath, config.baseUrl), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+            'Content-Length': Buffer.byteLength(data),
+            'X-Request-ID': requestId,
+            ...buildMcpForwardHeaders(request)
+          },
+          // UTEAMUP-SEC-2026-05-02-008: see authorize handler above.
+          rejectUnauthorized: !config.insecureTLS,
+          timeout: config.requestTimeout
+        }, async (res) => {
+          try {
+            const responseData = await collectResponseBody(res, config.maxResponseBytes, 'MCP response');
+            trace('MCP response received', {
+              requestId,
+              statusCode: res.statusCode,
+              dataLength: Buffer.byteLength(responseData)
+            });
+
+            if (res.statusCode >= 400) {
+              reject(createBackendHttpError(res.statusCode, responseData));
+              return;
+            }
+
+            // Handle empty responses (e.g., HTTP 202 for notifications)
+            if (responseData.length === 0) {
+              if (request.id === undefined || request.id === null) {
+                trace('Notification acknowledged, no response needed', { requestId });
+                resolve(null);
+              } else {
+                debug('Empty response received for a request', { requestId });
+                resolve({
+                  jsonrpc: '2.0',
+                  error: { code: -32603, message: 'Backend returned an empty response' },
+                  id: request.id
+                });
+              }
+              return;
+            }
+
+            // Try parsing as SSE format first (text/event-stream)
+            if (responseData.includes('event:') || responseData.includes('data:')) {
+              debug('Detected SSE format, parsing...', { requestId });
+              const parsed = parseSSE(responseData);
+              if (parsed) {
+                trace('SSE parsed successfully', {
+                  requestId,
+                  responseId: parsed?.id,
+                  hasError: Boolean(parsed?.error)
+                });
+                resolve(parsed);
+                return;
+              }
+            }
+
+            // Fall back to plain JSON parsing
+            try {
+              const parsed = JSON.parse(responseData);
+              trace('JSON parsed successfully', {
+                requestId,
+                responseId: parsed?.id,
+                hasError: Boolean(parsed?.error)
+              });
+              resolve(parsed);
+            } catch {
+              debug('Parse error (not SSE, not JSON)', { requestId });
+              resolve({
+                jsonrpc: '2.0',
+                error: { code: -32700, message: 'Backend returned an invalid response' },
+                id: request.id
+              });
+            }
+          } catch (responseError) {
+            reject(responseError);
+          }
+        });
+
+        req.once('error', reject);
+        attachRequestTimeout(req, 'MCP request');
+        deadline = setTimeout(() => {
+          reject(new ProxyTransportError(`Backend did not answer within ${config.requestTimeout} ms`));
+          req.destroy();
+        }, config.requestTimeout);
+        req.write(data);
+        req.end();
+      });
+    },
+    {
+      maxRetries: getMcpRetryLimit(request.method, config.maxRetries),
+      operationName: `MCP request [${request.method}]`
+    }
+  );
+}
+
+/**
  * Forwards a JSON-RPC 2.0 MCP request to the backend.
  * Handles both plain JSON and Server-Sent Events (SSE) response formats.
+ * A 401 means the backend rejected the token before running anything, so the
+ * request is replayed once with a fresh token (safe even for tools/call).
  * @param {object} request - JSON-RPC 2.0 request object
  * @param {string} requestId - Unique request ID for tracing
  * @returns {Promise<object>} JSON-RPC 2.0 response object
@@ -388,7 +573,6 @@ async function forwardRequest(request, requestId) {
   const stopTimer = startTimer(`request_${request.method}`);
 
   try {
-    const token = await getAccessToken();
     const data = JSON.stringify(request);
     const requestBytes = Buffer.byteLength(data);
     if (requestBytes > config.maxRequestBytes) {
@@ -402,98 +586,24 @@ async function forwardRequest(request, requestId) {
       bodyLength: requestBytes
     });
 
-    const response = await retryWithBackoff(
-      async () => {
-        return new Promise((resolve, reject) => {
-          const req = https.request(new URL(config.mcpPath, config.baseUrl), {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json, text/event-stream',
-              'Content-Length': requestBytes,
-              'X-Request-ID': requestId,
-              ...buildMcpForwardHeaders(request)
-            },
-            // UTEAMUP-SEC-2026-05-02-008: see authorize handler above.
-            rejectUnauthorized: !config.insecureTLS,
-            timeout: config.requestTimeout
-          }, async (res) => {
-            try {
-              const responseData = await collectResponseBody(res, config.maxResponseBytes, 'MCP response');
-              trace('MCP response received', {
-                requestId,
-                statusCode: res.statusCode,
-                dataLength: Buffer.byteLength(responseData)
-              });
+    let token = await getAccessToken();
+    let response;
+    try {
+      response = await postToBackend(request, requestId, data, token);
+    } catch (err) {
+      if (err?.statusCode !== 401) throw err;
 
-              if (res.statusCode >= 400) {
-                reject(createHttpError(`MCP request failed (HTTP ${res.statusCode})`, res.statusCode));
-                return;
-              }
-
-              // Handle empty responses (e.g., HTTP 202 for notifications)
-              if (responseData.length === 0) {
-                debug('Empty response received (likely notification acknowledged)', { requestId });
-                // For notifications (no id), don't send a response
-                if (request.id === undefined || request.id === null) {
-                  trace('Notification acknowledged, no response needed', { requestId });
-                  resolve(null); // Don't send anything back for notifications
-                } else {
-                  // For requests with ID, return success
-                  resolve({ jsonrpc: '2.0', result: {}, id: request.id });
-                }
-                return;
-              }
-
-              // Try parsing as SSE format first (text/event-stream)
-              if (responseData.includes('event:') || responseData.includes('data:')) {
-                debug('Detected SSE format, parsing...', { requestId });
-                const parsed = parseSSE(responseData);
-                if (parsed) {
-                  trace('SSE parsed successfully', {
-                    requestId,
-                    responseId: parsed?.id,
-                    hasError: Boolean(parsed?.error)
-                  });
-                  resolve(parsed);
-                  return;
-                }
-              }
-
-              // Fall back to plain JSON parsing
-              try {
-                const parsed = JSON.parse(responseData);
-                trace('JSON parsed successfully', {
-                  requestId,
-                  responseId: parsed?.id,
-                  hasError: Boolean(parsed?.error)
-                });
-                resolve(parsed);
-              } catch {
-                debug('Parse error (not SSE, not JSON)', { requestId });
-                resolve({
-                  jsonrpc: '2.0',
-                  error: { code: -32700, message: 'Backend returned an invalid response' },
-                  id: request.id
-                });
-              }
-            } catch (responseError) {
-              reject(responseError);
-            }
-          });
-
-          req.once('error', reject);
-          attachRequestTimeout(req, 'MCP request');
-          req.write(data);
-          req.end();
-        });
-      },
-      {
-        maxRetries: getMcpRetryLimit(request.method, config.maxRetries),
-        operationName: `MCP request [${request.method}]`
+      info('Backend rejected the access token, re-authenticating once', { requestId });
+      clearAccessToken(token);
+      token = await getAccessToken();
+      try {
+        response = await postToBackend(request, requestId, data, token);
+      } catch (retryErr) {
+        if (retryErr?.statusCode !== 401) throw retryErr;
+        clearAccessToken(token);
+        throw createHttpError('Authentication failed: the backend rejected the access token', 401);
       }
-    );
+    }
 
     const duration = stopTimer();
     recordRequest(true, duration, request.method);
@@ -553,7 +663,9 @@ async function main() {
   printConfigSummary(config);
 
   const lineBuffer = new BoundedLineBuffer(config.maxRequestBytes);
-  let processingQueue = Promise.resolve();
+  // Requests run concurrently so one slow tools/call cannot block the rest.
+  // Each response is one stdout.write call, so messages never interleave.
+  const inFlight = new Set();
 
   const writeErrorResponse = (code, message, id = null) => {
     process.stdout.write(JSON.stringify({
@@ -593,6 +705,14 @@ async function main() {
       return;
     }
 
+    // Liveness check of this proxy: needs neither a token nor the backend.
+    if (request.method === 'ping') {
+      if (request.id !== undefined && request.id !== null) {
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: {} }) + '\n');
+      }
+      return;
+    }
+
     try {
       info('Processing request', {
         requestId,
@@ -623,22 +743,41 @@ async function main() {
         statusCode: err?.statusCode
       });
 
-      writeErrorResponse(-32603, toPublicErrorMessage(err), request.id ?? null);
+      if (err?.jsonRpcError) {
+        process.stdout.write(JSON.stringify({
+          jsonrpc: '2.0',
+          error: err.jsonRpcError,
+          id: request.id ?? null
+        }) + '\n');
+      } else {
+        writeErrorResponse(-32603, toPublicErrorMessage(err), request.id ?? null);
+      }
     }
   };
 
   process.stdin.on('data', chunk => {
     for (const inputEvent of lineBuffer.push(chunk)) {
-      processingQueue = processingQueue.then(() => processInputEvent(inputEvent));
+      const task = processInputEvent(inputEvent).finally(() => inFlight.delete(task));
+      inFlight.add(task);
     }
   });
 
-  process.stdin.on('end', async () => {
-    await processingQueue;
-    info('stdin closed, exiting');
-    printMetrics();
-    process.exit(0);
-  });
+  // The client closing stdin means it is gone (e.g. a reconnect started a new
+  // proxy). Give in-flight requests a short grace period, then exit even if one
+  // is stuck, so this process never outlives its client.
+  let exiting = false;
+  const exitAfterInFlight = () => {
+    if (exiting) return;
+    exiting = true;
+    info('stdin closed, exiting', { inFlight: inFlight.size, graceMs: STDIN_CLOSE_GRACE_MS });
+    const grace = new Promise(resolve => setTimeout(resolve, STDIN_CLOSE_GRACE_MS));
+    Promise.race([Promise.allSettled([...inFlight]), grace]).then(() => {
+      printMetrics();
+      process.exit(0);
+    });
+  };
+  process.stdin.on('end', exitAfterInFlight);
+  process.stdin.on('close', exitAfterInFlight);
 
   process.stdin.resume();
 }

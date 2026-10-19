@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix the stdio proxy hanging: requests now run concurrently, each backend call has a total
+  deadline ("Backend did not answer within N ms"), and the process exits within 2 s of stdin
+  closing so a client reconnect replaces it. A 401 clears the cached token and retries once with a
+  fresh one; backend error bodies (JSON-RPC errors, ProblemDetails) are forwarded; an empty body is
+  an error instead of an empty success; `ping` is answered locally.
 - Document sign-in account linking for Grok, Grok Bot and ChatGPT (dynamic client registration,
   consent page, tenant opt-in) and cover the `UteamupAssistantConnectionList` / `Revoke` admin tools.
 - Add the tenant-configurable private ChatGPT/Grok pilot setup guide and optional
