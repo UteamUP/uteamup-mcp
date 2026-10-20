@@ -51,13 +51,15 @@ describe('Marketplace & Registry Manifests', () => {
     ]);
   });
 
-  test('Shared .mcp.json references @uteamup/mcp-server without hardcoded secrets', () => {
+  test('Shared .mcp.json pins the MCP package without hardcoded secrets', () => {
     const mcpConfig = readJson('.mcp.json');
     const entry = mcpConfig.mcpServers?.uteamup;
 
     expect(entry).toBeDefined();
     expect(entry.command).toBe('npx');
-    expect(entry.args).toEqual(['-y', '@uteamup/mcp-server']);
+    expect(entry.args).toHaveLength(2);
+    expect(entry.args[0]).toBe('-y');
+    expect(entry.args[1]).toMatch(/^@uteamup\/mcp-server@\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
     expect(entry.env).toEqual({
       UTEAMUP_API_KEY: '${UTEAMUP_API_KEY}',
       UTEAMUP_SECRET: '${UTEAMUP_SECRET}'
@@ -90,6 +92,24 @@ describe('Marketplace & Registry Manifests', () => {
     expect(claudeMarketplace.plugins[0].name).toBe('uteamup');
     expect(claudeMarketplace.plugins[0].version).toBe(pkg.version);
     expect(claudeMarketplace.plugins[0].source?.repo).toBe('UteamUP/uteamup-mcp');
+  });
+
+  test('Cursor declares every credential variable and the UteamUP publisher contact', () => {
+    const cursorPlugin = readJson('.cursor-plugin/plugin.json');
+    const cursorMarketplace = readJson('.cursor-plugin/marketplace.json');
+    const env = readJson('.mcp.json').mcpServers.uteamup.env;
+    const variableNames = Object.values(env).map(value => value.match(/^\$\{(.+)\}$/)[1]);
+
+    expect(cursorPlugin.author).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
+    expect(cursorMarketplace.owner).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
+    expect(cursorPlugin.mcpServers).toBe('./.mcp.json');
+    expect(cursorPlugin.variables.type).toBe('object');
+    expect(Object.keys(cursorPlugin.variables.properties).sort()).toEqual(variableNames.sort());
+    expect([...cursorPlugin.variables.required].sort()).toEqual(variableNames.sort());
+    for (const name of variableNames) {
+      expect(cursorPlugin.variables.properties[name].type).toBe('string');
+      expect(cursorPlugin.variables.properties[name]).not.toHaveProperty('default');
+    }
   });
 
   test('Gemini CLI extension manifest matches package version and marks credentials sensitive', () => {

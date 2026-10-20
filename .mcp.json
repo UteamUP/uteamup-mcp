@@ -2,7 +2,7 @@
   "mcpServers": {
     "uteamup": {
       "command": "npx",
-      "args": ["-y", "@uteamup/mcp-server"],
+      "args": ["-y", "@uteamup/mcp-server@2.3.0-beta.9"],
       "env": {
         "UTEAMUP_API_KEY": "${UTEAMUP_API_KEY}",
         "UTEAMUP_SECRET": "${UTEAMUP_SECRET}"

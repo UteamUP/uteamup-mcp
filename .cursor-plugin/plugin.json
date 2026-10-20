@@ -5,7 +5,7 @@
   "description": "Connect Cursor to UteamUP CMMS for work orders, assets, maintenance schedules, spare-parts inventory, and operations via Model Context Protocol (MCP).",
   "author": {
     "name": "UteamUP",
-    "email": "support@uteamup.com",
+    "email": "gisli@uteamup.com",
     "url": "https://uteamup.com"
   },
   "homepage": "https://uteamup.com",
@@ -21,5 +21,21 @@
     "work-orders",
     "asset-management"
   ],
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./.mcp.json",
+  "variables": {
+    "type": "object",
+    "properties": {
+      "UTEAMUP_API_KEY": {
+        "type": "string",
+        "title": "UteamUP API key",
+        "description": "Your 32-character MCP-enabled UteamUP tenant API key"
+      },
+      "UTEAMUP_SECRET": {
+        "type": "string",
+        "title": "UteamUP API secret",
+        "description": "Your UteamUP tenant API key secret"
+      }
+    },
+    "required": ["UTEAMUP_API_KEY", "UTEAMUP_SECRET"]
+  }
 }
