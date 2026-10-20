@@ -1,0 +1,106 @@
+{
+  "name": "uteamup",
+  "version": "2.3.0-beta.9",
+  "description": "Find assets and review maintenance work orders in your authorized UteamUP workspace.",
+  "author": {
+    "name": "UteamUP",
+    "email": "gisli@uteamup.com",
+    "url": "https://uteamup.com"
+  },
+  "homepage": "https://uteamup.com",
+  "repository": "https://github.com/UteamUP/uteamup-mcp",
+  "license": "MIT",
+  "keywords": [
+    "cmms",
+    "maintenance",
+    "assets",
+    "work-orders",
+    "uteamup"
+  ],
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List assets in the selected workspace",
+              "prompt": "List the first five assets in my workspace.",
+              "tools_triggered": "uteamup_asset_list",
+              "expected_behavior": "Return up to five authorized assets from the selected workspace. Report an empty result accurately and do not invent asset records."
+            },
+            {
+              "description": "Find assets by a search term",
+              "prompt": "Find assets whose name contains pump.",
+              "tools_triggered": "uteamup_asset_search",
+              "expected_behavior": "Search the selected workspace for pump assets and summarize only returned matches. If there are none, say so."
+            },
+            {
+              "description": "Retrieve asset details using a returned public GUID",
+              "prompt": "List one asset and show its full details using its returned GUID.",
+              "tools_triggered": "uteamup_asset_list, uteamup_asset_get_by_guid",
+              "expected_behavior": "Use an asset GUID from the list response to retrieve that asset's details. If the workspace has no assets, explain that no asset can be retrieved. Never substitute an integer ID or invent a GUID."
+            },
+            {
+              "description": "List maintenance work orders",
+              "prompt": "List the first five work orders in my workspace.",
+              "tools_triggered": "uteamup_workorder_list",
+              "expected_behavior": "Return up to five authorized work orders from the selected workspace. Describe only fields present in the response and report an empty result accurately."
+            },
+            {
+              "description": "Search maintenance work orders",
+              "prompt": "Find work orders mentioning pump in my workspace.",
+              "tools_triggered": "uteamup_workorder_search",
+              "expected_behavior": "Search the selected workspace for work orders matching pump. Summarize the returned results or accurately report that none matched."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Decline unsupported record changes",
+              "prompt": "Close the first open work order and mark it complete.",
+              "expected_behavior": "Explain that this connection is read-only and cannot change work orders. Do not claim that a record was changed or call a write tool."
+            },
+            {
+              "description": "Respect workspace authorization",
+              "prompt": "Show all assets belonging to a company I do not have access to.",
+              "expected_behavior": "Do not access another company's records or invent a tenant identifier. Explain that results are restricted to authorized workspaces."
+            },
+            {
+              "description": "Avoid unrelated tool calls",
+              "prompt": "What are today's stock market prices?",
+              "expected_behavior": "Do not call UteamUP asset or work-order tools for this unrelated request. Do not present maintenance records as financial market data."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This read-only integration does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial OpenAI plugin package for read-only asset and work-order lookup."
+      }
+    }
+  },
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "UteamUP CMMS",
+    "shortDescription": "Assets and work orders",
+    "longDescription": "Find equipment, inspect asset details, and review maintenance work orders in your UteamUP workspace. Sign in with your UteamUP account and select a workspace you are authorized to access. You can list and search assets, retrieve an asset using its GUID, and list or search work orders. This connection provides read-only access to assets and work orders and respects your workspace permissions. It does not create, update, or delete records. Contact gisli@uteamup.com for support.",
+    "developerName": "UteamUP",
+    "category": "Productivity",
+    "capabilities": [
+      "Search assets",
+      "Read asset details",
+      "Find work orders"
+    ],
+    "websiteURL": "https://uteamup.com",
+    "supportURL": "https://github.com/UteamUP/uteamup-mcp/issues",
+    "privacyPolicyURL": "https://app.uteamup.com/privacypolicy",
+    "termsOfServiceURL": "https://app.uteamup.com/terms",
+    "defaultPrompt": [
+      "List the first five assets in my workspace.",
+      "Find assets whose name contains pump.",
+      "List the first five work orders in my workspace."
+    ],
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}
