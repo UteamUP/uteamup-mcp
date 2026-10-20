@@ -1,5 +1,3 @@
-![UteamUP logo](assets/logo.png)
-
 UteamUP CMMS connects Claude Code to your UteamUP workspace for work
 orders, assets, maintenance schedules, inventory, and operational records.
 
