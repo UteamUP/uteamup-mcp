@@ -12,6 +12,10 @@
   "repository": "https://github.com/UteamUP/uteamup-mcp",
   "license": "MIT",
   "icon": "./assets/logo.png",
+  "documentationUrl": "https://github.com/UteamUP/uteamup-mcp/blob/main/plugins/claude/README.txt",
+  "supportUrl": "https://github.com/UteamUP/uteamup-mcp/issues",
+  "privacyPolicyUrl": "https://app.uteamup.com/privacypolicy",
+  "termsOfServiceUrl": "https://app.uteamup.com/terms",
   "keywords": [
     "mcp",
     "uteamup",
