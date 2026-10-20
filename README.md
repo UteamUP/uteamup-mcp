@@ -248,7 +248,7 @@ Your AI assistant's permissions are controlled by the **role assigned to your AP
 **Cause:** `UTEAMUP_API_KEY` or `UTEAMUP_SECRET` not set in MCP configuration.
 
 **Solution:**
-1. Check your MCP configuration file (`~/.config/claude/mcp.json` or `%APPDATA%\Claude\mcp.json`)
+1. Check your Claude Desktop configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows)
 2. Verify the `env` section includes both `UTEAMUP_API_KEY` and `UTEAMUP_SECRET`
 3. Ensure there are no typos in the environment variable names
 4. Restart Claude Desktop after making changes
@@ -304,25 +304,25 @@ Your AI assistant's permissions are controlled by the **role assigned to your AP
 
 #### "UNABLE_TO_VERIFY_LEAF_SIGNATURE" or certificate errors
 
-**Cause:** Self-signed certificate (development mode).
+**Cause:** The connection cannot validate the server's TLS certificate.
 
-**Solution:** This package automatically accepts self-signed certificates for development. If you're seeing this error:
-1. Verify `UTEAMUP_API_BASE_URL` is set correctly
-2. If using local backend, ensure it's running on HTTPS
-3. For production, this should never happen - contact support
+**Solution:**
+1. Verify the API base URL is `https://api.uteamup.com`
+2. Check the device's date and trusted certificate configuration
+3. Contact gisli@uteamup.com if the certificate error persists
 
 ---
 
 #### Tools list is empty or incomplete
 
-**Cause:** API key role has limited permissions.
+**Cause:** The credential, role, or company configuration does not grant the requested tools.
 
 **Solution:**
 1. Go to **Tenant Settings** → **API Keys** in UteamUP
-2. Edit your API key
-3. Change the role to one with more permissions (e.g., Admin or Supervisor)
-4. Available tools depend on your role's permissions
-5. Changes take effect immediately
+2. Confirm the key is active and MCP-enabled for the intended company
+3. Ask a company administrator to check the specific read permissions needed for your workflow
+4. For the remote read-only connector, use a restricted read-only role; write or wildcard grants are not eligible
+5. Reconnect the client to refresh its tool list after an authorized permission change
 
 ---
 
