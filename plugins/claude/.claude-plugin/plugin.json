@@ -1,5 +1,6 @@
 {
   "name": "uteamup",
+  "displayName": "UteamUP CMMS",
   "version": "2.3.0-beta.9",
   "description": "Connect Claude Code to UteamUP CMMS for work orders, assets, maintenance, inventory, and operations via Model Context Protocol (MCP).",
   "author": {
@@ -10,8 +11,7 @@
   "homepage": "https://uteamup.com",
   "repository": "https://github.com/UteamUP/uteamup-mcp",
   "license": "MIT",
-  "logo": "assets/logo.svg",
-  "icon": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png",
+  "icon": "./assets/logo.png",
   "keywords": [
     "mcp",
     "uteamup",
@@ -20,5 +20,21 @@
     "work-orders",
     "asset-management"
   ],
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "api_key": {
+      "type": "string",
+      "title": "UteamUP API key",
+      "description": "Your 32-character MCP-enabled UteamUP tenant API key",
+      "sensitive": true,
+      "required": true
+    },
+    "api_secret": {
+      "type": "string",
+      "title": "UteamUP API secret",
+      "description": "Your UteamUP tenant API key secret",
+      "sensitive": true,
+      "required": true
+    }
+  }
 }

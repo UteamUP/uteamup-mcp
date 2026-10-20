@@ -1,5 +1,6 @@
 {
   "name": "uteamup",
+  "description": "UteamUP CMMS tools for maintenance and operations",
   "owner": {
     "name": "UteamUP",
     "email": "gisli@uteamup.com",
@@ -11,14 +12,8 @@
       "version": "2.3.0-beta.9",
       "description": "Connect Claude Code to UteamUP CMMS for work orders, assets, maintenance, inventory, and operations via Model Context Protocol (MCP).",
       "category": "operations",
-      "source": {
-        "source": "github",
-        "repo": "UteamUP/uteamup-mcp",
-        "path": "."
-      },
-      "homepage": "https://github.com/UteamUP/uteamup-mcp",
-      "logo": "assets/logo.svg",
-      "icon": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png"
+      "source": "./plugins/claude",
+      "homepage": "https://github.com/UteamUP/uteamup-mcp"
     }
   ]
 }

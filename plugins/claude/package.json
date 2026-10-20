@@ -1,0 +1,10 @@
+{
+  "name": "uteamup-claude-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Locked launcher dependencies for the UteamUP Claude plugin",
+  "license": "MIT",
+  "dependencies": {
+    "@uteamup/mcp-server": "2.3.0-beta.9"
+  }
+}

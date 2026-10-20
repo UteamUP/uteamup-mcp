@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "uteamup": {
+      "command": "npx",
+      "args": ["-y", "@uteamup/mcp-server@2.3.0-beta.9"],
+      "env": {
+        "UTEAMUP_API_KEY": "${user_config.api_key}",
+        "UTEAMUP_SECRET": "${user_config.api_secret}",
+        "UTEAMUP_API_BASE_URL": "https://api.uteamup.com",
+        "UTEAMUP_MCP_PATH": "/mcp"
+      }
+    }
+  }
+}

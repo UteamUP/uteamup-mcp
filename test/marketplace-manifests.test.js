@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+const CLAUDE_PLUGIN_PATH = 'plugins/claude';
 
 function readJson(relativePath) {
   const fullPath = path.join(ROOT, relativePath);
@@ -80,9 +81,12 @@ describe('Marketplace & Registry Manifests', () => {
     expect(grokMarketplace.plugins[0].source?.repo).toBe('UteamUP/uteamup-mcp');
   });
 
-  test('Claude Code plugin and marketplace manifests match package version and .mcp.json', () => {
-    const claudePlugin = readJson('.claude-plugin/plugin.json');
+  test('Claude Code marketplace resolves its contained plugin with explicit credential prompts', () => {
+    const claudePlugin = readJson(`${CLAUDE_PLUGIN_PATH}/.claude-plugin/plugin.json`);
     const claudeMarketplace = readJson('.claude-plugin/marketplace.json');
+    const mcp = readJson(`${CLAUDE_PLUGIN_PATH}/.mcp.json`).mcpServers.uteamup;
+    const launcher = readJson(`${CLAUDE_PLUGIN_PATH}/package.json`);
+    const lock = readJson(`${CLAUDE_PLUGIN_PATH}/package-lock.json`);
 
     expect(claudePlugin.name).toBe('uteamup');
     expect(claudePlugin.version).toBe(pkg.version);
@@ -93,7 +97,35 @@ describe('Marketplace & Registry Manifests', () => {
     expect(claudeMarketplace.plugins).toHaveLength(1);
     expect(claudeMarketplace.plugins[0].name).toBe('uteamup');
     expect(claudeMarketplace.plugins[0].version).toBe(pkg.version);
-    expect(claudeMarketplace.plugins[0].source?.repo).toBe('UteamUP/uteamup-mcp');
+    expect(claudeMarketplace.plugins[0].source).toBe(`./${CLAUDE_PLUGIN_PATH}`);
+    expect(claudeMarketplace.description).toBeTruthy();
+    expect(claudePlugin.icon).toBe('./assets/logo.png');
+    expect(claudePlugin).not.toHaveProperty('logo');
+    expect(claudeMarketplace.plugins[0]).not.toHaveProperty('icon');
+    expect(claudeMarketplace.plugins[0]).not.toHaveProperty('logo');
+    expect(launcher.private).toBe(true);
+    expect(launcher).not.toHaveProperty('overrides');
+    const pinnedVersion = launcher.dependencies['@uteamup/mcp-server'];
+    expect(pinnedVersion).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+    expect(mcp.args).toEqual(['-y', `@uteamup/mcp-server@${pinnedVersion}`]);
+    expect(lock.packages['node_modules/@uteamup/mcp-server'].version).toBe(pinnedVersion);
+    for (const [name, entry] of Object.entries(lock.packages)) {
+      if (!name) continue;
+      expect(entry.resolved).toMatch(/^https:\/\/registry\.npmjs\.org\//);
+      expect(entry.integrity).toMatch(/^sha512-/);
+    }
+    expect(mcp.env).toEqual({
+      UTEAMUP_API_KEY: '${user_config.api_key}',
+      UTEAMUP_SECRET: '${user_config.api_secret}',
+      UTEAMUP_API_BASE_URL: 'https://api.uteamup.com',
+      UTEAMUP_MCP_PATH: '/mcp'
+    });
+    for (const name of ['api_key', 'api_secret']) {
+      expect(claudePlugin.userConfig[name]).toMatchObject({
+        type: 'string', sensitive: true, required: true
+      });
+      expect(claudePlugin.userConfig[name]).not.toHaveProperty('default');
+    }
   });
 
   test('Cursor declares every credential variable and the UteamUP publisher contact', () => {
@@ -196,8 +228,10 @@ describe('Marketplace & Registry Manifests', () => {
 
     expect(readJson('.grok-plugin/plugin.json').logo).toBe('assets/logo.svg');
     expect(readJson('.grok-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
-    expect(readJson('.claude-plugin/plugin.json').logo).toBe('assets/logo.svg');
-    expect(readJson('.claude-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
+    expect(readJson(`${CLAUDE_PLUGIN_PATH}/.claude-plugin/plugin.json`).icon).toBe('./assets/logo.png');
+    expect(fs.readFileSync(path.join(ROOT, CLAUDE_PLUGIN_PATH, 'assets/logo.png'))).toEqual(
+      fs.readFileSync(path.join(ROOT, 'assets/logo.png'))
+    );
     expect(readJson('.cursor-plugin/plugin.json').logo).toBe('assets/logo.svg');
     expect(readJson('.cursor-plugin/marketplace.json').plugins[0].logo).toBe('assets/logo.svg');
     expect(readJson('gemini-extension.json').icon).toBe('assets/logo.png');
@@ -217,7 +251,7 @@ describe('Marketplace & Registry Manifests', () => {
         'server.json:$.version',
         'server.json:$.packages[0].version',
         'gemini-extension.json:$.version',
-        '.claude-plugin/plugin.json:$.version',
+        'plugins/claude/.claude-plugin/plugin.json:$.version',
         '.claude-plugin/marketplace.json:$.plugins[0].version',
         '.grok-plugin/plugin.json:$.version',
         '.grok-plugin/marketplace.json:$.plugins[0].version',
