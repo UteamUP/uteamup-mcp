@@ -143,7 +143,7 @@ Tools that take arguments also need:
 
 ## Release Process
 
-Releases are published to **npm** (`@uteamup/mcp-server`) via Release Please.
+Releases are published to **npm** (`@uteamup/mcp-server`) by the `publish-npm` job in `.github/workflows/release-please.yml`, using npm Trusted Publishing (GitHub OIDC, provenance, no `NPM_TOKEN`). Until 2026-10-20 that job did not exist and npm stayed on `1.0.0-beta.9` while GitHub releases moved on, so check `npm view @uteamup/mcp-server dist-tags` after every release.
 
 ### How Release Please drives releases
 
@@ -160,17 +160,27 @@ Releases are published to **npm** (`@uteamup/mcp-server`) via Release Please.
    - `.release-please-manifest.json` updated
    - `CHANGELOG.md` entries moved from `[Unreleased]` into a new version section
 
-3. Review and merge the Release PR.
+3. Review and merge the Release PR. Branch protection requires a review; the owner merges with
+   `gh pr merge <n> --admin --squash`.
 
-4. On merge, Release Please creates a tag `mcp-v<X.Y.Z>`.
+4. On merge, Release Please creates the tag `v<X.Y.Z>` and a GitHub release.
 
-5. The tag triggers the existing CI workflow, which publishes to npm.
+5. In the same workflow run, `publish-npm` checks out that tag, runs the Jest suite (`prepublishOnly`) and
+   publishes with `--tag latest`. `publish-mcp-registry` then updates the Official MCP Registry.
+
+6. Verify: `npm view @uteamup/mcp-server dist-tags` shows the new version as `latest`. Users on
+   `npx @uteamup/mcp-server` may keep a cached copy; `npx -y @uteamup/mcp-server@latest` forces the new one.
+
+**One-time setup (package owner, npmjs.com):** package `@uteamup/mcp-server` → Settings → Trusted Publisher →
+GitHub Actions, organization `UteamUP`, repository `uteamup-mcp`, workflow `release-please.yml`, no environment.
 
 ### Do NOT
 
 - Manually bump `package.json`'s `version` field (Release Please manages it).
-- Create `mcp-v*` tags by hand (Release Please creates them).
-- Publish to npm manually (`npm publish`) unless recovering from a broken CI release.
+- Create `v*` tags by hand (Release Please creates them).
+- Publish to npm manually (`npm publish`) unless recovering from a broken CI release. A manual publish needs
+  `npm login --auth-type=web`, the owner's security key, and `UTEAMUP_FINAL_GOAL_GATE=1` because
+  `prepublishOnly` runs `npm test`.
 
 ### Prerelease (`beta`)
 
