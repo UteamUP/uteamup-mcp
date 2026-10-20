@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "maintainers": [
-    "UteamUP"
+    "gislig"
   ],
   "name": "@uteamup/mcp-server",
   "description": "MCP server for UteamUP CMMS — manage work orders, assets, maintenance, inventory, and operations via OAuth 2.0 + PKCE.",
