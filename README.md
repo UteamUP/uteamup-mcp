@@ -13,22 +13,21 @@
 ## Links
 
 - **📦 [npm Package](https://www.npmjs.com/package/@uteamup/mcp-server)** - Install with `npx -y @uteamup/mcp-server`
-- **📖 [Documentation](https://docs.uteamup.com/mcp)** - Full MCP integration guide
-- **🐛 [Issues](https://github.com/uteamup/mcp-server/issues)** - Report bugs and request features
-- **💬 [Support](mailto:support@uteamup.com)** - Get help
+- **📖 [Documentation](https://github.com/UteamUP/uteamup-mcp#readme)** - Full MCP integration guide
+- **🐛 [Issues](https://github.com/UteamUP/uteamup-mcp/issues)** - Report bugs and request features
+- **💬 [Support](mailto:gisli@uteamup.com)** - Get help
 
 ## What is this?
 
 This package enables AI assistants like Claude Desktop and Claude Code to connect to your UteamUP CMMS system using the Model Context Protocol (MCP). It handles OAuth 2.0 authentication automatically, so you can manage work orders, assets, inventory, and more through natural conversation.
 
-### Read-only access for Grok, Grok Bot and ChatGPT
+### Read-only access for Claude, Grok, Grok Bot and ChatGPT
 
-Use the environment-specific HTTPS endpoint:
+Use the production HTTPS endpoint:
 
 | Environment | MCP server URL |
 |---|---|
 | Production | `https://api.uteamup.com/mcp/read-only` |
-| Development | `https://devback.uteamup.com/mcp/read-only` |
 
 **Sign in with your UteamUP account (recommended).** A tenant administrator (`Tenant.Update`)
 first turns on **Allow members to connect AI assistants** in the company's **API Keys** tab.
@@ -42,6 +41,8 @@ Then each member connects their own assistant; no API key or secret is involved:
   Setup → Plugins card; each teammate signs in the first time they use it.
 - **ChatGPT:** add a custom MCP server with the endpoint and choose OAuth; ChatGPT registers
   itself and you approve on the same consent page.
+- **Claude:** add a custom connector with the endpoint, choose **Sign in now** and
+  **Register automatically**, then approve on the UteamUP consent page.
 
 The assistant uses the member's own permissions in the chosen company, and only the read
 tools below. Access tokens last 60 minutes and refresh tokens rotate on every use. A member
@@ -75,11 +76,10 @@ and [Grok connectors](https://docs.x.ai/grok/connectors).
 
 **Key Features:**
 - ✅ Automatic OAuth 2.0 + PKCE authentication
-- ✅ Token caching (7-day expiration, auto-refresh)
+- ✅ Token caching with automatic refresh
 - ✅ Works with Claude Desktop, Claude Code, and any MCP-compatible client
 - ✅ Zero configuration - just provide API credentials
 - ✅ Comprehensive error messages
-- ✅ Development mode support (self-signed certificates)
 - ✅ Server-Sent Events (SSE) response parsing
 - ✅ Proper JSON-RPC 2.0 notification handling
 - ✅ **NEW:** Structured logging with Pino (JSON/text formats)
@@ -87,9 +87,10 @@ and [Grok connectors](https://docs.x.ai/grok/connectors).
 - ✅ **NEW:** Performance monitoring and metrics
 - ✅ **NEW:** Retry logic with exponential backoff
 - ✅ **NEW:** CLI utilities (--help, --version, --validate-config, --test-auth)
-- ✅ **NEW:** Comprehensive test suite (70 tests)
+- ✅ Comprehensive test suite
 
-**Current Status:** `v1.0.0-beta.7` - Production-ready with enhanced debugging! See [CHANGELOG.md](CHANGELOG.md) for details.
+**Release status:** Beta. The npm badge above shows the published version;
+see [CHANGELOG.md](CHANGELOG.md) for release details.
 
 **Example Conversation:**
 ```
@@ -147,8 +148,11 @@ npm install -g @uteamup/mcp-server
 
 ### 2. Configure Claude Desktop
 
-**macOS/Linux:** Edit `~/.config/claude/mcp.json`
-**Windows:** Edit `%APPDATA%\Claude\mcp.json`
+In Claude Desktop, open **Settings → Developer → Edit Config**.
+The configuration file is located at:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 Add this configuration:
 
@@ -167,22 +171,8 @@ Add this configuration:
 }
 ```
 
-**Optional:** For development/testing against a local backend:
-```json
-{
-  "mcpServers": {
-    "uteamup-dev": {
-      "command": "npx",
-      "args": ["-y", "@uteamup/mcp-server"],
-      "env": {
-        "UTEAMUP_API_KEY": "your-api-key",
-        "UTEAMUP_SECRET": "your-secret",
-        "UTEAMUP_API_BASE_URL": "https://devback.uteamup.com"
-      }
-    }
-  }
-}
-```
+All UteamUP MCP connections use `https://api.uteamup.com`. Use a restricted key
+from a demo workspace when validating an integration.
 
 ### 3. Restart Claude Desktop
 
@@ -227,16 +217,14 @@ That's it! 🎉
 | `UTEAMUP_TOKEN_CACHE_DIR` | Persistent token cache directory | - |
 | `UTEAMUP_TOKEN_REFRESH_MARGIN` | Token refresh margin in seconds | `300` |
 
-### API Base URLs
+### API Base URL
 
 The configured base URL must be a bare HTTPS origin. Credentials, paths, query
 parameters, fragments, and plain HTTP endpoints are rejected.
 
-| Environment | URL | When to Use |
-|-------------|-----|-------------|
-| **Production** | `https://api.uteamup.com` | Default - for normal use |
-| **Development** | `https://devback.uteamup.com` | Testing against dev backend |
-| **Local** | `https://localhost:5002` | Local development with self-signed cert |
+Always use `https://api.uteamup.com`, including when running the Node proxy
+locally. The full MCP endpoint is `/mcp`; the read-only endpoint is
+`/mcp/read-only`.
 
 ### Permissions
 
@@ -309,12 +297,8 @@ Your AI assistant's permissions are controlled by the **role assigned to your AP
 1. **Check your internet connection**
 2. **Verify the base URL:**
    - Production: `https://api.uteamup.com` (default, no env var needed)
-   - Development: Set `UTEAMUP_API_BASE_URL=https://devback.uteamup.com`
 3. **Check if UteamUP is down:**
-   - Contact support@uteamup.com
-4. **For local development:**
-   - Ensure backend is running: `cd UteamUP_Backend/UteamUP_API && make watch`
-   - Use `UTEAMUP_API_BASE_URL=https://localhost:5002`
+   - Contact gisli@uteamup.com
 
 ---
 
@@ -402,9 +386,9 @@ Enable different log levels and formats:
    ```
 
 4. **Get help:**
-   - Email: support@uteamup.com
-   - Documentation: https://docs.uteamup.com/mcp
-   - GitHub Issues: https://github.com/uteamup/mcp-server/issues
+   - Email: gisli@uteamup.com
+   - Documentation: https://github.com/UteamUP/uteamup-mcp#readme
+   - GitHub Issues: https://github.com/UteamUP/uteamup-mcp/issues
 
 ---
 
@@ -414,20 +398,20 @@ Enable different log levels and formats:
 
 ```bash
 # Clone the repository
-git clone https://github.com/UteamUP/uteamup-mcp-proxy.git
-cd uteamup-mcp-proxy
+git clone https://github.com/UteamUP/uteamup-mcp.git
+cd uteamup-mcp
 
 # Install dependencies
 npm install
 
-# Run tests
-npm test
+# Run tests only at the final whole-goal gate (see MCPGuidelines.md)
+UTEAMUP_FINAL_GOAL_GATE=1 npm test
 
 # Test with debug logging
 export UTEAMUP_LOG_LEVEL=DEBUG
-export UTEAMUP_API_KEY="your-dev-key"
-export UTEAMUP_SECRET="your-dev-secret"
-export UTEAMUP_API_BASE_URL="https://localhost:5002"
+export UTEAMUP_API_KEY="your-demo-workspace-key"
+export UTEAMUP_SECRET="your-demo-workspace-secret"
+export UTEAMUP_API_BASE_URL="https://api.uteamup.com"
 node index.js
 
 # CLI Utilities
@@ -451,7 +435,7 @@ npm link
   "mcpServers": {
     "uteamup-local": {
       "command": "node",
-      "args": ["/absolute/path/to/uteamup-mcp-proxy/index.js"],
+      "args": ["/absolute/path/to/uteamup-mcp/index.js"],
       "env": {
         "UTEAMUP_API_KEY": "your-key",
         "UTEAMUP_SECRET": "your-secret",
@@ -465,7 +449,7 @@ npm link
 ### Project Structure
 
 ```
-uteamup-mcp-proxy/
+uteamup-mcp/
 ├── index.js           # Main entry point (OAuth + MCP client)
 ├── package.json       # Package metadata
 ├── README.md          # This file
@@ -550,9 +534,9 @@ See [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation:** https://docs.uteamup.com/mcp
-- **Email:** support@uteamup.com
-- **Issues:** https://github.com/uteamup/mcp-server/issues
+- **Documentation:** https://github.com/UteamUP/uteamup-mcp#readme
+- **Email:** gisli@uteamup.com
+- **Issues:** https://github.com/UteamUP/uteamup-mcp/issues
 
 ---
 
