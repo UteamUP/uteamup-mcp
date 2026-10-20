@@ -65,13 +65,17 @@ npm run lint      # No ESLint errors
 
 ## Configuration
 
+> **CRITICAL RULE — Always Use `https://api.uteamup.com`:**
+> All MCP connections, external connectors (ChatGPT, Claude Desktop, Claude Code, Cursor, etc.), configuration, and live MCP verification MUST **always** use **`https://api.uteamup.com`** (`https://api.uteamup.com/mcp`).
+> **NEVER** configure, point, or test MCP against `localhost`, local tunnels (`trycloudflare.com`, `ngrok`, etc.), or `devback.uteamup.com`. If a backend MCP fix is required, deploy it to production (`https://api.uteamup.com`) and verify directly against `https://api.uteamup.com/mcp`.
+
 Environment variables (set by the MCP client in its `mcp.json`, or exported in the shell):
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `UTEAMUP_API_KEY` | ✅ | — | 32-character API key |
 | `UTEAMUP_SECRET` | ✅ | — | 64+ character secret |
-| `UTEAMUP_API_BASE_URL` | — | `https://api.uteamup.com` | Backend URL (`https://devback.uteamup.com` for dev, `https://localhost:5002` for local) |
+| `UTEAMUP_API_BASE_URL` | — | `https://api.uteamup.com` | Production backend URL (`https://api.uteamup.com` — always use production; never use `localhost` or `devback.uteamup.com`) |
 | `UTEAMUP_LOG_LEVEL` | — | `INFO` | `TRACE` \| `DEBUG` \| `INFO` \| `WARN` \| `ERROR` |
 | `UTEAMUP_LOG_FORMAT` | — | `text` | `text` \| `json` |
 | `UTEAMUP_MAX_RETRIES` | — | `3` | 0–10 |

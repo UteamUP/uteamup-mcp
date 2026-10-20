@@ -261,4 +261,23 @@ describe('Marketplace & Registry Manifests', () => {
       ])
     );
   });
+
+  test('Official MCP Registry publication requires a successful Release Please release', () => {
+    const workflow = fs.readFileSync(
+      path.join(ROOT, '.github/workflows/release-please.yml'),
+      'utf8'
+    );
+    const publishJobStart = workflow.indexOf('\n  publish-mcp-registry:\n');
+    const publishJob = publishJobStart >= 0 ? workflow.slice(publishJobStart) : '';
+
+    expect(workflow).toMatch(/^on:\n  push:\n    branches: \[main\]$/m);
+    expect(workflow).not.toMatch(/^  workflow_dispatch:\s*$/m);
+    expect(publishJob).not.toBe('');
+    expect(publishJob).toMatch(
+      /if:\s*needs\.release-please\.outputs\.release_created == 'true' && needs\.publish-npm\.result == 'success'/
+    );
+    expect(publishJob).toMatch(/ref: \$\{\{ needs\.release-please\.outputs\.tag_name \}\}/);
+    expect(publishJob).not.toMatch(/always\(\)|workflow_dispatch/);
+    expect(publishJob).toMatch(/mcp-publisher publish \/tmp\/server\.publish\.json/);
+  });
 });
