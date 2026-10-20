@@ -87,6 +87,8 @@ describe('Marketplace & Registry Manifests', () => {
     expect(claudePlugin.name).toBe('uteamup');
     expect(claudePlugin.version).toBe(pkg.version);
     expect(claudePlugin.mcpServers).toBe('./.mcp.json');
+    expect(claudePlugin.author).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
+    expect(claudeMarketplace.owner).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
 
     expect(claudeMarketplace.plugins).toHaveLength(1);
     expect(claudeMarketplace.plugins[0].name).toBe('uteamup');
