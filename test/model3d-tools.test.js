@@ -32,6 +32,7 @@ describe('3D model MCP tools', () => {
   const linkTool = { name: 'uteamup_model3d_link', args: { itemKind: 'Part', itemGuid: PART_GUID, model3dGuid: MODEL_GUID } };
   const resolveTool = { name: 'uteamup_model3d_resolve', args: { itemKind: 'Part', itemGuid: PART_GUID } };
   const deleteTool = { name: 'uteamup_model3d_delete', args: { model3dGuid: MODEL_GUID, force: true } };
+  const duplicateTool = { name: 'uteamup_model3d_duplicate', args: { model3dGuid: MODEL_GUID, name: 'Grundfos Alpha2 (copy)' } };
   const itemsTool = { name: 'uteamup_floorplan_scene_items', args: { locationGuid: LOCATION_GUID } };
 
   beforeEach(() => nock.cleanAll());
@@ -101,6 +102,24 @@ describe('3D model MCP tools', () => {
     expect(resultOf(response)).toEqual({ deleted: true, unlinkedItemCount: 2 });
   });
 
+  test('duplicate forwards the source GUID and name and passes the new, unlinked copy through', async () => {
+    const COPY_GUID = '9b2f7c1e-4a3d-4e5f-8a6b-1c2d3e4f5a6b';
+    const response = await call(duplicateTool.name, duplicateTool.args, successReply({
+      externalGuid: COPY_GUID, name: 'Grundfos Alpha2 (copy)', modelDocumentGuid: DOCUMENT_GUID, version: 1, linkedItemCount: 0,
+    }), duplicateTool.args);
+
+    const data = resultOf(response);
+    expect(data.externalGuid).toBe(COPY_GUID);
+    expect(data.externalGuid).not.toBe(MODEL_GUID);
+    expect(data).toMatchObject({ version: 1, linkedItemCount: 0, modelDocumentGuid: DOCUMENT_GUID });
+  });
+
+  test('passes a duplicate of a model outside the tenant through as not found', async () => {
+    const response = await call(duplicateTool.name, duplicateTool.args, errorReply(-32000, 'model3d.not-found'));
+    expect(response.body.error.message).toBe('model3d.not-found');
+    expect(response.body.result).toBeUndefined();
+  });
+
   test('scene items keep restricted entries without a name or GUID', async () => {
     const response = await call(itemsTool.name, itemsTool.args, successReply({
       locationGuid: LOCATION_GUID,
@@ -129,7 +148,7 @@ describe('3D model MCP tools', () => {
   });
 
   test('no tool takes a tenant or user id; identity comes from the token', () => {
-    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, itemsTool]) {
+    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, itemsTool]) {
       for (const key of Object.keys(tool.args)) {
         expect(key).not.toMatch(/^(tenant|user)(Id|Guid)$/i);
         expect(key).not.toMatch(/Id$/);
@@ -137,7 +156,7 @@ describe('3D model MCP tools', () => {
     }
   });
 
-  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, itemsTool];
+  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, itemsTool];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
