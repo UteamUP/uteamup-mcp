@@ -126,6 +126,26 @@ describe('MCP proxy resilience (real stdio proxy, mocked backend)', () => {
     expect(result.pending).toEqual([]);
   }, TEST_TIMEOUT_MS);
 
+  test.each([
+    ['/mcp', `${BASE_URL}/mcp`],
+    ['/mcp/read-only', `${BASE_URL}/mcp/read-only`]
+  ])('requests a token bound to the %s endpoint it calls', async (mcpPath, resource) => {
+    // The token mock only matches when the exchange names the MCP resource; without it the
+    // exchange hits the disabled network and the call fails.
+    const result = await runProxy({
+      backend: [
+        'nock(BASE).get("/oauth/authorize").query(true).reply(302, "", { location: "http://localhost:3000/callback?code=fixture-code" });',
+        `nock(BASE).post("/oauth/token", body => body.resource === ${JSON.stringify(resource)}).reply(200, { access_token: "mcp-token", token_type: "Bearer", expires_in: 3600 });`,
+        `nock(BASE).matchHeader("authorization", "Bearer mcp-token").post(${JSON.stringify(mcpPath)}).reply(200, ${JSON.stringify(success(1))});`
+      ].join('\n'),
+      requests: [toolCall(1)],
+      env: { UTEAMUP_MCP_PATH: mcpPath }
+    });
+
+    expect(result.responses).toEqual([success(1)]);
+    expect(result.pending).toEqual([]);
+  }, TEST_TIMEOUT_MS);
+
   test('returns a JSON-RPC error instead of a fake success for an empty backend body', async () => {
     const result = await runProxy({
       backend: 'oauth("fixture-token"); nock(BASE).post("/mcp").reply(200, "");',

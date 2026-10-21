@@ -280,14 +280,16 @@ async function requestNewAccessToken() {
 
     info('Authorization code received');
 
-    // Step 2: Exchange for access token with retry
+    // Step 2: Exchange for access token with retry. Naming the MCP endpoint as the resource
+    // (RFC 8707) gets a token the backend accepts only there, never on its REST API.
     const tokenData = new URLSearchParams({
       grant_type: 'authorization_code',
       code: authCode,
       redirect_uri: OAUTH_REDIRECT_URI,
       client_id: config.apiKey,
       client_secret: config.secret,
-      code_verifier: verifier
+      code_verifier: verifier,
+      resource: new URL(config.mcpPath, config.baseUrl).href
     }).toString();
 
     const tokenResponse = await retryWithBackoff(
