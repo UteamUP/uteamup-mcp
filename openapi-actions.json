@@ -3,7 +3,7 @@
   "info": {
     "title": "UteamUP CMMS Read-Only Assistant Actions",
     "description": "OpenAPI 3.1.0 Action schema for ChatGPT Custom GPTs (GPT Store) and Google Gemini / Vertex AI Extensions. Invokes the UteamUP read-only MCP endpoint (/mcp/read-only) to list and search assets and work orders using the caller's tenant-scoped permissions.",
-    "version": "2.3.0-beta.9",
+    "version": "2.4.0-beta.9",
     "x-logo": {
       "url": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png",
       "altText": "UteamUP CMMS"
