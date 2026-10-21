@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "uteamup",
-      "version": "2.3.0-beta.9",
+      "version": "2.4.0-beta.9",
       "description": "Connect Claude Code to UteamUP CMMS for work orders, assets, maintenance, inventory, and operations via Model Context Protocol (MCP).",
       "category": "operations",
       "source": "./plugins/claude",

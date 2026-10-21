@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.3.0-beta.9...2.4.0-beta.9) (2026-10-21)
+
+
+### Features
+
+* package OpenAI marketplace integration with UteamUP branding ([026ad6f](https://github.com/UteamUP/uteamup-mcp/commit/026ad6f207e007f0085aecc73162d3ded97dc9ad))
+
+
+### Bug Fixes
+
+* **auth:** bind the proxy's OAuth token to the MCP endpoint ([a5b0f4a](https://github.com/UteamUP/uteamup-mcp/commit/a5b0f4a116579098dc60f67861d14eb1d3fdbfd8))
+* avoid redundant Claude documentation asset review ([5818f0e](https://github.com/UteamUP/uteamup-mcp/commit/5818f0e86c93fed7b703f5775f3a053f83ed595f))
+* complete Claude listing links and data handling disclosures ([e3b2b78](https://github.com/UteamUP/uteamup-mcp/commit/e3b2b789def1f8067b0a1f35644d984a43572996))
+* correct Glama maintainer identity ([dc9f5a5](https://github.com/UteamUP/uteamup-mcp/commit/dc9f5a57ad01d5f3ca2736f5c9493e40cb195191))
+* correct Grok marketplace contact ([48cad67](https://github.com/UteamUP/uteamup-mcp/commit/48cad677694d10260501613f2bd2a61d807fcd23))
+* package Claude plugin with locked dependencies and explicit configuration ([92a2e40](https://github.com/UteamUP/uteamup-mcp/commit/92a2e405acf395553826e0c7b08913a9aed4b1a9))
+* prepare MCP manifests for marketplace validation ([1b555a6](https://github.com/UteamUP/uteamup-mcp/commit/1b555a66cd8ae9fe390cf127ce349499d2f3ded9))
+* update fast-copy to patched version ([0fd7cd8](https://github.com/UteamUP/uteamup-mcp/commit/0fd7cd8ece27446bbb5a118da5b981094d2010a9))
+* update release workflow conditions and add test for MCP registry publication ([44180fd](https://github.com/UteamUP/uteamup-mcp/commit/44180fd7f859340f6752dd1b07119d45df0703ad))
+* use UteamUP publisher contact for Claude submissions ([acd457f](https://github.com/UteamUP/uteamup-mcp/commit/acd457f7a2a114a77f2b55a63b2eaf7be019078d))
+
+
+### Documentation
+
+* correct Claude troubleshooting and read-only access guidance ([aba9dfe](https://github.com/UteamUP/uteamup-mcp/commit/aba9dfebbb98dd5dc877fc26eba9df201278d0df))
+* correct marketplace setup links and production connection guidance ([91c4945](https://github.com/UteamUP/uteamup-mcp/commit/91c4945f561f3c26da8dd3f0da5c4be7883cbe94))
+
+
+### Tests
+
+* cover floorplan scan draft tools ([f251595](https://github.com/UteamUP/uteamup-mcp/commit/f251595c54d35320e8ef9c3cd42f3139f831666f))
+* **model3d:** cover the 3D model and scene items MCP tools ([5ef7c9e](https://github.com/UteamUP/uteamup-mcp/commit/5ef7c9ec8ae58ec3d5e980b9b59d063935366eed))
+* **model3d:** cover the uteamup_model3d_catalogue_* tools ([2d7eb15](https://github.com/UteamUP/uteamup-mcp/commit/2d7eb153eb38430b6c5de7300b7cd9e3b14392d7))
+
+
+### CI/CD
+
+* publish @uteamup/mcp-server to npm on every release ([85cf397](https://github.com/UteamUP/uteamup-mcp/commit/85cf39706266f54aacdc3e8e5a9869b66080cbf8))
+
 ## [2.3.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.2.0-beta.9...2.3.0-beta.9) (2026-10-19)
 
 

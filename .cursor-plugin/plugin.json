@@ -1,7 +1,7 @@
 {
   "name": "uteamup",
   "displayName": "UteamUP CMMS",
-  "version": "2.3.0-beta.9",
+  "version": "2.4.0-beta.9",
   "description": "Connect Cursor to UteamUP CMMS for work orders, assets, maintenance schedules, spare-parts inventory, and operations via Model Context Protocol (MCP).",
   "author": {
     "name": "UteamUP",
@@ -36,6 +36,9 @@
         "description": "Your UteamUP tenant API key secret"
       }
     },
-    "required": ["UTEAMUP_API_KEY", "UTEAMUP_SECRET"]
+    "required": [
+      "UTEAMUP_API_KEY",
+      "UTEAMUP_SECRET"
+    ]
   }
 }
