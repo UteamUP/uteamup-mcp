@@ -113,6 +113,23 @@ describe('UteamupAssetPatch MCP tool', () => {
     expect(data.assetParts).toEqual([{ partGuid, assignedQuantity: 2 }]);
   });
 
+  it('forwards the asset type set and primary type so a type can be added without a full update', async () => {
+    const lightingGuid = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+    const energyGuid = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+    const args = { assetGuid, primaryAssetTypeGuid: energyGuid };
+
+    const response = await call(
+      args,
+      successReply({ ...patchedAsset, primaryAssetTypeGuid: energyGuid, assetTypeGuids: [energyGuid, lightingGuid] }),
+      args,
+    );
+
+    expect(response.status).toBe(200);
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.primaryAssetTypeGuid).toBe(energyGuid);
+    expect(data.assetTypeGuids).toEqual([energyGuid, lightingGuid]);
+  });
+
   // The backend throws McpException for a coded refusal. ModelContextProtocol 2.2.0 returns that as a
   // tool result with isError set, its text the SDK's prefix followed by the backend's "code: reason".
   const toolError = (text) => ({
