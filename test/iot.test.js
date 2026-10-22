@@ -69,11 +69,56 @@ describe('IoT MCP tools', () => {
     expect(response.body.error.message).toContain('stamp unavailable');
   });
 
+  const DEVICE_GUID = '33333333-3333-4333-8333-333333333333';
+  const KEY_GUID = '44444444-4444-4444-8444-444444444444';
+
+  test('creates a device by type GUID and returns GUIDs only', async () => {
+    const args = {
+      name: 'Stofa smart plug',
+      deviceId: 'switch.stofa_plug',
+      deviceTypeGuid: '55555555-5555-4555-8555-555555555555',
+    };
+    const response = await call('UteamupIoTDeviceCreate', args, successReply({
+      externalGuid: DEVICE_GUID, name: args.name, deviceId: args.deviceId, status: 'Offline', isActive: true,
+    }));
+    const device = JSON.parse(response.body.result.content[0].text);
+    expect(device.externalGuid).toBe(DEVICE_GUID);
+    expect(device).not.toHaveProperty('id');
+  });
+
+  test('issues a device key whose secret is returned once and lists keys without it', async () => {
+    const issued = await call('UteamupIoTDeviceKeyIssue', { deviceGuid: DEVICE_GUID, name: 'Home Assistant' }, successReply({
+      externalGuid: KEY_GUID, deviceGuid: DEVICE_GUID, name: 'Home Assistant', apiKey: 'iot_secret_value', keyPrefix: 'iot_secr',
+    }));
+    expect(JSON.parse(issued.body.result.content[0].text).apiKey).toBe('iot_secret_value');
+
+    const listed = await call('UteamupIoTDeviceKeysList', { deviceGuid: DEVICE_GUID }, successReply([
+      { externalGuid: KEY_GUID, deviceGuid: DEVICE_GUID, name: 'Home Assistant', keyPrefix: 'iot_secr', isActive: true },
+    ]));
+    const keys = JSON.parse(listed.body.result.content[0].text);
+    expect(keys[0]).not.toHaveProperty('apiKey');
+    expect(keys[0].keyPrefix).toBe('iot_secr');
+  });
+
+  test('revokes a key by GUID and surfaces a permission refusal from the backend', async () => {
+    const revoked = await call('UteamupIoTDeviceKeyRevoke', { apiKeyGuid: KEY_GUID }, successReply({ apiKeyGuid: KEY_GUID, revoked: true }));
+    expect(JSON.parse(revoked.body.result.content[0].text).revoked).toBe(true);
+
+    const refused = await call(
+      'UteamupIoTDeviceKeyRevoke', { apiKeyGuid: KEY_GUID }, errorReply(-32603, 'permission_denied: Permission denied: IOT.Delete required.'));
+    expect(refused.body.error.message).toContain('IOT.Delete');
+  });
+
   const tools = [
     { name: 'UteamupIoTEnvironmentStatus', args: {} },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
     { name: 'UteamupIoTTelemetryPoints', args: { limit: 25 } },
     { name: 'UteamupIoTRulesList', args: {} },
+    { name: 'UteamupIoTDeviceTypesList', args: {} },
+    { name: 'UteamupIoTDevicesList', args: { search: 'plug', page: 1, pageSize: 25 } },
+    { name: 'UteamupIoTDeviceGet', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
+    { name: 'UteamupIoTDeviceUpdate', args: { deviceGuid: '33333333-3333-4333-8333-333333333333', firmwareVersion: '2.1' } },
+    { name: 'UteamupIoTDeviceKeysList', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
   ];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
