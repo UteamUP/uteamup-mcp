@@ -34,6 +34,7 @@ describe('3D model MCP tools', () => {
   const deleteTool = { name: 'uteamup_model3d_delete', args: { model3dGuid: MODEL_GUID, force: true } };
   const duplicateTool = { name: 'uteamup_model3d_duplicate', args: { model3dGuid: MODEL_GUID, name: 'Grundfos Alpha2 (copy)' } };
   const itemsTool = { name: 'uteamup_floorplan_scene_items', args: { locationGuid: LOCATION_GUID } };
+  const specLookupTool = { name: 'uteamup_model3d_spec_lookup', args: { query: 'Sony PlayStation 5 Slim' } };
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -120,6 +121,33 @@ describe('3D model MCP tools', () => {
     expect(response.body.result).toBeUndefined();
   });
 
+  test('spec lookup forwards the query and passes sizes, sources and credits through', async () => {
+    const response = await call(specLookupTool.name, specLookupTool.args, successReply({
+      specs: {
+        productName: 'PlayStation 5 Slim', widthM: 0.358, heightM: 0.096, depthM: 0.216,
+        components: [{ name: 'Side cover', notes: 'curved white shell' }],
+        sources: [{ title: 'PlayStation', url: 'https://www.playstation.com/ps5' }],
+        estimated: false,
+      },
+      creditsCharged: 10, creditsRemaining: 490, warnings: [],
+    }), specLookupTool.args);
+
+    const data = resultOf(response);
+    expect(data.specs).toMatchObject({ widthM: 0.358, heightM: 0.096, depthM: 0.216, estimated: false });
+    expect(data.specs.sources[0].url).toBe('https://www.playstation.com/ps5');
+    expect(data.creditsCharged).toBe(10);
+  });
+
+  test('spec lookup passes a short quota through on the result, not as an error', async () => {
+    const response = await call(specLookupTool.name, specLookupTool.args, successReply({
+      creditsCharged: 0, creditsRemaining: 3, quotaBlockedReason: 'QuotaExceeded', error: 'model3d.ai-quota', warnings: [],
+    }), specLookupTool.args);
+
+    const data = resultOf(response);
+    expect(data).toMatchObject({ error: 'model3d.ai-quota', creditsCharged: 0 });
+    expect(data).not.toHaveProperty('specs');
+  });
+
   test('scene items keep restricted entries without a name or GUID', async () => {
     const response = await call(itemsTool.name, itemsTool.args, successReply({
       locationGuid: LOCATION_GUID,
@@ -148,7 +176,7 @@ describe('3D model MCP tools', () => {
   });
 
   test('no tool takes a tenant or user id; identity comes from the token', () => {
-    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, itemsTool]) {
+    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, itemsTool]) {
       for (const key of Object.keys(tool.args)) {
         expect(key).not.toMatch(/^(tenant|user)(Id|Guid)$/i);
         expect(key).not.toMatch(/Id$/);
@@ -156,7 +184,7 @@ describe('3D model MCP tools', () => {
     }
   });
 
-  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, itemsTool];
+  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, itemsTool];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
