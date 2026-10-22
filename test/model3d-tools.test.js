@@ -35,6 +35,7 @@ describe('3D model MCP tools', () => {
   const duplicateTool = { name: 'uteamup_model3d_duplicate', args: { model3dGuid: MODEL_GUID, name: 'Grundfos Alpha2 (copy)' } };
   const itemsTool = { name: 'uteamup_floorplan_scene_items', args: { locationGuid: LOCATION_GUID } };
   const specLookupTool = { name: 'uteamup_model3d_spec_lookup', args: { query: 'Sony PlayStation 5 Slim' } };
+  const viewPhotosTool = { name: 'uteamup_model3d_view_photos', args: { query: 'Sony PlayStation 5 Slim' } };
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -148,6 +149,34 @@ describe('3D model MCP tools', () => {
     expect(data).not.toHaveProperty('specs');
   });
 
+  test('view photos forwards the query and passes the photo of each side and the spares through', async () => {
+    const response = await call(viewPhotosTool.name, viewPhotosTool.args, successReply({
+      query: 'Sony PlayStation 5 Slim',
+      photos: [
+        { url: 'https://shop.example/front.jpg', pageUrl: 'https://shop.example/ps5', pageTitle: 'PS5 Slim', view: 'front' },
+        { url: 'https://shop.example/back.jpg', pageUrl: 'https://shop.example/ps5', pageTitle: 'PS5 Slim', view: 'back' },
+      ],
+      spares: [{ url: 'https://shop.example/front2.jpg', pageUrl: 'https://shop.example/ps5', view: 'front' }],
+      creditsCharged: 25, creditsRemaining: 465, warnings: [],
+    }), viewPhotosTool.args);
+
+    const data = resultOf(response);
+    expect(data.photos.map((p) => p.view)).toEqual(['front', 'back']);
+    expect(data.spares).toHaveLength(1);
+    expect(data.creditsCharged).toBe(25);
+  });
+
+  test('view photos passes a refunded search with nothing found through on the result', async () => {
+    const response = await call(viewPhotosTool.name, viewPhotosTool.args, successReply({
+      query: 'Sony PlayStation 5 Slim', photos: [], spares: [], creditsCharged: 0, error: 'model3d.ai-invalid-output',
+      warnings: ['UPMate found no clear photo of this product from any side, so no credits were charged.'],
+    }), viewPhotosTool.args);
+
+    const data = resultOf(response);
+    expect(data).toMatchObject({ creditsCharged: 0, error: 'model3d.ai-invalid-output' });
+    expect(data.photos).toEqual([]);
+  });
+
   test('scene items keep restricted entries without a name or GUID', async () => {
     const response = await call(itemsTool.name, itemsTool.args, successReply({
       locationGuid: LOCATION_GUID,
@@ -176,7 +205,7 @@ describe('3D model MCP tools', () => {
   });
 
   test('no tool takes a tenant or user id; identity comes from the token', () => {
-    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, itemsTool]) {
+    for (const tool of [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, viewPhotosTool, itemsTool]) {
       for (const key of Object.keys(tool.args)) {
         expect(key).not.toMatch(/^(tenant|user)(Id|Guid)$/i);
         expect(key).not.toMatch(/Id$/);
@@ -184,7 +213,7 @@ describe('3D model MCP tools', () => {
     }
   });
 
-  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, itemsTool];
+  const tools = [listTool, getTool, createTool, linkTool, resolveTool, deleteTool, duplicateTool, specLookupTool, viewPhotosTool, itemsTool];
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
