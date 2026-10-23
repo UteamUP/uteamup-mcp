@@ -259,6 +259,31 @@ describe('Marketplace MCP Tools', () => {
       expect(response.body.error.message).toContain('draft changed');
       expect(response.body.result).toBeUndefined();
     });
+
+    test('forwards the public Wanted catalog opt-in verbatim on create and update', async () => {
+      const captured = [];
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          const name = body.params?.name;
+          if (name === 'UteamupMarketplaceRequirementCreateDraft' || name === 'UteamupMarketplaceRequirementUpdateDraft') {
+            captured.push(body.params.arguments);
+            return true;
+          }
+          return false;
+        })
+        .times(2)
+        .reply(200, JSON.stringify(successReply({ status: 'Draft', showInPublicCatalog: true }).body), { 'Content-Type': 'application/json' });
+
+      const createArgs = { itemName: 'Pump seals', itemType: 'Part', requestedQuantity: 25, audience: 'Both', showInPublicCatalog: true };
+      const updateArgs = {
+        requirementGuid: mockRequirement.requirementGuid, draftVersion: 'A'.repeat(64),
+        itemName: 'Pump seals', itemType: 'Part', requestedQuantity: 25, audience: 'Both', currency: 'EUR', showInPublicCatalog: false,
+      };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceRequirementCreateDraft', createArgs);
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceRequirementUpdateDraft', updateArgs);
+
+      expect(captured).toEqual([createArgs, updateArgs]);
+    });
   });
 
   describe('UteamupMarketplaceMyOffersList tool', () => {
