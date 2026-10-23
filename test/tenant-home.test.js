@@ -36,17 +36,17 @@ describe('UteamUP Home tenant MCP tools', () => {
   describe('tenantKind', () => {
     test('my tenants show which are households, housing associations and businesses', async () => {
       const tenants = [
-        { guid: TENANT_GUID, name: 'Heimilið', tenantKind: 1 },
-        { guid: '31000000-0000-0000-0000-000000000009', name: 'Verkstæðið ehf.', tenantKind: 0 },
+        { guid: TENANT_GUID, name: 'Heimilið', tenantKind: 'household' },
+        { guid: '31000000-0000-0000-0000-000000000009', name: 'Verkstæðið ehf.', tenantKind: 'business' },
       ];
 
       const response = await call('UteamupTenantGetMyTenants', {}, successReply(tenants));
 
-      expect(resultOf(response).map((tenant) => tenant.tenantKind)).toEqual([1, 0]);
+      expect(resultOf(response).map((tenant) => tenant.tenantKind)).toEqual(['household', 'business']);
     });
 
     test('create forwards tenantKind verbatim', async () => {
-      const args = { model: { name: 'Húsfélagið Laugavegi 1', tenantKind: 2, billingCountryCode: 'IS', taxIdentifier: '5502691239' } };
+      const args = { model: { name: 'Húsfélagið Laugavegi 1', tenantKind: 'housingAssociation', billingCountryCode: 'IS', taxIdentifier: '5502691239' } };
 
       const response = await callMcpTool(BASE_URL, ACCESS_TOKEN, 'UteamupTenantCreate', args,
         successReply({ success: true, tenantGuid: TENANT_GUID }), args);
