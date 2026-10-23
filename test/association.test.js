@@ -26,6 +26,7 @@ describe('UteamUP Home housing association MCP tools', () => {
   const MEETING_GUID = '32000000-0000-0000-0000-000000000001';
   const VOTE_GUID = '32000000-0000-0000-0000-000000000002';
   const NOTICE_GUID = '32000000-0000-0000-0000-000000000003';
+  const DOCUMENT_GUID = '32000000-0000-0000-0000-000000000004';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -114,6 +115,27 @@ describe('UteamUP Home housing association MCP tools', () => {
         successReply({ guid: MEETING_GUID, ...args.body }));
 
       expect(resultOf(response).minutesText).toBe('Fundargerð.');
+    });
+
+    test('create forwards the minutes document GUID', async () => {
+      const args = {
+        body: { title: 'Aðalfundur 2026', kind: 'general', heldOn: '2026-11-05T18:00:00Z', minutesDocumentGuid: DOCUMENT_GUID },
+      };
+
+      const response = await callExact('uteamup_association_meeting_create', args,
+        successReply({ guid: MEETING_GUID, ...args.body }));
+
+      expect(resultOf(response).minutesDocumentGuid).toBe(DOCUMENT_GUID);
+    });
+
+    test('a minutes document from another tenant is refused by the backend', async () => {
+      const name = 'uteamup_association_meeting_update';
+      const response = await call(name,
+        { meetingGuid: MEETING_GUID, body: { title: 'Fundur', kind: 'board', heldOn: '2026-11-12T17:00:00Z', minutesDocumentGuid: DOCUMENT_GUID } },
+        toolError(name, 'association.meeting.documentNotFound: the minutes document was not found.'));
+
+      expect(response.body.result.isError).toBe(true);
+      expect(response.body.result.content[0].text).toContain('association.meeting.documentNotFound');
     });
 
     test('delete returns false when the meeting is not found', async () => {
