@@ -6,6 +6,7 @@
  *   UteamupTenantCreate(model)                        — forwards tenantKind
  *   UteamupTenantTransferOwnership(newOwnerUserGuid)
  *   UteamupTenantHomeMembershipSet(userGuid, body)
+ *   UteamupTenantHomeChildrenList() / Add(body) / Remove(childGuid)
  *
  * The tenant always comes from the Bearer token, so none of the Home tools take a tenant argument.
  */
@@ -26,6 +27,7 @@ describe('UteamUP Home tenant MCP tools', () => {
   const TENANT_GUID = '31000000-0000-0000-0000-000000000001';
   const MEMBER_GUID = '31000000-0000-0000-0000-000000000002';
   const APARTMENT_GUID = '31000000-0000-0000-0000-000000000003';
+  const CHILD_GUID = '31000000-0000-0000-0000-000000000004';
 
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
@@ -124,9 +126,42 @@ describe('UteamUP Home tenant MCP tools', () => {
     }
   });
 
+  describe('household children', () => {
+    test('add sends the name and birth year and returns the child by GUID', async () => {
+      const args = { body: { name: 'Sóla', birthYear: 2019 } };
+
+      const response = await callMcpTool(BASE_URL, ACCESS_TOKEN, 'UteamupTenantHomeChildrenAdd', args,
+        successReply({ guid: CHILD_GUID, name: 'Sóla', birthYear: 2019 }), args);
+
+      expect(resultOf(response)).toEqual({ guid: CHILD_GUID, name: 'Sóla', birthYear: 2019 });
+    });
+
+    test('list returns the children', async () => {
+      const response = await call('UteamupTenantHomeChildrenList', {}, successReply([{ guid: CHILD_GUID, name: 'Ari' }]));
+
+      expect(resultOf(response).map((child) => child.name)).toEqual(['Ari']);
+    });
+
+    test('remove takes only the child GUID', async () => {
+      const response = await call('UteamupTenantHomeChildrenRemove', { childGuid: CHILD_GUID }, successReply(true));
+
+      expect(resultOf(response)).toBe(true);
+    });
+
+    test('a housing association is refused by the backend', async () => {
+      const response = await call('UteamupTenantHomeChildrenAdd', { body: { name: 'Ari' } },
+        errorReply(-32000, 'home.children.notHousehold: only a household records children.'));
+
+      expect(response.body.error.message).toContain('notHousehold');
+    });
+  });
+
   const tools = [
     { name: 'UteamupTenantTransferOwnership', args: { newOwnerUserGuid: MEMBER_GUID } },
     { name: 'UteamupTenantHomeMembershipSet', args: { userGuid: MEMBER_GUID, body: {} } },
+    { name: 'UteamupTenantHomeChildrenList', args: {} },
+    { name: 'UteamupTenantHomeChildrenAdd', args: { body: { name: 'Ari' } } },
+    { name: 'UteamupTenantHomeChildrenRemove', args: { childGuid: CHILD_GUID } },
   ];
 
   describeJsonRpcCompliance(call, tools);
