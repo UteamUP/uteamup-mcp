@@ -15,14 +15,16 @@ Textinn sem fer í skráninguna er á ensku (hún er opinber og á ensku). Leið
 | 2 | OAuth 2.0 + PKCE (S256) + dynamic client registration (`/oauth/register`) | ✅ Skráð í `/.well-known/oauth-authorization-server` |
 | 3 | Callback Claude í leyfislistanum (`https://claude.ai/api/mcp/auth_callback`, `https://claude.com/api/mcp/auth_callback`) | ✅ `McpOAuth:AllowedRedirectUris` í `appsettings.json` |
 | 4 | Hvert verkfæri með `title` + `readOnlyHint`/`destructiveHint` | ✅ `McpReadOnlyPilotService.DescribeReadOnlyTool` setur `readOnlyHint: true`, `destructiveHint: false` |
-| 5 | Prófað sem custom connector í Claude, öll 5 verkfærin kölluð | ⏳ **Þú gerir þetta** (sjá kafla 8) |
-| 6 | Prófunar-tenant með gögnum og prófunarnotandi | ⏳ **Þú býrð þetta til** (sjá kafla 8) |
-| 7 | Greidd Claude-áskrift á reikningnum sem sækir um | ⏳ Staðfesta |
+| 5 | Prófað sem custom connector í Claude, öll 5 verkfærin kölluð | ⏳ Bíður innskráningar á claude.ai (sjá kafla 8) |
+| 6 | Prófunar-tenant með gögnum | ✅ **Demo - Solid Energy** (`13f4751e-be00-4428-babd-f0d27e68bb40`, prod): 351 eignir, verkbeiðnir með H2S/turbine |
+| 7 | Prófunarnotandi með read-only hlutverk í Demo - Solid Energy | ⏳ Ekki stofnaður (sjá kafla 8) |
+| 8 | Greidd Claude-áskrift á reikningnum sem sækir um | ⏳ Staðfesta |
 
 Mikilvægast: fyrirtækið (tenant) verður að hafa kveikt á **Allow members to connect AI
 assistants** (`Tenant.AllowAssistantAccountLinking`, sjálfgefið *slökkt*). Annars hafnar
 samþykkissíðan tengingunni með 403. Stillingin er undir **Company → API Keys** á
 `https://app.uteamup.com/tenants/manage` og krefst `Tenant.Update`.
+**Kveikt á Demo - Solid Energy 2026-10-22** (`PUT /api/mcp-oauth/settings`, staðfest með GET).
 
 ---
 
@@ -79,7 +81,7 @@ How it works:
 Example requests:
 - "List the first five assets in my workspace."
 - "Find assets whose name contains pump and show the details of the first one."
-- "Which work orders mention the boiler?"
+- "Which work orders mention H2S?"
 
 You need a UteamUP account in a company that has turned on "Allow members to connect AI assistants".
 ```
@@ -151,15 +153,15 @@ The connector reads asset and work-order records from UteamUP's own API. Records
 
 ## 8. Test & launch
 
-### Það sem þú þarft að búa til fyrst (á production, `https://app.uteamup.com`)
+### Prófunarumhverfið (production, `https://app.uteamup.com`)
 
-1. Sérstakt prófunarfyrirtæki, t.d. **"UteamUP Review (Anthropic)"**, ekki raunverulegur viðskiptavinur.
-2. Fylla það af gögnum: minnst ~10 eignir (þar af einhverjar með **pump** í nafni) og ~10
-   verkbeiðnir (einhverjar sem nefna **pump** og **boiler**). Þannig skila dæmin í kafla 3 niðurstöðum.
-3. Kveikja á **Allow members to connect AI assistants** (Company → API Keys).
-4. Sérstakur prófunarnotandi, t.d. `claude-review@uteamup.com`, með **read-only hlutverk** í
-   prófunarfyrirtækinu einu. Ekki nota `debug@uteamup.com` (global admin).
-5. Staðfesta að prófunarnotandinn sjái öll 5 verkfærin (sjá kafla 2).
+1. ✅ Fyrirtæki: **Demo - Solid Energy** (demo-gögn úr jarðvarmavirkjun, enginn viðskiptavinur).
+2. ✅ Gögn sem prófunarbeiðnirnar finna (staðfest 2026-10-22 með `ut asset search` / `ut workorder search`):
+   eignir *pump* (5), *turbine* (3); verkbeiðnir *H2S* (5), *turbine* (6).
+3. ✅ Kveikt á **Allow members to connect AI assistants**.
+4. ⏳ Prófunarnotandi, t.d. `claude-review@uteamup.com`, með **read-only hlutverk** í
+   Demo - Solid Energy einu. Ekki nota `debug@uteamup.com` (global admin).
+5. ⏳ Staðfesta að prófunarnotandinn sjái öll 5 verkfærin (sjá kafla 2).
 6. Lykilorðið fer **bara** í reitinn í gáttinni, aldrei í git eða þetta skjal.
 
 ### Leiðbeiningar fyrir prófunaraðila (líma inn)
@@ -168,17 +170,17 @@ The connector reads asset and work-order records from UteamUP's own API. Records
 1. In Claude, open Settings → Connectors and add the UteamUP CMMS connector (or add a custom connector with the URL https://api.uteamup.com/mcp/read-only).
 2. Click Connect. Claude registers itself automatically and opens the UteamUP sign-in page.
 3. Sign in with the reviewer account below (email and password, no SSO needed).
-4. On the UteamUP consent page, choose the company "UteamUP Review (Anthropic)" and click Allow. You are sent back to Claude.
-5. Try these prompts:
+4. On the UteamUP consent page, choose the company "Demo - Solid Energy" and click Allow. You are sent back to Claude.
+5. Try these prompts (the demo workspace is a geothermal power plant):
    - "List the first five assets in my workspace."  → uteamup_asset_list
-   - "Find assets whose name contains pump."  → uteamup_asset_search
-   - "List one asset and show its full details using its returned GUID."  → uteamup_asset_list, uteamup_asset_get_by_guid
+   - "Find assets whose name contains pump."  → uteamup_asset_search (5 matches)
+   - "Find the turbine assets and show the full details of the first one."  → uteamup_asset_search, uteamup_asset_get_by_guid
    - "List the first five work orders in my workspace."  → uteamup_workorder_list
-   - "Find work orders mentioning boiler."  → uteamup_workorder_search
+   - "Which work orders mention H2S?"  → uteamup_workorder_search (5 matches)
 6. Expected limits: the connector is read-only. A request such as "Close the first open work order" should be declined, and no write tool exists.
 7. To disconnect: in UteamUP, Profile → Accounts → remove the Claude connection, or remove the connector in Claude.
 
-Reviewer account (workspace "UteamUP Review (Anthropic)", read-only role):
+Reviewer account (workspace "Demo - Solid Energy", read-only role):
 Email: <fylla út í gáttinni>
 Password: <fylla út í gáttinni>
 ```

@@ -31,7 +31,9 @@ Use the production HTTPS endpoint:
 
 **Sign in with your UteamUP account (recommended).** A tenant administrator (`Tenant.Update`)
 first turns on **Allow members to connect AI assistants** in the company's **API Keys** tab.
-Then each member connects their own assistant; no API key or secret is involved:
+Then each member connects their own assistant; no API key or secret is involved. The consent
+page offers only companies with an active subscription in which the member is the owner or
+holds a license; a link ends (401 `invalid_token`) when that stops being true:
 
 - **Grok:** open [Connectors](https://grok.com/connectors), choose **New Connector → Custom**,
   and enter the endpoint. Grok registers itself (RFC 7591), sends you to the UteamUP consent
