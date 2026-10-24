@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.4.0-beta.9...2.5.0-beta.9) (2026-10-24)
+
+
+### Features
+
+* **connector:** add Claude Connectors Directory for UteamUP read-only access ([1913d6a](https://github.com/UteamUP/uteamup-mcp/commit/1913d6a8713185fd607d49495aff125eb51710e8))
+* **plugins:** add MiniMax Code plugin for the read-only UteamUP MCP endpoint ([6489802](https://github.com/UteamUP/uteamup-mcp/commit/648980262c7a673eecafaee5a078a71f6db3bbb2))
+* **plugins:** add ZCode read-only MCP plugin and marketplace entry ([0f1dba5](https://github.com/UteamUP/uteamup-mcp/commit/0f1dba5cc2d1c963eda9dd94657af001570cf33f))
+
+
+### Documentation
+
+* assistant links need a seat; directory pack uses Demo - Solid Energy ([8952ac8](https://github.com/UteamUP/uteamup-mcp/commit/8952ac8e55abb281c8258ed7be8129a443e8c619))
+
+
+### Tests
+
+* **asset:** uteamup_asset_patch forwards asset type fields ([c78805c](https://github.com/UteamUP/uteamup-mcp/commit/c78805c336116543f838c5752135fb81e51134e1))
+* **association:** cover the housing association MCP tools ([703ee30](https://github.com/UteamUP/uteamup-mcp/commit/703ee304e31443b8619385220d777aa0af5a0097))
+* **association:** cover the meeting minutes document GUID ([33efcc9](https://github.com/UteamUP/uteamup-mcp/commit/33efcc90fa3a1d09429b086b7ec7453a57e24c93))
+* **identity:** MCP proxy test for UteamupIdentityVerificationStatus ([374698c](https://github.com/UteamUP/uteamup-mcp/commit/374698c1e3d6fa9840a104a84b63e65ce23e8c85))
+* **iot:** cover the IoT device and device-key tools ([b324540](https://github.com/UteamUP/uteamup-mcp/commit/b3245400b5b18c633ad5cbc565ec8b783501a501))
+* **marketplace:** add tests for public Wanted catalog opt-in on create and update ([8f61853](https://github.com/UteamUP/uteamup-mcp/commit/8f61853420ce66d2a72f01386f9ea59be35c2aba))
+* **model3d:** cover the spec lookup tool ([808dd30](https://github.com/UteamUP/uteamup-mcp/commit/808dd30e50e3d4298ecb45c7f45b6fbd16c90991))
+* **model3d:** cover the uteamup_model3d_duplicate proxy contract ([f1dba0b](https://github.com/UteamUP/uteamup-mcp/commit/f1dba0b88a4ddca2be3ee2dd48dceee45be99359))
+* **model3d:** cover the uteamup_model3d_view_photos tool ([29b153e](https://github.com/UteamUP/uteamup-mcp/commit/29b153e378903858681a13cba3f1083d313ae17d))
+* **productwebfiles:** cover the product web files MCP tools ([28ae0e5](https://github.com/UteamUP/uteamup-mcp/commit/28ae0e5ea5d3f6535388b2d1c96679d2cd52263f))
+* **tenant:** cover the UteamUP Home tenant tools ([284fa9a](https://github.com/UteamUP/uteamup-mcp/commit/284fa9ad716dd0a4cd1c8a3efa88c52cc7f87b49))
+* **tenant:** send tenantKind as the camelCase string the API uses ([f4fd776](https://github.com/UteamUP/uteamup-mcp/commit/f4fd7760b46de403e18c0749d74f57664cbdd6e6))
+* **tenant:** UteamUP Home children tools ([4e94080](https://github.com/UteamUP/uteamup-mcp/commit/4e940803479f6daa2039a341a4a9a35246c91d16))
+
 ## [2.4.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.3.0-beta.9...2.4.0-beta.9) (2026-10-21)
 
 
