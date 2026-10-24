@@ -14,6 +14,16 @@
       "category": "operations",
       "source": "./plugins/claude",
       "homepage": "https://github.com/UteamUP/uteamup-mcp"
+    },
+    {
+      "name": "uteamup-zcode",
+      "version": "0.1.0",
+      "description": "Connect ZCode to UteamUP CMMS for read-only work orders, assets, and maintenance data via Model Context Protocol (MCP), signing in with your UteamUP account.",
+      "category": "operations",
+      "source": "./plugins/uteamup-zcode",
+      "homepage": "https://github.com/UteamUP/uteamup-mcp",
+      "displayName": "UteamUP CMMS for ZCode",
+      "icon": "https://raw.githubusercontent.com/UteamUP/uteamup-mcp/main/assets/logo.png"
     }
   ]
 }
