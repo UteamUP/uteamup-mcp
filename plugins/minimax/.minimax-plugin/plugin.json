@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "uteamup",
+  "displayName": "UteamUP CMMS",
+  "version": "2.4.0-beta.9",
+  "description": "Connect MiniMax Code to UteamUP CMMS for work orders, assets, maintenance schedules, and inventory via Model Context Protocol (MCP).",
+  "author": "UteamUP <gisli@uteamup.com>",
+  "icon": "icon.png",
+  "category": "Business",
+  "exampleQueries": [
+    "List the first five assets in my UteamUP workspace.",
+    "Find assets whose name contains pump.",
+    "List the first five work orders in my workspace.",
+    "Show my open work orders."
+  ],
+  "apps": [],
+  "mcpServers": ["servers.mcp.json"],
+  "skills": ["skills/cmms/SKILL.md"]
+}

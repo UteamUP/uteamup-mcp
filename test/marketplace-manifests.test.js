@@ -94,10 +94,10 @@ describe('Marketplace & Registry Manifests', () => {
     expect(claudePlugin.author).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
     expect(claudeMarketplace.owner).toMatchObject({ name: 'UteamUP', email: 'gisli@uteamup.com' });
 
-    expect(claudeMarketplace.plugins).toHaveLength(1);
-    expect(claudeMarketplace.plugins[0].name).toBe('uteamup');
-    expect(claudeMarketplace.plugins[0].version).toBe(pkg.version);
-    expect(claudeMarketplace.plugins[0].source).toBe(`./${CLAUDE_PLUGIN_PATH}`);
+    const claudeEntry = claudeMarketplace.plugins.find(entry => entry.name === 'uteamup');
+    expect(claudeEntry).toBeDefined();
+    expect(claudeEntry.version).toBe(pkg.version);
+    expect(claudeEntry.source).toBe(`./${CLAUDE_PLUGIN_PATH}`);
     expect(claudeMarketplace.description).toBeTruthy();
     expect(claudePlugin.icon).toBe('./assets/logo.png');
     expect(claudePlugin).not.toHaveProperty('logo');
@@ -252,6 +252,7 @@ describe('Marketplace & Registry Manifests', () => {
         'server.json:$.packages[0].version',
         'gemini-extension.json:$.version',
         'plugins/claude/.claude-plugin/plugin.json:$.version',
+        'plugins/minimax/.minimax-plugin/plugin.json:$.version',
         '.claude-plugin/marketplace.json:$.plugins[0].version',
         '.grok-plugin/plugin.json:$.version',
         '.grok-plugin/marketplace.json:$.plugins[0].version',

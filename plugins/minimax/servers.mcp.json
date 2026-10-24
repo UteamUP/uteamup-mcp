@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "uteamup": {
+      "type": "streamable-http",
+      "url": "https://api.uteamup.com/mcp/read-only",
+      "description": "UteamUP CMMS MCP server (OAuth 2.0 + PKCE, read-only scope mcp:read). Sign in with your UteamUP account and select an authorized workspace.",
+      "timeout": 60000
+    }
+  }
+}

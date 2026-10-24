@@ -21,7 +21,7 @@
 
 This package enables AI assistants like Claude Desktop and Claude Code to connect to your UteamUP CMMS system using the Model Context Protocol (MCP). It handles OAuth 2.0 authentication automatically, so you can manage work orders, assets, inventory, and more through natural conversation.
 
-### Read-only access for Claude, Grok, Grok Bot and ChatGPT
+### Read-only access for Claude, Grok, Grok Bot, ChatGPT and MiniMax Code
 
 Use the production HTTPS endpoint:
 
@@ -45,6 +45,10 @@ holds a license; a link ends (401 `invalid_token`) when that stops being true:
   itself and you approve on the same consent page.
 - **Claude:** add a custom connector with the endpoint, choose **Sign in now** and
   **Register automatically**, then approve on the UteamUP consent page.
+- **MiniMax Code:** install the `uteamup` plugin (see [Installation](#installation)) or add the
+  endpoint under **Settings → MCP Servers** with the Remote / streamable-http transport.
+  MiniMax Code discovers the protected-resource metadata, registers itself (RFC 7591), and opens
+  the UteamUP consent page on first use.
 
 The assistant uses the member's own permissions in the chosen company, and only the read
 tools below. Access tokens last 60 minutes and refresh tokens rotate on every use. A member
@@ -119,7 +123,7 @@ Or install globally:
 npm install -g @uteamup/mcp-server
 ```
 
-### Install via CLI Plugin Marketplaces
+### Install as a Plugin
 
 - **Claude Code:**
   ```bash
@@ -134,6 +138,21 @@ npm install -g @uteamup/mcp-server
   ```bash
   gemini extensions install https://github.com/UteamUP/uteamup-mcp
   ```
+- **MiniMax Code:**
+
+  ```bash
+  git clone https://github.com/UteamUP/uteamup-mcp.git
+  cp -R uteamup-mcp/plugins/minimax ~/.minimax/plugins/uteamup
+  ```
+
+  MiniMax Code has no plugin marketplace. It discovers local plugins by folder, rescans
+  automatically, and enables a newly discovered plugin by default. The plugin bundles the
+  read-only MCP server and a `cmms` skill that teaches the agent when and how to use the
+  tools.
+
+  To skip the plugin, add the server directly under **Settings → MCP Servers** with the
+  Remote / streamable-http transport and this URL (no credentials are stored):
+  `https://api.uteamup.com/mcp/read-only`
 
 ---
 
