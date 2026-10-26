@@ -58,8 +58,8 @@
     "jest": "^30.4.2",
     "eslint": "^10.3.0",
     "prettier": "^3.8.3",
-    "nock": "^14.0.15",
-    "@types/node": "^25.7.0"
+    "nock": "^15.0.5",
+    "@types/node": "^26.6.5"
   },
   "overrides": {
     "js-yaml": "^4.3.2",
