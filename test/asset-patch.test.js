@@ -22,7 +22,7 @@ const {
 } = require('./helpers/mcp-error-tests');
 
 describe('UteamupAssetPatch MCP tool', () => {
-  const BASE_URL = 'https://api.test.com';
+  const BASE_URL = 'https://api.uteamup.com';
   const ACCESS_TOKEN = 'test_access_token_asset_patch';
   const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
@@ -34,6 +34,15 @@ describe('UteamupAssetPatch MCP tool', () => {
 
   const assetGuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const categoryGuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+  it('keeps explicit document unlink and vendor GUID sets distinct from omitted fields', async () => {
+    const args = { assetGuid, documentGuids: [], vendorGuids: [categoryGuid] };
+    const response = await call(args, successReply(args), args);
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.documentGuids).toEqual([]);
+    expect(data.vendorGuids).toEqual([categoryGuid]);
+    expect(data).not.toHaveProperty('name');
+  });
 
   const patchedAsset = {
     assetGuid,
