@@ -21,13 +21,14 @@ const {
 } = require('./helpers/mcp-error-tests');
 
 describe('Operations Brain planning tools', () => {
-  const baseUrl = 'https://api.test.com';
+  const baseUrl = 'https://api.uteamup.com';
   const accessToken = 'test_access_token_operations_planning';
   const planGuid = '11111111-1111-4111-8111-111111111111';
   const scenarioGuid = '22222222-2222-4222-8222-222222222222';
   const requestGuid = '33333333-3333-4333-8333-333333333333';
   const entityGuid = '44444444-4444-4444-8444-444444444444';
   const tools = [
+    { name: 'UteamupOperationsListPlans', args: { page: 2, pageSize: 20 } },
     {
       name: 'UteamupOperationsGetRisks',
       args: {
@@ -64,11 +65,27 @@ describe('Operations Brain planning tools', () => {
     },
   ];
 
+  beforeAll(() => nock.disableNetConnect());
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
+  afterAll(() => nock.enableNetConnect());
 
   const call = (toolName, toolArgs, mockReply) =>
     callMcpTool(baseUrl, accessToken, toolName, toolArgs, mockReply);
+
+  it('preserves paged summaries without exposing evidence or internal identifiers', async () => {
+    const args = { page: 2, pageSize: 20 };
+    const summary = {
+      planGuid, title: 'Saved plan', objectiveKey: 'reduce-risk', status: 'draft',
+      isReady: false, version: 3, evidenceVersion: 1,
+      createdAtUtc: '2026-10-01T12:00:00Z', updatedAtUtc: '2026-10-28T12:00:00Z',
+    };
+    const body = { items: [summary], currentPage: 2, pageSize: 20, totalItems: 21, totalPages: 2 };
+    const response = await callMcpTool(baseUrl, accessToken, 'UteamupOperationsListPlans', args,
+      successReply(body), args);
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(body);
+    expect(nock.isDone()).toBe(true);
+  });
 
   it('preserves evidence readiness and GUID-only plan identity', async () => {
     const response = await call(
