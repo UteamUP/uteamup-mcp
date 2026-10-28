@@ -110,6 +110,7 @@ describe('IoT MCP tools', () => {
   });
 
   const tools = [
+    { name: 'UteamupIoTTelemetryOverview', args: {} },
     { name: 'UteamupIoTEnvironmentStatus', args: {} },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
     { name: 'UteamupIoTTelemetryPoints', args: { limit: 25 } },
@@ -120,6 +121,17 @@ describe('IoT MCP tools', () => {
     { name: 'UteamupIoTDeviceUpdate', args: { deviceGuid: '33333333-3333-4333-8333-333333333333', firmwareVersion: '2.1' } },
     { name: 'UteamupIoTDeviceKeysList', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
   ];
+  test('overview forwards the observation window and preserves missing and zero energy', async () => {
+    const args = { from: '2026-10-01T00:00:00Z', to: '2026-10-28T00:00:00Z' };
+    const response = await call('UteamupIoTTelemetryOverview', args, successReply({
+      ...args, bucketCount: 96, streams: [{ unit: 'kWh', energyKwh: null }, { unit: 'kWh', energyKwh: 0 }],
+    }));
+    expect(JSON.parse(response.body.result.content[0].text).streams.map(stream => stream.energyKwh)).toEqual([null, 0]);
+    const empty = await call('UteamupIoTTelemetryOverview', {}, successReply({ streams: [] }));
+    expect(JSON.parse(empty.body.result.content[0].text).streams).toEqual([]);
+    const failed = await call('UteamupIoTTelemetryOverview', {}, errorReply(-32603, 'IoT stamp unavailable'));
+    expect(failed.body.error.message).toContain('stamp unavailable');
+  });
   describeJsonRpcCompliance(call, tools);
   describe401Unauthorized(BASE_URL, tools);
   describe503ServiceUnavailable(BASE_URL, tools);
