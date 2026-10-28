@@ -19,7 +19,11 @@ describe('Tenant AI usage request history', () => {
     taskKey: 'industry-code.extract',
     operationKey: 'industry-code.extract',
     credentialSource: 2,
-    userGuid: '11111111-1111-1111-1111-111111111111'
+    userGuid: '11111111-1111-1111-1111-111111111111',
+    userSearch: 'Alex',
+    modelName: 'gemini',
+    provider: 'GoogleGemini',
+    status: 'success'
   };
   const call = (name, toolArgs, reply) =>
     callMcpTool(baseUrl, 'test-token', name, toolArgs, reply, toolArgs);
