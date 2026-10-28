@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.4.0-beta.9...2.5.0-beta.9) (2026-10-28)
+
+
+### Features
+
+* **connector:** add Claude Connectors Directory for UteamUP read-only access ([1913d6a](https://github.com/UteamUP/uteamup-mcp/commit/1913d6a8713185fd607d49495aff125eb51710e8))
+* let requesters withdraw or request closure of their work ([5361666](https://github.com/UteamUP/uteamup-mcp/commit/5361666103dbc880c994990a15c8c52053e79d5f))
+* **plugins:** add MiniMax Code plugin for the read-only UteamUP MCP endpoint ([6489802](https://github.com/UteamUP/uteamup-mcp/commit/648980262c7a673eecafaee5a078a71f6db3bbb2))
+* **plugins:** add ZCode read-only MCP plugin and marketplace entry ([0f1dba5](https://github.com/UteamUP/uteamup-mcp/commit/0f1dba5cc2d1c963eda9dd94657af001570cf33f))
+* **tests:** add telemetry overview test for IoT MCP tools ([8fdefff](https://github.com/UteamUP/uteamup-mcp/commit/8fdefff7b185697ab82fab045c771570386f2d36))
+
+
+### Documentation
+
+* assistant links need a seat; directory pack uses Demo - Solid Energy ([8952ac8](https://github.com/UteamUP/uteamup-mcp/commit/8952ac8e55abb281c8258ed7be8129a443e8c619))
+
+
+### Tests
+
+* **asset:** cover document and vendor patch payloads ([2b3ded7](https://github.com/UteamUP/uteamup-mcp/commit/2b3ded7a67058097e4e379d96627f69e7a6aa6bd))
+* **asset:** uteamup_asset_patch forwards asset type fields ([c78805c](https://github.com/UteamUP/uteamup-mcp/commit/c78805c336116543f838c5752135fb81e51134e1))
+* **association:** cover the housing association MCP tools ([703ee30](https://github.com/UteamUP/uteamup-mcp/commit/703ee304e31443b8619385220d777aa0af5a0097))
+* **association:** cover the meeting minutes document GUID ([33efcc9](https://github.com/UteamUP/uteamup-mcp/commit/33efcc90fa3a1d09429b086b7ec7453a57e24c93))
+* cover AI request filters through the MCP proxy ([beaffaf](https://github.com/UteamUP/uteamup-mcp/commit/beaffafbf8b065fbd99c84de249570ed31ea0753))
+* cover location node type proxy contracts ([448d40c](https://github.com/UteamUP/uteamup-mcp/commit/448d40ccbfeb3e718236b0c531fe855b5bd7c189))
+* cover named workorder safety review transport ([b6f5d19](https://github.com/UteamUP/uteamup-mcp/commit/b6f5d196dcc086722ba8bdc7294c664beaf8255d))
+* cover paged operational plan discovery contracts ([d155e71](https://github.com/UteamUP/uteamup-mcp/commit/d155e719c7741273ba622bcb76739eb2d3d7901a))
+* cover planned stock arrival proxy routes ([476c96c](https://github.com/UteamUP/uteamup-mcp/commit/476c96ca25a2e7998178a7eb4466f08ab4c55219))
+* cover safe asset document detachment through MCP ([23b28f2](https://github.com/UteamUP/uteamup-mcp/commit/23b28f2a4b2b33a7af6dd0e4b2d01a219fe98df6))
+* cover tenant AI request history tool ([bd9a543](https://github.com/UteamUP/uteamup-mcp/commit/bd9a543dbd311917fc9a5808f820369038c8ac81))
+* **identity:** MCP proxy test for UteamupIdentityVerificationStatus ([374698c](https://github.com/UteamUP/uteamup-mcp/commit/374698c1e3d6fa9840a104a84b63e65ce23e8c85))
+* **iot:** cover the IoT device and device-key tools ([b324540](https://github.com/UteamUP/uteamup-mcp/commit/b3245400b5b18c633ad5cbc565ec8b783501a501))
+* **marketplace:** add tests for public Wanted catalog opt-in on create and update ([8f61853](https://github.com/UteamUP/uteamup-mcp/commit/8f61853420ce66d2a72f01386f9ea59be35c2aba))
+* **mcp:** cover linked parts and short stock searches ([dc4ec45](https://github.com/UteamUP/uteamup-mcp/commit/dc4ec45d6e8baed811b293567155df31aa15d19b))
+* **model3d:** cover the spec lookup tool ([808dd30](https://github.com/UteamUP/uteamup-mcp/commit/808dd30e50e3d4298ecb45c7f45b6fbd16c90991))
+* **model3d:** cover the uteamup_model3d_duplicate proxy contract ([f1dba0b](https://github.com/UteamUP/uteamup-mcp/commit/f1dba0b88a4ddca2be3ee2dd48dceee45be99359))
+* **model3d:** cover the uteamup_model3d_view_photos tool ([29b153e](https://github.com/UteamUP/uteamup-mcp/commit/29b153e378903858681a13cba3f1083d313ae17d))
+* **parts:** cover real stock level proxy contracts ([2952b50](https://github.com/UteamUP/uteamup-mcp/commit/2952b50bfa5362590d47b466bdf0cceec7397e0d))
+* preserve external push pause identity refusal ([514d98f](https://github.com/UteamUP/uteamup-mcp/commit/514d98f9294d8b830937556fee3b085b7be3abdf))
+* preserve missing health evidence in tenant summary responses ([ef5b538](https://github.com/UteamUP/uteamup-mcp/commit/ef5b538162b8d057be7fb31798bdf42753d32776))
+* preserve room node links through MCP scene calls ([c1754e3](https://github.com/UteamUP/uteamup-mcp/commit/c1754e37e852d5085b10987634de6532c21404a4))
+* preserve stock assignment paging and permission errors ([d80798e](https://github.com/UteamUP/uteamup-mcp/commit/d80798e4f983e32b7081da9796eb6ef2bc2a857c))
+* preserve unknown capacity in recorded activity summaries ([841e7fd](https://github.com/UteamUP/uteamup-mcp/commit/841e7fd1073f928e498d10973f074bd8ed48fdb9))
+* **productwebfiles:** cover the product web files MCP tools ([28ae0e5](https://github.com/UteamUP/uteamup-mcp/commit/28ae0e5ea5d3f6535388b2d1c96679d2cd52263f))
+* retain anonymous requirement origins through marketplace proxy ([c6ec4a6](https://github.com/UteamUP/uteamup-mcp/commit/c6ec4a63bec6c9e5ed7d462812d3bfdf67f59279))
+* retain payer clearing across the contract proxy ([60d2ecd](https://github.com/UteamUP/uteamup-mcp/commit/60d2ecd5bff561bdac81aa6d0c645d8ffb9a3a4d))
+* **tenant:** cover the UteamUP Home tenant tools ([284fa9a](https://github.com/UteamUP/uteamup-mcp/commit/284fa9ad716dd0a4cd1c8a3efa88c52cc7f87b49))
+* **tenant:** send tenantKind as the camelCase string the API uses ([f4fd776](https://github.com/UteamUP/uteamup-mcp/commit/f4fd7760b46de403e18c0749d74f57664cbdd6e6))
+* **tenant:** UteamUP Home children tools ([4e94080](https://github.com/UteamUP/uteamup-mcp/commit/4e940803479f6daa2039a341a4a9a35246c91d16))
+
 ## [2.4.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.3.0-beta.9...2.4.0-beta.9) (2026-10-21)
 
 
