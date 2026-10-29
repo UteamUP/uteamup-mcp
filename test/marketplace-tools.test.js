@@ -346,6 +346,18 @@ describe('Marketplace MCP Tools', () => {
       expect(data.shippedAt).toBe('2026-10-29T13:00:00Z');
     });
 
+    test('dispatch can omit both optional carrier and tracking details', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID },
+        successReply({ ...mockTransaction, status: 'Shipped', shippedAt: '2026-10-29T13:00:00Z' })
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.status).toBe('Shipped');
+      expect(data.shippingCarrier).toBeUndefined();
+      expect(data.trackingNumber).toBeUndefined();
+    });
+
     test('tracking number is optional — carrier alone still ships', async () => {
       const response = await call(
         'UteamupMarketplaceTransactionShip',
