@@ -63,6 +63,18 @@ describe('IoT MCP tools', () => {
     expect(JSON.parse(response.body.result.content[0].text).items).toEqual([]);
   });
 
+  test('forwards the device room GUID verbatim on update', async () => {
+    const ROOM_GUID = '66666666-6666-4666-8666-666666666666';
+    const args = { deviceGuid: '33333333-3333-4333-8333-333333333333', locationFloorGuid: ROOM_GUID };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTDeviceUpdate', args, successReply({
+      externalGuid: args.deviceGuid, locationFloorGuid: ROOM_GUID, locationFloor: { externalGuid: ROOM_GUID, name: 'Stofa' },
+    }), args);
+    const device = JSON.parse(response.body.result.content[0].text);
+    expect(device.locationFloorGuid).toBe(ROOM_GUID);
+    expect(device.locationFloor.name).toBe('Stofa');
+    expect(device).not.toHaveProperty('locationFloorId');
+  });
+
   test('preserves backend JSON-RPC errors', async () => {
     const response = await call(
       'UteamupIoTMonitoringDashboard', {}, errorReply(-32603, 'IoT stamp unavailable'));
