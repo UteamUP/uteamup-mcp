@@ -432,6 +432,46 @@ describe('Project Planning MCP Tools', () => {
       expect(response.body.error.code).toBe(-32603);
       expect(response.body.error.message).toContain('not found');
     });
+
+    // Optional planning context on a BOM line: a stage GUID of the same project and the
+    // date the material must be on site. Both are metadata; neither moves stock.
+    const STAGE_GUID = '55555555-5555-4555-8555-555555555555';
+    const plannedModel = {
+      itemType: 'Part', itemGuid: 'cccccccc-1111-2222-3333-444444444444', quantityRequired: 4,
+      projectStageGuid: STAGE_GUID, neededDate: '2027-01-15',
+    };
+    const plannedLine = {
+      guid: 'dddddddd-1111-2222-3333-444444444444', projectGuid: PROJECT_GUID, itemType: 'Part',
+      itemGuid: plannedModel.itemGuid, quantityRequired: 4, quantityActual: 0, isConsumed: false,
+      projectStageGuid: STAGE_GUID, projectStageName: 'Stage 1 — January 2027', neededDate: '2027-01-15',
+    };
+
+    test('forwards projectStageGuid and neededDate verbatim on create and returns the resolved stage', async () => {
+      const args = { projectGuid: PROJECT_GUID, model: plannedModel };
+      const response = await _callMcpTool(BASE_URL, ACCESS_TOKEN, 'UteamupProjectBomCreate', args, successReply(plannedLine), args);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(plannedLine);
+      expect(nock.isDone()).toBe(true);
+    });
+
+    test('forwards an explicit null stage and needed date on update so the line is cleared, not kept', async () => {
+      const model = { ...plannedModel, quantityActual: 0, isConsumed: false, projectStageGuid: null, neededDate: null };
+      const args = { projectGuid: PROJECT_GUID, itemGuid: plannedLine.guid, model };
+      const cleared = { ...plannedLine, projectStageGuid: null, projectStageName: null, neededDate: null };
+      const response = await _callMcpTool(BASE_URL, ACCESS_TOKEN, 'UteamupProjectBomUpdate', args, successReply(cleared), args);
+      expect(JSON.parse(response.body.result.content[0].text)).toEqual(cleared);
+      expect(nock.isDone()).toBe(true);
+    });
+
+    test('surfaces a stage from another project or tenant as a JSON-RPC error', async () => {
+      const response = await call(
+        'UteamupProjectBomCreate',
+        { projectGuid: PROJECT_GUID, model: { ...plannedModel, projectStageGuid: '66666666-6666-4666-8666-666666666666' } },
+        errorReply(-32603, 'ArgumentException: The stage must belong to this project.'),
+      );
+      expect(response.body.error.code).toBe(-32603);
+      expect(response.body.error.message).toContain('belong to this project');
+      expect(response.body.result).toBeUndefined();
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -322,6 +322,102 @@ describe('Marketplace MCP Tools', () => {
     });
   });
 
+  describe('UteamupMarketplaceTransactionShip tool (seller fulfilment write)', () => {
+    const shippedTransaction = {
+      ...mockTransaction,
+      status: 'Shipped',
+      shippingCarrier: 'DHL',
+      trackingNumber: '1Z999AA10123456784',
+      shippedAt: '2026-10-29T13:00:00Z'
+    };
+
+    test('marks a paid order as shipped and returns the Shipped transaction with carrier + tracking', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID, carrier: 'DHL', trackingNumber: '1Z999AA10123456784' },
+        successReply(shippedTransaction)
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.status).toBe('Shipped');
+      expect(data.shippingCarrier).toBe('DHL');
+      expect(data.trackingNumber).toBe('1Z999AA10123456784');
+      expect(data.shippedAt).toBe('2026-10-29T13:00:00Z');
+    });
+
+    test('tracking number is optional — carrier alone still ships', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID, carrier: 'Posturinn' },
+        successReply({ ...shippedTransaction, shippingCarrier: 'Posturinn', trackingNumber: null })
+      );
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.status).toBe('Shipped');
+      expect(data.trackingNumber).toBeNull();
+    });
+
+    test('forwards transactionGuid, carrier and trackingNumber verbatim, carrying NO tenant/user identity args', async () => {
+      // The seller side is derived from the authenticated API key's tenant on the backend — never
+      // from a tool argument, or a buyer could ship its own order.
+      let capturedArgs = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.params?.name === 'UteamupMarketplaceTransactionShip') capturedArgs = body.params.arguments;
+          return body.params?.name === 'UteamupMarketplaceTransactionShip';
+        })
+        .reply(200, JSON.stringify(successReply(shippedTransaction).body), { 'Content-Type': 'application/json' });
+
+      const args = { transactionGuid: TRANSACTION_GUID, carrier: 'DHL', trackingNumber: '1Z999AA10123456784' };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceTransactionShip', args);
+
+      expect(capturedArgs).toEqual(args);
+      for (const forbidden of ['tenantGuid', 'tenantId', 'userId', 'sellerTenantGuid', 'sellerId']) {
+        expect(capturedArgs[forbidden]).toBeUndefined();
+      }
+    });
+
+    test('a buyer-side caller surfaces the seller-only refusal without crashing the proxy', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID, carrier: 'DHL' },
+        errorReply(-32000, 'Only the seller side can mark an order as shipped.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Only the seller side');
+    });
+
+    test('an unpaid or already-shipped order surfaces the state-machine refusal', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID, carrier: 'DHL' },
+        errorReply(-32000, 'Payment must be confirmed before the order is shipped.')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Payment must be confirmed');
+    });
+
+    test('an unknown transaction surfaces a not-found error', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: '00000000-0000-4000-8000-000000000000', carrier: 'DHL' },
+        errorReply(-32000, 'Transaction not found')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('not found');
+    });
+
+    test('returns error on permission denial', async () => {
+      const response = await call(
+        'UteamupMarketplaceTransactionShip',
+        { transactionGuid: TRANSACTION_GUID, carrier: 'DHL' },
+        errorReply(-32000, 'Permission denied: MarketplaceTransaction.Process required')
+      );
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.message).toContain('Permission denied');
+    });
+  });
+
   describe('UteamupMarketplaceSettingsGet tool', () => {
     test('returns the tenant marketplace settings', async () => {
       const response = await call('UteamupMarketplaceSettingsGet', {}, successReply(mockSettings));
@@ -691,6 +787,27 @@ describe('Marketplace MCP Tools', () => {
       const data = JSON.parse(response.body.result.content[0].text);
       expect(data.conditions.length).toBeGreaterThan(0);
     });
+
+    test('forwards the browse filter verbatim so counts match the filtered list (no identity args)', async () => {
+      let capturedArgs = null;
+      nock(BASE_URL)
+        .post('/mcp', body => {
+          if (body.params?.name === 'UteamupMarketplaceFacets') capturedArgs = body.params.arguments;
+          return body.params?.name === 'UteamupMarketplaceFacets';
+        })
+        .reply(200, JSON.stringify(successReply(mockFacets).body), { 'Content-Type': 'application/json' });
+
+      const args = {
+        search: 'drill', itemType: 'Tool', condition: 'Good', sourceKind: 'TenantListing',
+        sellerTenantGuid: 'aaaaaaaa-1111-2222-3333-444444444444'
+      };
+      await sendRawRequest(BASE_URL, 'UteamupMarketplaceFacets', args);
+
+      expect(capturedArgs).toEqual(args);
+      for (const forbidden of ['tenantGuid', 'tenantId', 'userId', 'callerTenantGuid']) {
+        expect(capturedArgs[forbidden]).toBeUndefined();
+      }
+    });
   });
 
   const mockBuyerReputation = {
@@ -729,6 +846,7 @@ describe('Marketplace MCP Tools', () => {
     { name: 'UteamupMarketplaceRequirementsList', args: {} },
     { name: 'UteamupMarketplaceMyOffersList', args: {} },
     { name: 'UteamupMarketplaceTransactionsList', args: { page: 1, pageSize: 20 } },
+    { name: 'UteamupMarketplaceTransactionShip', args: { transactionGuid: TRANSACTION_GUID, carrier: 'DHL' } },
     { name: 'UteamupMarketplaceSettingsGet', args: {} },
     { name: 'UteamupMarketplaceListingReport', args: { guid: LISTING_GUID, reasonCode: 'Illegal' } },
     { name: 'UteamupMarketplaceMessageSend', args: { listingGuid: LISTING_GUID, body: 'Hi' } },
