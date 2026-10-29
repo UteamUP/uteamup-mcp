@@ -122,6 +122,9 @@ describe('IoT MCP tools', () => {
   });
 
   const tools = [
+    { name: 'UteamupIoTNetworkClientLinks', args: { gatewayGuid: DEVICE_GUID } },
+    { name: 'UteamupIoTNetworkClientLink', args: { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', autoMatch: true } },
+    { name: 'UteamupIoTNetworkClientUnlink', args: { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID } },
     { name: 'UteamupIoTTelemetryOverview', args: {} },
     { name: 'UteamupIoTEnvironmentStatus', args: {} },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
@@ -133,6 +136,23 @@ describe('IoT MCP tools', () => {
     { name: 'UteamupIoTDeviceUpdate', args: { deviceGuid: '33333333-3333-4333-8333-333333333333', firmwareVersion: '2.1' } },
     { name: 'UteamupIoTDeviceKeysList', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
   ];
+  test('client links retain explicit unlink and revision without exposing internal IDs', async () => {
+    const args = { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID };
+    const response = await call('UteamupIoTNetworkClientUnlink', args, successReply({
+      linkGuid: KEY_GUID, gatewayDeviceGuid: DEVICE_GUID, macAddress: 'aabbccddeeff',
+      state: 'blocked', revision: DEVICE_GUID,
+    }));
+    const link = JSON.parse(response.body.result.content[0].text);
+    expect(link.state).toBe('blocked');
+    expect(link.revision).toBe(DEVICE_GUID);
+    expect(link).not.toHaveProperty('id');
+    expect(link).not.toHaveProperty('downloadAttributeGuid');
+    const empty = await call('UteamupIoTNetworkClientLinks', { gatewayGuid: DEVICE_GUID }, successReply([]));
+    expect(JSON.parse(empty.body.result.content[0].text)).toEqual([]);
+    const refused = await call('UteamupIoTNetworkClientLink', { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', autoMatch: true },
+      errorReply(-32603, 'Permission denied: AssetType.Create required.'));
+    expect(refused.body.error.message).toContain('AssetType.Create');
+  });
   test('overview forwards the observation window and preserves missing and zero energy', async () => {
     const args = { from: '2026-10-01T00:00:00Z', to: '2026-10-28T00:00:00Z' };
     const response = await call('UteamupIoTTelemetryOverview', args, successReply({
