@@ -3,7 +3,7 @@
   "name": "io.github.UteamUP/mcp-server",
   "title": "UteamUP CMMS",
   "description": "Connect AI assistants to UteamUP CMMS for work orders, assets, maintenance, and inventory.",
-  "version": "2.5.0-beta.9",
+  "version": "2.6.0-beta.9",
   "websiteUrl": "https://uteamup.com",
   "icons": [
     {
@@ -30,7 +30,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@uteamup/mcp-server",
-      "version": "2.5.0-beta.9",
+      "version": "2.6.0-beta.9",
       "transport": {
         "type": "stdio"
       },

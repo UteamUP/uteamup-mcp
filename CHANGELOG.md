@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.5.0-beta.9...2.6.0-beta.9) (2026-10-30)
+
+
+### Features
+
+* add client link management tests for IoT tools ([ad7a02c](https://github.com/UteamUP/uteamup-mcp/commit/ad7a02cd0dd1c122e2dde57f5288302c567a6899))
+* complete marketplace shipment and discovery workflows ([abbe260](https://github.com/UteamUP/uteamup-mcp/commit/abbe2602702f9b4e0ab6aedacf4abeacaf01ebff))
+* expose quantity stock installation in MCP and CLI ([d8c0529](https://github.com/UteamUP/uteamup-mcp/commit/d8c052995b9787aeee6794cd119f28761260e51d))
+
+
+### Tests
+
+* add UteamupMarketplaceTransactionShip tool tests for shipping functionality ([999c19b](https://github.com/UteamUP/uteamup-mcp/commit/999c19b055ce9ee1c49dc51c1ea4a748ba4d3fe2))
+* cover GUID arguments in floorplan read tools ([274489c](https://github.com/UteamUP/uteamup-mcp/commit/274489ca0ec8233a36f94fc410c9419810c68b0f))
+* cover MCP measurement presentation contracts ([2dfbbb0](https://github.com/UteamUP/uteamup-mcp/commit/2dfbbb030ef823ae29049c9dafa0665680e413bd))
+* cover paged asset activity comment tools ([d05ddb8](https://github.com/UteamUP/uteamup-mcp/commit/d05ddb8c7fa789ac8664b8f97c5b140342b6db21))
+* **iot:** cover the device room GUID passthrough on update ([5604a5c](https://github.com/UteamUP/uteamup-mcp/commit/5604a5caa69343d4755cf65ad841ff9357477a6d))
+
+
+### CI/CD
+
+* allow replaying the npmjs publish for an existing tag ([ae4bc03](https://github.com/UteamUP/uteamup-mcp/commit/ae4bc039bbf1ad5defb7cfd43d71dada2344d754))
+
 ## [2.5.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.4.0-beta.9...2.5.0-beta.9) (2026-10-28)
 
 
