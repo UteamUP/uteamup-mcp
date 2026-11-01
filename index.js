@@ -2,7 +2,6 @@
 
 /**
  * UteamUP MCP Proxy - Production-ready OAuth handler with enhanced debugging
- * Version: 1.0.0-beta.9
  *
  * Features:
  * - OAuth 2.0 Authorization Code + PKCE authentication
@@ -31,8 +30,7 @@ const {
   toPublicErrorMessage
 } = require('./lib/transport-security');
 
-// Package version
-const VERSION = '1.0.0-beta.9';
+const { version: VERSION } = require('./package.json');
 
 // CLI argument handling
 const args = process.argv.slice(2);
