@@ -122,6 +122,8 @@ describe('IoT MCP tools', () => {
   });
 
   const tools = [
+    { name: 'UteamupIoTAlertWorkorderGet', args: { alertGuid: DEVICE_GUID } },
+    { name: 'UteamupIoTAlertConvertToWorkorder', args: { alertGuid: DEVICE_GUID } },
     { name: 'UteamupIoTNetworkClientLinks', args: { gatewayGuid: DEVICE_GUID } },
     { name: 'UteamupIoTNetworkClientLink', args: { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', autoMatch: true } },
     { name: 'UteamupIoTNetworkClientUnlink', args: { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID } },
@@ -136,6 +138,18 @@ describe('IoT MCP tools', () => {
     { name: 'UteamupIoTDeviceUpdate', args: { deviceGuid: '33333333-3333-4333-8333-333333333333', firmwareVersion: '2.1' } },
     { name: 'UteamupIoTDeviceKeysList', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
   ];
+  test('alert conversion preserves the source GUID, linked workorder and permission errors', async () => {
+    const args = { alertGuid: DEVICE_GUID };
+    const empty = await call('UteamupIoTAlertWorkorderGet', args, successReply(null));
+    expect(JSON.parse(empty.body.result.content[0].text)).toBeNull();
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTAlertConvertToWorkorder', args,
+      successReply({ guid: KEY_GUID, name: 'Inspect pump', ticketId: 'WO-42' }), args);
+    const workorder = JSON.parse(response.body.result.content[0].text);
+    expect(workorder.guid).toBe(KEY_GUID);
+    expect(workorder).not.toHaveProperty('id');
+    const refused = await call('UteamupIoTAlertConvertToWorkorder', args, errorReply(-32603, 'Permission denied: WorkOrder.Create required.'));
+    expect(refused.body.error.message).toContain('WorkOrder.Create');
+  });
   test('client links retain explicit unlink and revision without exposing internal IDs', async () => {
     const args = { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID };
     const response = await call('UteamupIoTNetworkClientUnlink', args, successReply({
