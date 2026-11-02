@@ -23,7 +23,9 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     { name: 'UteamupPartGet', args: { partGuid: itemGuid } },
     { name: 'UteamupVendorGet', args: { vendorGuid: itemGuid } },
     { name: 'UteamupPartUpdate', args: { partGuid: itemGuid, manufacturer: 'Duracell', modelNumber: 'MN1500', sku: 'DUR-AA', unitOfMeasure: 'each', currencyGuid: documentGuid } },
-    { name: 'UteamupPartCreate', args: { name: 'AA battery', value: 10, currencyGuid: documentGuid } }
+    { name: 'UteamupPartCreate', args: { name: 'AA battery', value: 10, currencyGuid: documentGuid } },
+    { name: 'GetInventoryItem', args: { itemGuid, itemType: 'Part' } },
+    { name: 'UpdateInventoryItem', args: { itemGuid, itemType: 'Part', description: 'Corrected specification' } }
   ]);
   const call = (name, args, reply, expectedArgs) => callMcpTool(baseUrl, token, name, args, reply, expectedArgs);
   beforeEach(() => nock.cleanAll());
@@ -63,6 +65,13 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     const response = await call('uteamup_bug_report_add_comment', { reportGuid: itemGuid, message: 'Follow-up' },
       errorReply(-32603, 'not_found: Bug report not found.'));
     expect(response.body.error.message).toContain('not_found');
+  });
+
+  it('preserves an ambiguous legacy inventory identifier refusal', async () => {
+    const response = await call('UpdateInventoryItem', { id: 5, name: 'Changed' },
+      errorReply(-32602, 'invalid_argument: The inventory identifier is ambiguous. Pass itemGuid and itemType.'));
+    expect(response.body.error.message).toContain('ambiguous');
+    expect(response.body.error.message).toContain('itemGuid');
   });
 
   describeJsonRpcCompliance(call, cases);
