@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.2-beta.9...2.6.3-beta.9) (2026-11-02)
+
+
+### Tests
+
+* **iot:** pin metadata rename contracts through MCP ([6a84157](https://github.com/UteamUP/uteamup-mcp/commit/6a84157800874c4bb608b4602644d6585415483d))
+* retain typed part stock response metadata ([1383d52](https://github.com/UteamUP/uteamup-mcp/commit/1383d52ba6a5d5e312cd3906d43f457aebf55218))
+
 ## [2.6.2-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.1-beta.9...2.6.2-beta.9) (2026-11-02)
 
 
