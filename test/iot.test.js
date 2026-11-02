@@ -126,7 +126,10 @@ describe('IoT MCP tools', () => {
     { name: 'UteamupIoTAlertConvertToWorkorder', args: { alertGuid: DEVICE_GUID } },
     { name: 'UteamupIoTNetworkClientLinks', args: { gatewayGuid: DEVICE_GUID } },
     { name: 'UteamupIoTNetworkClientLink', args: { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', autoMatch: true } },
+    { name: 'UteamupIoTNetworkClientLinkPreview', args: { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', partGuid: KEY_GUID } },
     { name: 'UteamupIoTNetworkClientUnlink', args: { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID } },
+    { name: 'UteamupIoTResourceMeters', args: { resourceType: 'part', resourceGuid: KEY_GUID } },
+    { name: 'UteamupIoTResourceMeterHistory', args: { resourceType: 'tool', resourceGuid: KEY_GUID, attributeDefinitionGuid: DEVICE_GUID } },
     { name: 'UteamupIoTTelemetryOverview', args: {} },
     { name: 'UteamupIoTEnvironmentStatus', args: {} },
     { name: 'UteamupIoTMonitoringDashboard', args: {} },
@@ -158,6 +161,60 @@ describe('IoT MCP tools', () => {
     expect(link.gatewayDeviceGuid).toBe(DEVICE_GUID);
     expect(link.ipAddress).toBe('2001:db8::10');
     expect(link.macAddress).toBe('');
+  });
+
+  test.each(['part', 'tool'])('%s ownership survives link and type preview without an invented asset', async kind => {
+    const args = { gatewayGuid: DEVICE_GUID, macAddress: 'aabbccddeeff', [`${kind}Guid`]: KEY_GUID, autoMatch: false };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTNetworkClientLink', args,
+      successReply({ linkGuid: KEY_GUID, gatewayDeviceGuid: DEVICE_GUID, [`${kind}Guid`]: KEY_GUID,
+        assetGuid: null, resourceType: kind, resourceGuid: KEY_GUID, resourceName: `Existing ${kind}`, state: 'linked' }), args);
+    const link = JSON.parse(response.body.result.content[0].text);
+    expect(link.resourceType).toBe(kind);
+    expect(link[`${kind}Guid`]).toBe(KEY_GUID);
+    expect(link.assetGuid).toBeNull();
+
+    const preview = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTNetworkClientLinkPreview', args,
+      successReply({ resourceType: kind, resourceGuid: KEY_GUID, resourceName: `Existing ${kind}`,
+        recommendedAssetTypeName: 'Network client telemetry · source', hasRequiredAssetType: false,
+        willAddAssetType: true, meters: [{ fieldKey: 'download_scoped', name: 'Client download', unit: 'kB/s' }] }), args);
+    const recommendation = JSON.parse(preview.body.result.content[0].text);
+    expect(recommendation.willAddAssetType).toBe(true);
+    expect(recommendation.meters[0].unit).toBe('kB/s');
+    expect(recommendation).not.toHaveProperty('linkGuid');
+    const refused = await call('UteamupIoTNetworkClientLink', args,
+      errorReply(-32603, `Permission denied: ${kind === 'part' ? 'Part' : 'Tool'}.Update required.`));
+    expect(refused.body.error.message).toContain(`${kind === 'part' ? 'Part' : 'Tool'}.Update`);
+  });
+
+  test('resource meter reads preserve association identity, missing values and observed history', async () => {
+    const args = { resourceType: 'tool', resourceGuid: KEY_GUID };
+    const empty = await call('UteamupIoTResourceMeters', args, successReply([]));
+    expect(JSON.parse(empty.body.result.content[0].text)).toEqual([]);
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTResourceMeters', args, successReply([
+      { associationGuid: KEY_GUID, attributeDefinitionGuid: DEVICE_GUID, currentValue: 0, lastReadingAt: '2026-11-02T12:00:00Z' },
+      { associationGuid: DEVICE_GUID, attributeDefinitionGuid: KEY_GUID, currentValue: null, lastReadingAt: null },
+    ]), args);
+    expect(JSON.parse(response.body.result.content[0].text).map(meter => meter.currentValue)).toEqual([0, null]);
+    const historyArgs = { ...args, attributeDefinitionGuid: DEVICE_GUID, page: 2, pageSize: 25,
+      from: '2026-11-01T00:00:00Z', to: '2026-11-02T00:00:00Z' };
+    const history = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTResourceMeterHistory', historyArgs,
+      successReply({ ...args, attributeDefinitionGuid: DEVICE_GUID, page: 2, pageSize: 25, totalCount: 30,
+        readings: [{ externalGuid: KEY_GUID, readingValue: 0, readingTimestamp: '2026-11-01T12:00:00Z', source: 'ioT' }] }), historyArgs);
+    expect(JSON.parse(history.body.result.content[0].text)).toMatchObject({ page: 2, totalCount: 30,
+      readings: [{ readingValue: 0, readingTimestamp: '2026-11-01T12:00:00Z' }] });
+    const denied = await call('UteamupIoTResourceMeterHistory', historyArgs,
+      errorReply(-32603, 'Permission denied: Tool.View required.'));
+    expect(denied.body.error.message).toContain('Tool.View');
+  });
+
+  test.each(['part', 'tool'])('telemetry forwards the %s GUID filter and nullable asset identity', async kind => {
+    const args = { [`${kind}Guid`]: KEY_GUID, limit: 25 };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTTelemetryPoints', args,
+      successReply({ items: [{ [`${kind}Guid`]: KEY_GUID, assetGuid: null, value: 0 }] }), args);
+    const point = JSON.parse(response.body.result.content[0].text).items[0];
+    expect(point[`${kind}Guid`]).toBe(KEY_GUID);
+    expect(point.assetGuid).toBeNull();
+    expect(point.value).toBe(0);
   });
 
   test('client links retain explicit unlink and revision without exposing internal IDs', async () => {
