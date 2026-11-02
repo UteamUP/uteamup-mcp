@@ -22,7 +22,8 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     { name: 'uteamup_bug_report_add_comment', args: { reportGuid: itemGuid, message: 'Given a replacement bulb, preserve the fitting.' } },
     { name: 'UteamupPartGet', args: { partGuid: itemGuid } },
     { name: 'UteamupVendorGet', args: { vendorGuid: itemGuid } },
-    { name: 'UteamupPartUpdate', args: { partGuid: itemGuid, manufacturer: 'Duracell', modelNumber: 'MN1500', sku: 'DUR-AA', unitOfMeasure: 'each' } }
+    { name: 'UteamupPartUpdate', args: { partGuid: itemGuid, manufacturer: 'Duracell', modelNumber: 'MN1500', sku: 'DUR-AA', unitOfMeasure: 'each', currencyGuid: documentGuid } },
+    { name: 'UteamupPartCreate', args: { name: 'AA battery', value: 10, currencyGuid: documentGuid } }
   ]);
   const call = (name, args, reply, expectedArgs) => callMcpTool(baseUrl, token, name, args, reply, expectedArgs);
   beforeEach(() => nock.cleanAll());
