@@ -27,7 +27,9 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     { name: 'GetInventoryItem', args: { itemGuid, itemType: 'Part' } },
     { name: 'UpdateInventoryItem', args: { itemGuid, itemType: 'Part', description: 'Corrected specification' } },
     { name: 'UteamupStockCreateItem', args: { stockGuid: itemGuid, partGuid: documentGuid, type: 'Part',
-      name: 'Bulk material', minimumAmount: 1, maximumAmount: 10, initialStock: 1.234567 } }
+      name: 'Bulk material', minimumAmount: 1, maximumAmount: 10, initialStock: 1.234567 } },
+    { name: 'uteamup_product_web_files_import', args: { itemKind: 'Part', itemGuid,
+      url: 'https://images.example/photo.png', setAsProfileImage: true } }
   ]);
   const call = (name, args, reply, expectedArgs) => callMcpTool(baseUrl, token, name, args, reply, expectedArgs);
   beforeEach(() => nock.cleanAll());
@@ -80,6 +82,14 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     const response = await call('UteamupStockCreateItem', { stockGuid: itemGuid, partGuid: documentGuid,
       type: 'Part', name: 'Existing catalog item' }, errorReply(-32603, 'duplicate_resource: This location already contains that part.'));
     expect(response.body.error.message).toContain('duplicate_resource');
+  });
+
+  it('returns profile URLs only after an explicit successful web import', async () => {
+    const args = { itemKind: 'Part', itemGuid, url: 'https://images.example/photo.png', setAsProfileImage: true };
+    const image = { url: 'https://images.example/profile/256.jpg', original: 'https://images.example/profile/orig.jpg' };
+    const response = await call('uteamup_product_web_files_import', args,
+      successReply({ documentGuid, attachedToItem: true, image }), args);
+    expect(JSON.parse(response.body.result.content[0].text)).toMatchObject({ documentGuid, attachedToItem: true, image });
   });
 
   describeJsonRpcCompliance(call, cases);
