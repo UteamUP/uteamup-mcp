@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.1-beta.9...2.6.2-beta.9) (2026-11-02)
+
+
+### Miscellaneous
+
+* merge MCP release metadata ([d89d411](https://github.com/UteamUP/uteamup-mcp/commit/d89d411f88500990a5ca13cf8f7e503a5bf91c99))
+
+
+### Tests
+
+* **asset:** cover additive equipment identity MCP contracts ([7ff4c64](https://github.com/UteamUP/uteamup-mcp/commit/7ff4c640bd6d382bc6d5a854bbd1becd816243ee))
+* cover purchase receipt tool contracts ([eaf5155](https://github.com/UteamUP/uteamup-mcp/commit/eaf51550a7eaba5fc7f23ef68ba59495ba0c8463))
+
 ## [2.6.1-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.0-beta.9...2.6.1-beta.9) (2026-11-02)
 
 
