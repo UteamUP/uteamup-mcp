@@ -150,6 +150,16 @@ describe('IoT MCP tools', () => {
     const refused = await call('UteamupIoTAlertConvertToWorkorder', args, errorReply(-32603, 'Permission denied: WorkOrder.Create required.'));
     expect(refused.body.error.message).toContain('WorkOrder.Create');
   });
+  test('manual IP links keep source scope and forward no invented MAC', async () => {
+    const args = { gatewayGuid: DEVICE_GUID, ipAddress: '2001:db8::10', targetDeviceGuid: KEY_GUID, autoMatch: false };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTNetworkClientLink', args,
+      successReply({ linkGuid: KEY_GUID, gatewayDeviceGuid: DEVICE_GUID, macAddress: '', ipAddress: '2001:db8::10', state: 'linked' }), args);
+    const link = JSON.parse(response.body.result.content[0].text);
+    expect(link.gatewayDeviceGuid).toBe(DEVICE_GUID);
+    expect(link.ipAddress).toBe('2001:db8::10');
+    expect(link.macAddress).toBe('');
+  });
+
   test('client links retain explicit unlink and revision without exposing internal IDs', async () => {
     const args = { gatewayGuid: DEVICE_GUID, linkGuid: KEY_GUID, revision: KEY_GUID };
     const response = await call('UteamupIoTNetworkClientUnlink', args, successReply({
