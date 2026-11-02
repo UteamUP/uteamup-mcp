@@ -15,10 +15,12 @@ describe('Part stock levels GUID contract', () => {
   it('preserves real stock quantities, thresholds and public GUIDs', async () => {
     const args = { partGuid };
     const response = await call(args, successReply({ partGuid, partName: 'AA battery', totalQuantity: 0,
-      locations: [{ stockGuid: '89745e43-8a50-4888-b9c1-a1c4d99bbcdc', stockName: 'Vesturberg 111', quantity: 0, lowStockThreshold: 6, isLowStock: true }] }), args);
+      locations: [{ stockGuid: '89745e43-8a50-4888-b9c1-a1c4d99bbcdc', stockName: 'Vesturberg 111', locationName: null,
+        quantity: 0, lowStockThreshold: 6, isLowStock: true, maximumAmount: 20, reorderPoint: null, isAvailable: true }] }), args);
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.partGuid).toBe(partGuid);
-    expect(data.locations[0]).toMatchObject({ quantity: 0, lowStockThreshold: 6, isLowStock: true });
+    expect(data.locations[0]).toMatchObject({ quantity: 0, lowStockThreshold: 6, isLowStock: true,
+      maximumAmount: 20, reorderPoint: null, isAvailable: true });
     expect(data).not.toHaveProperty('partId');
     expect(data.locations[0]).not.toHaveProperty('locationId');
   });
