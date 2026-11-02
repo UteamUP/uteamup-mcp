@@ -25,7 +25,9 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
     { name: 'UteamupPartUpdate', args: { partGuid: itemGuid, manufacturer: 'Duracell', modelNumber: 'MN1500', sku: 'DUR-AA', unitOfMeasure: 'each', currencyGuid: documentGuid } },
     { name: 'UteamupPartCreate', args: { name: 'AA battery', value: 10, currencyGuid: documentGuid } },
     { name: 'GetInventoryItem', args: { itemGuid, itemType: 'Part' } },
-    { name: 'UpdateInventoryItem', args: { itemGuid, itemType: 'Part', description: 'Corrected specification' } }
+    { name: 'UpdateInventoryItem', args: { itemGuid, itemType: 'Part', description: 'Corrected specification' } },
+    { name: 'UteamupStockCreateItem', args: { stockGuid: itemGuid, partGuid: documentGuid, type: 'Part',
+      name: 'Bulk material', minimumAmount: 1, maximumAmount: 10, initialStock: 1.234567 } }
   ]);
   const call = (name, args, reply, expectedArgs) => callMcpTool(baseUrl, token, name, args, reply, expectedArgs);
   beforeEach(() => nock.cleanAll());
@@ -72,6 +74,12 @@ describe('Catalog image, document and reporter follow-up contracts', () => {
       errorReply(-32602, 'invalid_argument: The inventory identifier is ambiguous. Pass itemGuid and itemType.'));
     expect(response.body.error.message).toContain('ambiguous');
     expect(response.body.error.message).toContain('itemGuid');
+  });
+
+  it('preserves a duplicate single stock item refusal', async () => {
+    const response = await call('UteamupStockCreateItem', { stockGuid: itemGuid, partGuid: documentGuid,
+      type: 'Part', name: 'Existing catalog item' }, errorReply(-32603, 'duplicate_resource: This location already contains that part.'));
+    expect(response.body.error.message).toContain('duplicate_resource');
   });
 
   describeJsonRpcCompliance(call, cases);
