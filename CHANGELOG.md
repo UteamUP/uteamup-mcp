@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.0-beta.9...2.6.1-beta.9) (2026-11-02)
+
+
+### Tests
+
+* **asset:** cover lifecycle stage request proxy contract ([8ff8b91](https://github.com/UteamUP/uteamup-mcp/commit/8ff8b910bd33dd21c5ca69daaa773061791ec542))
+* cover source-scoped IP client linking ([9d2effa](https://github.com/UteamUP/uteamup-mcp/commit/9d2effa367fbdb89655a4fc35dad1b435a7c7f91))
+* **iot:** cover device type management proxy contracts ([eae29e4](https://github.com/UteamUP/uteamup-mcp/commit/eae29e4ca49121d4f0f79963da55a44ee8dde885))
+* **mcp:** cover explicit catalog value currency arguments ([8fc6eff](https://github.com/UteamUP/uteamup-mcp/commit/8fc6effc49a41e77009c4952fbdaceefd9123c77))
+* **mcp:** cover GUID catalog files and reporter reply contracts ([e06facb](https://github.com/UteamUP/uteamup-mcp/commit/e06facb42a3a0230c5fc847b77737b5fc543b094))
+* **mcp:** cover GUID inventory patches and ambiguous legacy identifiers ([16542cc](https://github.com/UteamUP/uteamup-mcp/commit/16542cc85d17c0b6a698738323e05fd21fa156fa))
+* **mcp:** cover optional web import profile image replacement ([0ae8ee2](https://github.com/UteamUP/uteamup-mcp/commit/0ae8ee2a3d566320bf5de08ddbad53bba70b7f1b))
+* **mcp:** cover single stock item creation contract ([bfbf0d2](https://github.com/UteamUP/uteamup-mcp/commit/bfbf0d23b4ca9095282ec73c32a2bc9644c1c7c8))
+* **stock:** cover immutable transaction history wire contracts ([5224786](https://github.com/UteamUP/uteamup-mcp/commit/52247864d22981fd282698e7625c43b57b212ac1))
+* **stock:** retain required legacy history fields ([b8fde6f](https://github.com/UteamUP/uteamup-mcp/commit/b8fde6fdec0493b9ea7ec87d9e6f062742063439))
+
 ## [2.6.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.5.0-beta.9...2.6.0-beta.9) (2026-11-01)
 
 
