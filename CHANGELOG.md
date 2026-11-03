@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.4-beta.9...2.6.5-beta.9) (2026-11-03)
+
+
+### Bug Fixes
+
+* document npm trust CLI setup and web authentication ([6ec031b](https://github.com/UteamUP/uteamup-mcp/commit/6ec031b7544a3d6fc9c6cffeaa953c58fbcde30b))
+* document required npm OIDC publisher permissions ([4df22e9](https://github.com/UteamUP/uteamup-mcp/commit/4df22e9d5eb87b56f97f5328f5db0e6215c31b2e))
+
+
+### Tests
+
+* cover reviewed component tool contracts ([8cd7727](https://github.com/UteamUP/uteamup-mcp/commit/8cd772777213502bac3743c0b144838b2454ef9d))
+* cover reviewed IoT component identity tools ([b316ec5](https://github.com/UteamUP/uteamup-mcp/commit/b316ec5a89d1af46e2a1fd805a98c109887da6f0))
+* pin the served component MCP tool names ([08e0cb2](https://github.com/UteamUP/uteamup-mcp/commit/08e0cb2c803b975aae64f252a0e312a43a256a54))
+* use a valid declared hardware identity namespace ([348ec6b](https://github.com/UteamUP/uteamup-mcp/commit/348ec6b1f295bde43171999a7f41fb721c851053))
+
 ## [2.6.4-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.3-beta.9...2.6.4-beta.9) (2026-11-03)
 
 
