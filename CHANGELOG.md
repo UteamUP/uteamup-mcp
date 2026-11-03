@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.4-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.3-beta.9...2.6.4-beta.9) (2026-11-03)
+
+
+### Bug Fixes
+
+* **deps:** update the MCP configuration validator ([00a19ef](https://github.com/UteamUP/uteamup-mcp/commit/00a19ef7c8d69af1facf57eaec56fa52974343f8))
+
+
+### Tests
+
+* cover resource-owned IoT associations and meter history ([0b9d9e4](https://github.com/UteamUP/uteamup-mcp/commit/0b9d9e44c62f5bcee749814245de952d7e6569eb))
+* preserve actual workorder dates through MCP proxy ([42288b4](https://github.com/UteamUP/uteamup-mcp/commit/42288b452df61a6c831075ce95e54c5bb84c7357))
+
 ## [Unreleased]
 
 - Patch the Zod validator used for MCP configuration while retaining the current major and production transport policy.
