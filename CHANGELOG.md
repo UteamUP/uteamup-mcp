@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Patch the Zod validator used for MCP configuration while retaining the current major and production transport policy.
+
 ## [2.6.3-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.2-beta.9...2.6.3-beta.9) (2026-11-02)
 
 
