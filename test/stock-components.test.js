@@ -16,11 +16,11 @@ describe('Reviewed serialized component tools', () => {
   const operation = { operationId, kind: 'Install', expectedUnitSequence: 0, effectiveAt,
     positionGuid, expectedPositionRevision: revision, reason: 'Reviewed physical installation' };
   const tools = [
-    { name: 'UteamupStockListComponentPositions', args: { assetGuid } },
-    { name: 'UteamupStockCreateComponentPosition', args: { assetGuid, model: { operationId, positionKey: 'bulb-1', name: 'Bulb1' } } },
-    { name: 'UteamupStockApplyComponentOperation', args: { unitGuid, model: operation } },
-    { name: 'UteamupStockGetUnitLifecycleFacts', args: { unitGuid, page: 2, pageSize: 10 } },
-    { name: 'UteamupStockGetUnitInstallationAt', args: { unitGuid, observedAt: effectiveAt } },
+    { name: 'uteamup_stock_list_component_positions', args: { assetGuid } },
+    { name: 'uteamup_stock_create_component_position', args: { assetGuid, model: { operationId, positionKey: 'bulb-1', name: 'Bulb1' } } },
+    { name: 'uteamup_stock_apply_component_operation', args: { unitGuid, model: operation } },
+    { name: 'uteamup_stock_get_unit_lifecycle_facts', args: { unitGuid, page: 2, pageSize: 10 } },
+    { name: 'uteamup_stock_get_unit_installation_at', args: { unitGuid, observedAt: effectiveAt } },
   ];
   const call = (name, args, reply) => callMcpTool(BASE_URL, TOKEN, name, args, reply, args);
 
@@ -46,7 +46,7 @@ describe('Reviewed serialized component tools', () => {
     const receipt = { operationId, effectiveAt, unit: { guid: unitGuid, status: 'Scrapped', unitSequence: 2 },
       replacementUnit: { guid: replacementUnitGuid, status: 'Installed', unitSequence: 1 } };
     for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await call('UteamupStockApplyComponentOperation', args, successReply(receipt));
+      const response = await call('uteamup_stock_apply_component_operation', args, successReply(receipt));
       expect(JSON.parse(response.body.result.content[0].text)).toEqual(receipt);
     }
     expect(args.model.operationId).toBe(operationId);
@@ -56,10 +56,10 @@ describe('Reviewed serialized component tools', () => {
 
   test('retains empty pages and distinguishes unknown history from known removal', async () => {
     const page = { items: [], totalItems: 0, page: 1, pageSize: 50 };
-    const response = await call('UteamupStockGetUnitLifecycleFacts', { unitGuid }, successReply(page));
+    const response = await call('uteamup_stock_get_unit_lifecycle_facts', { unitGuid }, successReply(page));
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(page);
     for (const state of ['UnknownBeforeRecordedHistory', 'KnownUninstalled', 'Ambiguous']) {
-      const result = await call('UteamupStockGetUnitInstallationAt', { unitGuid, observedAt: effectiveAt }, successReply({ state }));
+      const result = await call('uteamup_stock_get_unit_installation_at', { unitGuid, observedAt: effectiveAt }, successReply({ state }));
       expect(JSON.parse(result.body.result.content[0].text)).toEqual({ state });
     }
   });

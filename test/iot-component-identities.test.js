@@ -18,13 +18,13 @@ describe('Reviewed physical component identity tools', () => {
     channels: [{ channelNamespace: 'homeassistant.entity', stableChannelId: 'sensor.bulb_power', attribute: 'power',
       attributeDefinitionGuid: revision, unit: 'W', valueKind: 'gauge', quality: 'measured', expectsTelemetry: true }] };
   const tools = [
-    { name: 'UteamupIoTSourceGenerationsList', args: { sourceGuid } },
-    { name: 'UteamupIoTSourceEnroll', args: { sourceGuid, model: { operationId, expectedSourceRevision: revision, sourceKind: 'homeassistant', reason: 'Reviewed collector' } } },
-    { name: 'UteamupIoTSourceRetire', args: { sourceGuid, model: { operationId, expectedSourceRevision: revision, sourceGenerationGuid: generationGuid, reason: 'Retired collector' } } },
-    { name: 'UteamupIoTSourceKeyIssue', args: { sourceGuid, model: { name: 'Collector', credentialPurpose: 'componentSourceV2', sourceGenerationGuid: generationGuid } } },
-    { name: 'UteamupIoTPhysicalIdentitiesList', args: { sourceGuid, generationGuid, page: 2, pageSize: 10 } },
-    { name: 'UteamupIoTPhysicalIdentityReview', args: { sourceGuid, model: review } },
-    { name: 'UteamupIoTPhysicalIdentityEnd', args: { sourceGuid, identityGuid: revision, model: { operationId,
+    { name: 'uteamup_iot_source_generations_list', args: { sourceGuid } },
+    { name: 'uteamup_iot_source_enroll', args: { sourceGuid, model: { operationId, expectedSourceRevision: revision, sourceKind: 'homeassistant', reason: 'Reviewed collector' } } },
+    { name: 'uteamup_iot_source_retire', args: { sourceGuid, model: { operationId, expectedSourceRevision: revision, sourceGenerationGuid: generationGuid, reason: 'Retired collector' } } },
+    { name: 'uteamup_iot_source_key_issue', args: { sourceGuid, model: { name: 'Collector', credentialPurpose: 'componentSourceV2', sourceGenerationGuid: generationGuid } } },
+    { name: 'uteamup_iot_physical_identities_list', args: { sourceGuid, generationGuid, page: 2, pageSize: 10 } },
+    { name: 'uteamup_iot_physical_identity_review', args: { sourceGuid, model: review } },
+    { name: 'uteamup_iot_physical_identity_end', args: { sourceGuid, identityGuid: revision, model: { operationId,
       expectedSourceRevision: revision, expectedIdentityRevision: revision, expectedUnitSequence: 0,
       effectiveAt: '2026-11-02T11:00:00Z', reason: 'Reviewed retirement', blockIdentity: true } } },
   ];
@@ -47,7 +47,7 @@ describe('Reviewed physical component identity tools', () => {
   test('keeps the exact alias, zero unit sequence and channel semantics on uncertain retries', async () => {
     const args = { sourceGuid, model: review };
     for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await call('UteamupIoTPhysicalIdentityReview', args, successReply({ identityGuid: revision, bindings: [] }));
+      const response = await call('uteamup_iot_physical_identity_review', args, successReply({ identityGuid: revision, bindings: [] }));
       expect(JSON.parse(response.body.result.content[0].text).identityGuid).toBe(revision);
     }
     expect(args.model.operationId).toBe(operationId);
@@ -60,7 +60,7 @@ describe('Reviewed physical component identity tools', () => {
     const page = { items: [{ identityGuid: revision, identity: review.identity, bindings: [{ unitGuid,
       effectiveFrom: review.effectiveFrom, effectiveTo: '2026-11-02T11:00:00Z', channels: review.channels }] }], page: 1, pageSize: 50, totalItems: 1 };
     for (const expected of [page, { ...page, items: [], totalItems: 0 }]) {
-      const response = await call('UteamupIoTPhysicalIdentitiesList', { sourceGuid, generationGuid }, successReply(expected));
+      const response = await call('uteamup_iot_physical_identities_list', { sourceGuid, generationGuid }, successReply(expected));
       expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
     }
   });
