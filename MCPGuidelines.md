@@ -194,6 +194,18 @@ for this workflow; enabling OIDC in GitHub alone does not authorize npm publicat
 Follow the project configuration approval gate before creating or replacing the connection.
 The package's existing two-factor policy is independent of this OIDC configuration.
 
+With npm 11.15 or newer, the official CLI can create the same connection after approval:
+
+```bash
+UTEAMUP_DEPLOYED_CONFIG_APPROVED=1 npm trust github @uteamup/mcp-server \
+  --repo UteamUP/uteamup-mcp --file release-please.yml \
+  --allow-publish --yes --auth-type=web
+```
+
+Keep stdin and stdout attached to a real terminal for the one-time web authentication.
+Use this command if the website discards the form after authentication. Confirm the
+success response and the saved connection on npmjs.com before starting validation.
+
 Validate a new connection within npm's two-day window using a new Release Please release.
 Require a successful `publish-npm` job, the expected npm `latest` version and npm provenance
 that identifies this repository, workflow and release commit. Rollback is to remove only
