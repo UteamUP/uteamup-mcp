@@ -13,7 +13,7 @@ describe('Reviewed physical component identity tools', () => {
   const operationId = '44444444-4444-4444-8444-444444444444';
   const unitGuid = '55555555-5555-4555-8555-555555555555';
   const review = { operationId, expectedSourceRevision: revision, sourceGenerationGuid: generationGuid,
-    identity: { namespace: 'homeassistant.device_id', stableHardwareId: 'Thread-Device-CaseSensitive' },
+    identity: { namespace: 'provider.hardware', stableHardwareId: 'Thread-Device-CaseSensitive' },
     unitGuid, expectedUnitSequence: 0, effectiveFrom: '2026-11-02T10:00:00Z', reason: 'Reviewed exact physical identity',
     channels: [{ channelNamespace: 'homeassistant.entity', stableChannelId: 'sensor.bulb_power', attribute: 'power',
       attributeDefinitionGuid: revision, unit: 'W', valueKind: 'gauge', quality: 'measured', expectsTelemetry: true }] };
