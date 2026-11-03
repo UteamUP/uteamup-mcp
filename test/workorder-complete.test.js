@@ -79,6 +79,7 @@ describe('Workorder completion MCP tool', () => {
       description: 'Replaced the pump seal and tested for leaks',
       closeOutNotes: 'Seal kit taken from van stock',
       reportDate: '2026-09-23T14:30:00Z',
+      completedAt: '2026-09-23T14:45:00Z',
       timeSpent: 1.5,
       costIncurred: 240.5,
       additionalWorkerGuids: [
@@ -95,7 +96,9 @@ describe('Workorder completion MCP tool', () => {
       ticketId: 'WO-1042',
       name: 'Replace pump seal',
       status: 'Completed',
-      updatedAt: '2026-09-23T14:31:00Z',
+      updatedAt: '2026-09-24T10:00:00Z',
+      startedAt: '2026-09-23T13:00:00Z',
+      completedAt: reportArgs.completedAt,
       reportGuid,
     };
 
@@ -120,6 +123,17 @@ describe('Workorder completion MCP tool', () => {
     expect(data).toEqual(receipt);
     expect(data.reportGuid).toBe(reportGuid);
     expect(data).not.toHaveProperty('reportId');
+  });
+
+  test('forwards an actual completion correction and its reason through the existing update', async () => {
+    const correction = { workorderGuid, model: { completedAt: '2026-10-28T13:00:00Z',
+      completionCorrectionReason: 'Work happened last week' } };
+    const response = await call('UteamupWorkorderUpdate', correction,
+      successReply({ guid: workorderGuid, startedAt: '2026-10-28T09:00:00Z',
+        completedAt: correction.model.completedAt, status: 4 }));
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body.result.content[0].text).completedAt).toBe(correction.model.completedAt);
+    expect(nock.isDone()).toBe(true);
   });
 
   test('surfaces a 422 completion-blocked error envelope', async () => {
