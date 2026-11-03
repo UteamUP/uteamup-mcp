@@ -175,8 +175,32 @@ Releases are published to **npm** (`@uteamup/mcp-server`) by the `publish-npm` j
 6. Verify: `npm view @uteamup/mcp-server dist-tags` shows the new version as `latest`. Users on
    `npx @uteamup/mcp-server` may keep a cached copy; `npx -y @uteamup/mcp-server@latest` forces the new one.
 
-**One-time setup (package owner, npmjs.com):** package `@uteamup/mcp-server` → Settings → Trusted Publisher →
-GitHub Actions, organization `UteamUP`, repository `uteamup-mcp`, workflow `release-please.yml`, no environment.
+**Trusted Publisher configuration (owned by npmjs.com):** package `@uteamup/mcp-server` →
+Settings → Trusted Publisher. The existing `publish-npm` job already uses a GitHub-hosted
+runner, `id-token: write`, Node 22 and npm 11.6.2. Its npm connection must match:
+
+| Setting | Required value |
+|---------|----------------|
+| Publisher | GitHub Actions |
+| Organization or user | `UteamUP` |
+| Repository | `uteamup-mcp` |
+| Workflow filename | `release-please.yml` (filename only, case-sensitive) |
+| Environment name | Empty; the publishing job has no GitHub environment |
+| Allow npm publish | Enabled; the workflow publishes directly |
+| Allow npm dist-tag | Disabled; the workflow does not manage tags separately |
+
+New npm connections allow staged publishing by default. Explicitly enable `npm publish`
+for this workflow; enabling OIDC in GitHub alone does not authorize npm publication.
+Follow the project configuration approval gate before creating or replacing the connection.
+The package's existing two-factor policy is independent of this OIDC configuration.
+
+Validate a new connection within npm's two-day window using a new Release Please release.
+Require a successful `publish-npm` job, the expected npm `latest` version and npm provenance
+that identifies this repository, workflow and release commit. Rollback is to remove only
+this package's `UteamUP/uteamup-mcp` → `release-please.yml` Trusted Publisher connection.
+Do not add a separate replay workflow or a long-lived publish token as a recovery shortcut.
+
+Reference: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
 
 ### Do NOT
 
