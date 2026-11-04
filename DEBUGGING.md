@@ -18,7 +18,7 @@ MCP Inspector is the official debugging tool for Model Context Protocol (MCP) se
 ### 1. Install and Run MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector npx -y @uteamup/mcp-server@beta
+npx @modelcontextprotocol/inspector npx -y @uteamup/mcp-server@latest
 ```
 
 This command:
@@ -38,7 +38,7 @@ In the Inspector UI:
 |-----|-------|-------------|
 | `UTEAMUP_API_KEY` | Your 32-character API key | Get from UteamUP Tenant Settings → API Keys |
 | `UTEAMUP_SECRET` | Your 64-character secret | Generated when creating API key |
-| `UTEAMUP_API_BASE_URL` | `https://localhost:5002` (dev) or `https://api.uteamup.com` (prod) | Backend URL |
+| `UTEAMUP_API_BASE_URL` | `https://api.uteamup.com` | Production backend URL |
 | `UTEAMUP_DEBUG` | `1` or `true` | Enable detailed debug logging |
 
 ### 3. Connect
@@ -55,7 +55,7 @@ When authentication succeeds, you'll see these key notifications:
    ```
    [MCP Proxy] Starting UteamUP MCP Server
    [MCP Proxy] Version: 1.0.0-beta.6
-   [MCP Proxy] Base URL: https://localhost:5002
+   [MCP Proxy] Base URL: https://api.uteamup.com
    [MCP Proxy] Debug: enabled
    [MCP Proxy] Ready to receive JSON-RPC requests
    ```
@@ -90,7 +90,7 @@ When authentication succeeds, you'll see these key notifications:
 
 **Error:** `Token exchange failed: {"accessToken":"..."}`
 - **Cause:** Bug in beta.1 (fixed in beta.2+)
-- **Fix:** Upgrade to `@uteamup/mcp-server@beta` (latest)
+- **Fix:** Upgrade to `@uteamup/mcp-server@latest`.
 
 #### Connection Errors
 
@@ -165,14 +165,8 @@ Set `UTEAMUP_DEBUG=1` to see detailed logging including:
 2. Click Connect
 3. Should see: `MCP access denied: Your API key does not have MCP enabled`
 
-### Test Production vs Development
+### Verify the production backend URL
 
-**Development:**
-```bash
-UTEAMUP_API_BASE_URL=https://localhost:5002
-```
-
-**Production:**
 ```bash
 UTEAMUP_API_BASE_URL=https://api.uteamup.com
 ```
@@ -186,7 +180,7 @@ UTEAMUP_API_BASE_URL=https://api.uteamup.com
 - [ ] API key has MCP enabled (check in UteamUP)
 - [ ] Backend server is running at BASE_URL
 - [ ] Debug mode enabled (`UTEAMUP_DEBUG=1`)
-- [ ] Using latest beta version (`@beta` tag)
+- [ ] Running the published `@latest` version
 
 ## Advanced: Debugging with Raw Logs
 
@@ -195,10 +189,10 @@ If Inspector isn't working, run the package directly:
 ```bash
 export UTEAMUP_API_KEY="your-key"
 export UTEAMUP_SECRET="your-secret"
-export UTEAMUP_API_BASE_URL="https://localhost:5002"
+export UTEAMUP_API_BASE_URL="https://api.uteamup.com"
 export UTEAMUP_DEBUG="1"
 
-npx -y @uteamup/mcp-server@beta
+npx -y @uteamup/mcp-server@latest
 ```
 
 This will show raw stdio output. Send JSON-RPC messages manually to test.

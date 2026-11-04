@@ -248,6 +248,33 @@ describe('MCP proxy resilience (real stdio proxy, mocked backend)', () => {
     expect(result.elapsedMs).toBeLessThan(8000);
   }, TEST_TIMEOUT_MS);
 
+  test('releases an expired token refresh that keeps trickling and recovers tools/list', async () => {
+    const authorize = 'nock(BASE).get("/oauth/authorize").query(true).reply(302, "", { location: "http://localhost:3000/callback?code=fixture-code" });';
+    const result = await runProxy({
+      backend: [
+        authorize,
+        'nock(BASE).post("/oauth/token").reply(200, { access_token: "first-token", expires_in: 1 });',
+        `nock(BASE).matchHeader("authorization", "Bearer first-token").post("/mcp").reply(200, ${JSON.stringify(success(1))});`,
+        authorize,
+        'nock(BASE).post("/oauth/token").reply(200, () => trickle());',
+        'oauth("fresh-token");',
+        `nock(BASE).matchHeader("authorization", "Bearer fresh-token").post("/mcp").reply(200, ${JSON.stringify(success(3))});`
+      ].join('\n'),
+      requests: [1, 2, 3].map(id => ({ jsonrpc: '2.0', id, method: 'tools/list' })),
+      sequential: true,
+      env: { UTEAMUP_REQUEST_TIMEOUT: '1000', UTEAMUP_MAX_RETRIES: '0' },
+      dropIdleTimeout: true
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.responses).toEqual([
+      success(1),
+      { jsonrpc: '2.0', id: 2, error: { code: -32603, message: 'OAuth token request timed out after 1000 ms' } },
+      success(3)
+    ]);
+    expect(result.pending).toEqual([]);
+  }, TEST_TIMEOUT_MS);
+
   test('a stalled call does not block a later call', async () => {
     const result = await runProxy({
       backend: [

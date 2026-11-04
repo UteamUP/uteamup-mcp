@@ -23,6 +23,7 @@ const { buildMcpForwardHeaders } = require('./lib/mcp-http-headers');
 const {
   BoundedLineBuffer,
   ProxyTransportError,
+  attachRequestDeadline,
   attachRequestTimeout,
   collectResponseBody,
   getMcpRetryLimit,
@@ -267,6 +268,7 @@ async function requestNewAccessToken() {
             }
           });
           authRequest.once('error', reject);
+          attachRequestDeadline(authRequest, 'OAuth authorization request', config.requestTimeout, reject);
           attachRequestTimeout(authRequest, 'OAuth authorization request');
         });
       },
@@ -335,6 +337,7 @@ async function requestNewAccessToken() {
           });
 
           req.once('error', reject);
+          attachRequestDeadline(req, 'OAuth token request', config.requestTimeout, reject);
           attachRequestTimeout(req, 'OAuth token request');
           req.write(tokenData);
           req.end();
