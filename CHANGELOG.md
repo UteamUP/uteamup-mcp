@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.7-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.6-beta.9...2.6.7-beta.9) (2026-11-04)
+
+
+### Tests
+
+* **analytics:** retain maintenance evidence contracts through MCP ([e4667a5](https://github.com/UteamUP/uteamup-mcp/commit/e4667a5524f92d3375509403fa567c040699bed1))
+* **asset-bom:** preserve reviewed workflow and source authority through MCP ([82fa95f](https://github.com/UteamUP/uteamup-mcp/commit/82fa95f64794d98c645812a039a17ba095c808a5))
+* **marketplace:** preserve personal worker inputs through MCP ([6323a8a](https://github.com/UteamUP/uteamup-mcp/commit/6323a8a6b19691863bff6f483b35cd027faf999d))
+
 ## [2.6.6-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.5-beta.9...2.6.6-beta.9) (2026-11-04)
 
 
