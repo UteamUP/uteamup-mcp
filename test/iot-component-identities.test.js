@@ -23,6 +23,8 @@ describe('Reviewed physical component identity tools', () => {
     { name: 'uteamup_iot_source_retire', args: { sourceGuid, model: { operationId, expectedSourceRevision: revision, sourceGenerationGuid: generationGuid, reason: 'Retired collector' } } },
     { name: 'uteamup_iot_source_key_issue', args: { sourceGuid, model: { name: 'Collector', credentialPurpose: 'componentSourceV2', sourceGenerationGuid: generationGuid } } },
     { name: 'uteamup_iot_physical_identities_list', args: { sourceGuid, generationGuid, page: 2, pageSize: 10 } },
+    { name: 'uteamup_iot_physical_identities_list', args: { sourceGuid, generationGuid, page: 1, pageSize: 1,
+      identityNamespace: 'provider.hardware', stableHardwareId: 'Case Sensitive & /?' } },
     { name: 'uteamup_iot_physical_identity_review', args: { sourceGuid, model: review } },
     { name: 'uteamup_iot_physical_identity_end', args: { sourceGuid, identityGuid: revision, model: { operationId,
       expectedSourceRevision: revision, expectedIdentityRevision: revision, expectedUnitSequence: 0,
