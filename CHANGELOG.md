@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.6-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.5-beta.9...2.6.6-beta.9) (2026-11-04)
+
+
+### Bug Fixes
+
+* bound MCP OAuth refresh requests ([f7a6c8e](https://github.com/UteamUP/uteamup-mcp/commit/f7a6c8ee13b9f0e5910cc7c13213c12afc9ad129))
+
+
+### Tests
+
+* preserve exact hardware filters in physical identity tool forwarding ([149ea28](https://github.com/UteamUP/uteamup-mcp/commit/149ea288dfd74b0ae8a2dd448a4a874c73ab2554))
+
 ## [2.6.5-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.4-beta.9...2.6.5-beta.9) (2026-11-03)
 
 
