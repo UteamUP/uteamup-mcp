@@ -7,6 +7,8 @@
  *   AdminUnarchiveTenant(tenantGuid, extendDays?)           configured Global Admin only
  *   AdminPostponeTenantDeletion(tenantGuid, deletionDueAt)  configured Global Admin only
  *   AdminSetTenantLegalHold(tenantGuid, hold, reason?)      configured Global Admin only
+ *   AdminGetTenantLifecycleSettings()                       configured Global Admin only
+ *   AdminUpdateTenantLifecycleSettings(mode?, …periods?)    configured Global Admin only
  *
  * Raw nock-mocked HTTPS calls simulate what the generic proxy forwards to the backend /mcp.
  */
@@ -62,6 +64,50 @@ describe('Tenant billing lifecycle MCP Tools', () => {
     });
   });
 
+  describe('Settings', () => {
+    const settings = {
+      mode: 'enforce',
+      effectiveMode: 'dryRun',
+      purchasesAvailable: false,
+      enforcedSince: null,
+      cardGraceDays: 15,
+      archiveAfterDays: 90,
+      deleteAfterArchiveDays: 90,
+      restoreWindowDays: 30,
+      finalExportRetentionDays: 30,
+      maxTransitionsPerRun: 25,
+      contactEmail: 'privacy@uteamup.com',
+      deprovisionDedicatedResources: false
+    };
+
+    test('AdminGetTenantLifecycleSettings — Enforce runs as a dry run while purchases are closed', async () => {
+      const response = await call('AdminGetTenantLifecycleSettings', {}, successReply(settings));
+      const payload = JSON.parse(response.body.result.content[0].text);
+      expect(payload.mode).toBe('enforce');
+      expect(payload.effectiveMode).toBe('dryRun');
+    });
+
+    test('AdminUpdateTenantLifecycleSettings — a partial update returns the merged settings', async () => {
+      const reply = successReply({ ok: true, outcome: 'Ok', errorCode: null, value: { ...settings, mode: 'dryRun', cardGraceDays: 20 } });
+      const response = await call('AdminUpdateTenantLifecycleSettings', { mode: 'DryRun', cardGraceDays: 20 }, reply);
+      const payload = JSON.parse(response.body.result.content[0].text);
+      expect(payload.ok).toBe(true);
+      expect(payload.value.cardGraceDays).toBe(20);
+      expect(payload.value.archiveAfterDays).toBe(90);
+    });
+
+    test('AdminUpdateTenantLifecycleSettings — an out-of-range period is refused with a code', async () => {
+      const reply = successReply({ ok: false, outcome: 'Invalid', errorCode: 'out_of_range', value: null });
+      const response = await call('AdminUpdateTenantLifecycleSettings', { archiveAfterDays: 10 }, reply);
+      expect(JSON.parse(response.body.result.content[0].text).errorCode).toBe('out_of_range');
+    });
+
+    test('AdminUpdateTenantLifecycleSettings — a non-Global-Admin caller is refused', async () => {
+      const response = await call('AdminUpdateTenantLifecycleSettings', { mode: 'Enforce' }, errorReply(-32001, 'Caller is not a configured globaladmin.'));
+      expect(response.body.error.message).toBe('Caller is not a configured globaladmin.');
+    });
+  });
+
   describe('Refusals', () => {
     test('a non-Global-Admin caller gets the backend authorization error', async () => {
       const response = await call('AdminUnarchiveTenant', { tenantGuid: TENANT_GUID }, errorReply(-32001, 'Caller is not a configured globaladmin.'));
@@ -88,7 +134,9 @@ describe('Tenant billing lifecycle MCP Tools', () => {
     { name: 'AdminGetTenantLifecycle', args: { tenantGuid: TENANT_GUID } },
     { name: 'AdminUnarchiveTenant', args: { tenantGuid: TENANT_GUID, extendDays: 30 } },
     { name: 'AdminPostponeTenantDeletion', args: { tenantGuid: TENANT_GUID, deletionDueAt: '2027-06-30' } },
-    { name: 'AdminSetTenantLegalHold', args: { tenantGuid: TENANT_GUID, hold: false } }
+    { name: 'AdminSetTenantLegalHold', args: { tenantGuid: TENANT_GUID, hold: false } },
+    { name: 'AdminGetTenantLifecycleSettings', args: {} },
+    { name: 'AdminUpdateTenantLifecycleSettings', args: { mode: 'DryRun' } }
   ];
 
   describeJsonRpcCompliance(call, complianceTools);
