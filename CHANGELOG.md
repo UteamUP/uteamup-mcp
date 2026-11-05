@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.8-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.7-beta.9...2.6.8-beta.9) (2026-11-05)
+
+
+### Tests
+
+* Cover public part comment proxy contracts ([edb13ae](https://github.com/UteamUP/uteamup-mcp/commit/edb13ae1e8970c437c2c90c6ce1066728961937a))
+* cover the tenant billing lifecycle MCP tools ([7b5ae4a](https://github.com/UteamUP/uteamup-mcp/commit/7b5ae4a6bc54bc79e7333abd217287c631b6f74e))
+* **tenant-home:** enhance tenant tests to preserve memberships and handle API-key enumeration ([57853d9](https://github.com/UteamUP/uteamup-mcp/commit/57853d936ee066f7604ff53bd69d57a5866484be))
+
 ## [2.6.7-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.6-beta.9...2.6.7-beta.9) (2026-11-04)
 
 
