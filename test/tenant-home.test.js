@@ -36,7 +36,7 @@ describe('UteamUP Home tenant MCP tools', () => {
   const resultOf = (response) => JSON.parse(response.body.result.content[0].text);
 
   describe('tenantKind', () => {
-    test('my tenants show which are households, housing associations and businesses', async () => {
+    test('first-party my tenants preserve household and business memberships', async () => {
       const tenants = [
         { guid: TENANT_GUID, name: 'Heimilið', tenantKind: 'household' },
         { guid: '31000000-0000-0000-0000-000000000009', name: 'Verkstæðið ehf.', tenantKind: 'business' },
@@ -54,6 +54,39 @@ describe('UteamUP Home tenant MCP tools', () => {
         successReply({ success: true, tenantGuid: TENANT_GUID }), args);
 
       expect(resultOf(response).tenantGuid).toBe(TENANT_GUID);
+    });
+  });
+
+  describe('API-key tenant enumeration contract', () => {
+    test('my tenants returns the single server-authorized key tenant without a caller scope override', async () => {
+      const tenants = [{ guid: TENANT_GUID, name: 'Key company', tenantKind: 'business' }];
+
+      const response = await callMcpTool(BASE_URL, ACCESS_TOKEN, 'uteamup_tenant_get_my_tenants', {},
+        successReply(tenants), {});
+
+      expect(resultOf(response)).toEqual(tenants);
+    });
+
+    test.each([
+      { page: 1, tenants: [{ guid: TENANT_GUID, name: 'Key company' }] },
+      { page: 2, tenants: [] },
+    ])('list preserves page $page and the server total rather than inferring it from page length', async ({ page, tenants }) => {
+      const args = { page, pageSize: 1 };
+      const reply = { tenants, pageNumber: page, pageSize: 1, totalCount: 1, totalPages: 1,
+        hasPreviousPage: page > 1, hasNextPage: false };
+
+      const response = await callMcpTool(BASE_URL, ACCESS_TOKEN, 'uteamup_tenant_list', args,
+        successReply(reply), args);
+
+      expect(resultOf(response)).toEqual(reply);
+    });
+
+    test('a denied tenant read is preserved instead of falling back to a membership list', async () => {
+      const response = await callMcpTool(BASE_URL, ACCESS_TOKEN, 'uteamup_tenant_list', { page: 1, pageSize: 10 },
+        errorReply(-32000, 'permission_denied: Tenant.View required'), { page: 1, pageSize: 10 });
+
+      expect(response.body.error.message).toBe('permission_denied: Tenant.View required');
+      expect(response.body).not.toHaveProperty('result');
     });
   });
 
