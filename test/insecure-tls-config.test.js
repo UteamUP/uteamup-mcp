@@ -3,14 +3,25 @@
  *
  * Pins three properties of the insecureTLS flag:
  *   1. Defaults to false (TLS verification ON) when no env var is set.
- *   2. Honours UTEAMUP_INSECURE_TLS=1 (and "true") when the baseUrl is
- *      a dev / staging host.
- *   3. IGNORES the flag when baseUrl resolves to api.uteamup.com — a
- *      misconfigured CI runner or confused dev cannot MITM production
- *      OAuth + token exchange just by exporting one env var.
+ *   2. Honours UTEAMUP_INSECURE_TLS=1 (and "true") only when the baseUrl is
+ *      a loopback host (localhost, 127.0.0.0/8, ::1), like the CLI.
+ *   3. IGNORES the flag, with a warning, for every other host — production,
+ *      dev, staging, private IPs and lookalikes — so a misconfigured CI runner
+ *      or confused dev cannot expose OAuth + token exchange to a MITM just by
+ *      exporting one env var.
  */
 
+jest.mock('../lib/logger', () => ({
+  ...jest.requireActual('../lib/logger'),
+  warn: jest.fn()
+}));
+
+const { warn } = require('../lib/logger');
 const { loadConfig, configSchema } = require('../lib/config');
+
+beforeEach(() => {
+  warn.mockClear();
+});
 
 const REQUIRED_ENV = {
   UTEAMUP_API_KEY: 'a'.repeat(32),
@@ -44,22 +55,49 @@ describe('UTEAMUP-SEC-2026-05-02-008 — insecureTLS config', () => {
   test('defaults to false when no env var is set', () => {
     const cfg = withEnv({ UTEAMUP_INSECURE_TLS: undefined }, loadConfig);
     expect(cfg.insecureTLS).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
   });
 
-  test('honours UTEAMUP_INSECURE_TLS=1 against dev backend', () => {
-    const cfg = withEnv(
-      { UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: 'https://devback.uteamup.com' },
-      loadConfig
-    );
+  test.each([
+    'https://localhost:5002',
+    'https://LOCALHOST:5002',
+    'https://127.0.0.1:5002',
+    'https://127.10.20.30',
+    'https://[::1]:5002'
+  ])('honours UTEAMUP_INSECURE_TLS=1 against loopback %s', baseUrl => {
+    const cfg = withEnv({ UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: baseUrl }, loadConfig);
     expect(cfg.insecureTLS).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
   });
 
-  test('honours UTEAMUP_INSECURE_TLS=1 against localhost', () => {
+  test.each([
+    'https://api.uteamup.com',
+    'https://devback.uteamup.com',
+    'https://prufaback.uteamup.com',
+    'https://10.0.0.5:5002',
+    'https://192.168.68.86',
+    'https://[::ffff:127.0.0.1]',
+    'https://localhost.evil.example',
+    'https://evil-localhost',
+    'https://127.0.0.1.evil.example',
+    'https://localhost.:5002'
+  ])('ignores UTEAMUP_INSECURE_TLS=1 and warns for non-loopback %s', baseUrl => {
+    const cfg = withEnv({ UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: baseUrl }, loadConfig);
+    expect(cfg.insecureTLS).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('UTEAMUP_INSECURE_TLS ignored'),
+      { baseUrl: cfg.baseUrl }
+    );
+  });
+
+  test('does not warn when the flag is unset against a non-loopback host', () => {
     const cfg = withEnv(
-      { UTEAMUP_INSECURE_TLS: '1', UTEAMUP_API_BASE_URL: 'https://localhost:5002' },
+      { UTEAMUP_INSECURE_TLS: undefined, UTEAMUP_API_BASE_URL: 'https://devback.uteamup.com' },
       loadConfig
     );
-    expect(cfg.insecureTLS).toBe(true);
+    expect(cfg.insecureTLS).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   test('honours UTEAMUP_INSECURE_TLS=true (string form)', () => {
