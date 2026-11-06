@@ -134,6 +134,18 @@ describe('Configuration Validation', () => {
       expect(config.debug).toBe(true);
       expect(config.logLevel).toBe('DEBUG');
     });
+
+    test('should ignore UTEAMUP_INSECURE_TLS on production hosts and allow it on dev/loopback', () => {
+      process.env.UTEAMUP_API_KEY = '12345678901234567890123456789012';
+      process.env.UTEAMUP_SECRET = '1234567890123456789012345678901234567890123456789012345678901234';
+      process.env.UTEAMUP_INSECURE_TLS = 'true';
+      process.env.UTEAMUP_API_BASE_URL = 'https://api.uteamup.com';
+
+      expect(loadConfig().insecureTLS).toBe(false);
+
+      process.env.UTEAMUP_API_BASE_URL = 'https://localhost:7019';
+      expect(loadConfig().insecureTLS).toBe(true);
+    });
   });
 
   describe('validateConfig', () => {
