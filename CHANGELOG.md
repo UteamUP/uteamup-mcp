@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.9-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.8-beta.9...2.6.9-beta.9) (2026-11-06)
+
+
+### Bug Fixes
+
+* **security:** disallow UTEAMUP_INSECURE_TLS on production hosts ([32a786b](https://github.com/UteamUP/uteamup-mcp/commit/32a786b2b7ee1b99b79734c2f127271e05ef3f5f))
+* **security:** honour UTEAMUP_INSECURE_TLS only for loopback hosts ([09cdc0e](https://github.com/UteamUP/uteamup-mcp/commit/09cdc0ec8c1ab834da6a6725f0e7da5648d2668e))
+
+
+### Tests
+
+* **archive:** cover the archive and restore MCP tools of every archivable record ([db9ebfd](https://github.com/UteamUP/uteamup-mcp/commit/db9ebfd89e6ec4030a6692560d9077bf117aa184))
+* cover the tenant lifecycle settings MCP tools ([1ad3964](https://github.com/UteamUP/uteamup-mcp/commit/1ad396448355cb2eeb752e00e8cb2ded75329d36))
+* **inventory:** cover the archive and restore tools and asset-free bulk delete ([a4cd46d](https://github.com/UteamUP/uteamup-mcp/commit/a4cd46db50c828188c6b0b1ff5e7f70f92b21a26))
+
 ## [2.6.8-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.7-beta.9...2.6.8-beta.9) (2026-11-05)
 
 
