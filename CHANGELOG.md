@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.10-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.9-beta.9...2.6.10-beta.9) (2026-11-07)
+
+
+### Tests
+
+* cover protected hosting snapshot proxy contracts ([50a9fa8](https://github.com/UteamUP/uteamup-mcp/commit/50a9fa810abfb6330ded8d2f4c049e890887fc46))
+
 ## [2.6.9-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.8-beta.9...2.6.9-beta.9) (2026-11-06)
 
 
