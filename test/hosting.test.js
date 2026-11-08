@@ -16,6 +16,8 @@ describe('Saved platform hosting evidence', () => {
     const model = { isConfigured: true, month: '2026-11-01', subscriptions: [{
       subscriptionGuid: 'aaaaaaaa-1111-4111-8111-111111111111',
       costs: { charges: [{ cost: -10, currency: 'EUR', resourceId: null }] },
+      monthlyBreakdowns: [{ month: '2026-10-01', currency: 'EUR', cost: -10,
+        collectedAt: '2026-11-08T21:08:00Z', categories: [{ category: 'other', cost: -10 }] }],
       invoices: { invoices: [{ name: 'invoice', total: null, tax: null, due: null }] },
     }] };
     const result = await call(tool.name, tool.args, successReply(model));
