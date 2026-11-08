@@ -6,6 +6,7 @@ const { describeJsonRpcCompliance, describe401Unauthorized, describe503ServiceUn
 
 const baseUrl = 'https://api.uteamup.com';
 const tool = { name: 'UteamupHostingCosts', args: { month: '2026-11-01' } };
+const retryTool = { name: 'UteamupHostingRetryPermissions', args: {} };
 const call = (name, args, reply) => callMcpTool(baseUrl, 'test-token', name, args, reply);
 
 describe('Saved platform hosting evidence', () => {
@@ -28,8 +29,12 @@ describe('Saved platform hosting evidence', () => {
     const result = await call(tool.name, tool.args, errorReply(-32003, 'Configured Global Admin required'));
     expect(result.body.error.message).toContain('Global Admin');
   });
+  test.each([true, false])('passes the guarded permission-retry result %s through unchanged', async (retried) => {
+    const result = await call(retryTool.name, retryTool.args, successReply(retried));
+    expect(JSON.parse(result.body.result.content[0].text)).toBe(retried);
+  });
 });
 
-describeJsonRpcCompliance(call, [tool]);
-describe401Unauthorized(baseUrl, [tool]);
-describe503ServiceUnavailable(baseUrl, [tool]);
+describeJsonRpcCompliance(call, [tool, retryTool]);
+describe401Unauthorized(baseUrl, [tool, retryTool]);
+describe503ServiceUnavailable(baseUrl, [tool, retryTool]);
