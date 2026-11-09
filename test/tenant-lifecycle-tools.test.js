@@ -7,6 +7,7 @@
  *   AdminUnarchiveTenant(tenantGuid, extendDays?)           configured Global Admin only
  *   AdminPostponeTenantDeletion(tenantGuid, deletionDueAt)  configured Global Admin only
  *   AdminSetTenantLegalHold(tenantGuid, hold, reason?)      configured Global Admin only
+ *   AdminSetTenantAlwaysFreeDemoWorkspace(tenantGuid, enabled, reason)  configured Global Admin only
  *   AdminGetTenantLifecycleSettings()                       configured Global Admin only
  *   AdminUpdateTenantLifecycleSettings(mode?, …periods?)    configured Global Admin only
  *
@@ -61,6 +62,15 @@ describe('Tenant billing lifecycle MCP Tools', () => {
       const reply = successReply({ ok: true, outcome: 'Ok', errorCode: null, value: { ...archived, legalHold: true } });
       const response = await call('AdminSetTenantLegalHold', { tenantGuid: TENANT_GUID, hold: true, reason: 'Court order' }, reply);
       expect(JSON.parse(response.body.result.content[0].text).value.legalHold).toBe(true);
+    });
+
+    test('AdminSetTenantAlwaysFreeDemoWorkspace — makes the workspace permanently free and active', async () => {
+      const reply = successReply({ ok: true, outcome: 'Ok', errorCode: null, value: { ...archived, stage: 'active', archivedAt: null, alwaysFreeDemoWorkspace: true } });
+      const response = await call('AdminSetTenantAlwaysFreeDemoWorkspace', { tenantGuid: TENANT_GUID, enabled: true, reason: 'Partner demo' }, reply);
+      const payload = JSON.parse(response.body.result.content[0].text);
+      expect(payload.ok).toBe(true);
+      expect(payload.value.alwaysFreeDemoWorkspace).toBe(true);
+      expect(payload.value.stage).toBe('active');
     });
   });
 
@@ -127,6 +137,19 @@ describe('Tenant billing lifecycle MCP Tools', () => {
       const response = await call('AdminSetTenantLegalHold', { tenantGuid: TENANT_GUID, hold: true }, reply);
       expect(JSON.parse(response.body.result.content[0].text).errorCode).toBe('legal_hold_reason_required');
     });
+
+    test('a free demo workspace is refused while an unpaid invoice is open', async () => {
+      const reply = successReply({ ok: false, outcome: 'Conflict', errorCode: 'demo_workspace_has_unpaid_invoice', value: null });
+      const response = await call('AdminSetTenantAlwaysFreeDemoWorkspace', { tenantGuid: TENANT_GUID, enabled: true, reason: 'Partner demo' }, reply);
+      const payload = JSON.parse(response.body.result.content[0].text);
+      expect(payload.ok).toBe(false);
+      expect(payload.errorCode).toBe('demo_workspace_has_unpaid_invoice');
+    });
+
+    test('a free demo workspace change by a non-Global-Admin caller is refused', async () => {
+      const response = await call('AdminSetTenantAlwaysFreeDemoWorkspace', { tenantGuid: TENANT_GUID, enabled: true, reason: 'x' }, errorReply(-32001, 'Caller is not a configured globaladmin.'));
+      expect(response.body.error.message).toBe('Caller is not a configured globaladmin.');
+    });
   });
 
   const complianceTools = [
@@ -135,6 +158,7 @@ describe('Tenant billing lifecycle MCP Tools', () => {
     { name: 'AdminUnarchiveTenant', args: { tenantGuid: TENANT_GUID, extendDays: 30 } },
     { name: 'AdminPostponeTenantDeletion', args: { tenantGuid: TENANT_GUID, deletionDueAt: '2027-06-30' } },
     { name: 'AdminSetTenantLegalHold', args: { tenantGuid: TENANT_GUID, hold: false } },
+    { name: 'AdminSetTenantAlwaysFreeDemoWorkspace', args: { tenantGuid: TENANT_GUID, enabled: false, reason: 'Demo ended' } },
     { name: 'AdminGetTenantLifecycleSettings', args: {} },
     { name: 'AdminUpdateTenantLifecycleSettings', args: { mode: 'DryRun' } }
   ];
