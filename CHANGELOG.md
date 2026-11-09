@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.10-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.9-beta.9...2.6.10-beta.9) (2026-11-09)
+
+
+### Tests
+
+* cover atomic safety acknowledgement MCP contracts [skip ci] ([b29c77a](https://github.com/UteamUP/uteamup-mcp/commit/b29c77a4b95eb96e6aa1557ad5c8b62e4782fc23))
+* cover Hosting permission recovery transport ([4829a31](https://github.com/UteamUP/uteamup-mcp/commit/4829a3189326fb1d41e12561776db3e2c5342be5))
+* cover paged sensor MCP transport [skip ci] ([a3e0bb1](https://github.com/UteamUP/uteamup-mcp/commit/a3e0bb163f593e0a0cb5677e830c968ba8126746))
+* cover protected hosting refresh proxy contracts ([89dd3e4](https://github.com/UteamUP/uteamup-mcp/commit/89dd3e49ee1bfc2b3f27a1e83c6ae59bdd7343de))
+* cover protected hosting snapshot proxy contracts ([50a9fa8](https://github.com/UteamUP/uteamup-mcp/commit/50a9fa810abfb6330ded8d2f4c049e890887fc46))
+* retain Hosting category comparisons through MCP ([5923ef0](https://github.com/UteamUP/uteamup-mcp/commit/5923ef0226faaa123c3a4f2b63e708bc1f22fe55))
+* **tenant-lifecycle:** cover the always-free demo workspace tool ([b6bee82](https://github.com/UteamUP/uteamup-mcp/commit/b6bee82ff11ab2f8c5c054816a5b50cd9fad2ee3))
+
 ## [2.6.9-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.8-beta.9...2.6.9-beta.9) (2026-11-06)
 
 
