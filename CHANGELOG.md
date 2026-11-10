@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.11-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.10-beta.9...2.6.11-beta.9) (2026-11-10)
+
+
+### Documentation
+
+* link the unified interface and style guide [skip ci] ([263bf38](https://github.com/UteamUP/uteamup-mcp/commit/263bf380ebfa0076b529ba587821684f5c3481ae))
+
+
+### Tests
+
+* **analytics:** cover the value overview tool contract ([910f5c5](https://github.com/UteamUP/uteamup-mcp/commit/910f5c55ada929037e4cae558e599208800b596b))
+* cover inventory context and explicit handling contracts ([35e341a](https://github.com/UteamUP/uteamup-mcp/commit/35e341aa7a9f71b2901733c39bd6e022987d557b))
+* cover tenant member access MCP transport ([28bd15f](https://github.com/UteamUP/uteamup-mcp/commit/28bd15f0b211958b8d9095a3c3513548181c1f3f))
+* cover workforce preview MCP tool contracts ([66a49f0](https://github.com/UteamUP/uteamup-mcp/commit/66a49f0499f13f1b25249dca72b28b054c3b0f6d))
+
 ## [2.6.10-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.9-beta.9...2.6.10-beta.9) (2026-11-09)
 
 
