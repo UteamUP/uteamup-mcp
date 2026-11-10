@@ -17,6 +17,9 @@ const tools = [
   { name: 'UteamupWorkerPresenceList', args: { page: 1, pageSize: 50 } },
   { name: 'UteamupWorkerPresenceMine', args: {} },
   { name: 'UteamupWorkerPresenceDeclare', args: { model: { mode: 'home', expiresAtUtc: '2026-11-10T20:00:00Z', expectedUpdatedAt: model.expectedUpdatedAt } } },
+  { name: 'UteamupPayrollPreparationList', args: { page: 1, pageSize: 25 } },
+  { name: 'UteamupPayrollTimesheetChoices', args: { page: 1, pageSize: 25, search: 'Anna' } },
+  { name: 'UteamupPayrollPreparationCreate', args: { model: { timesheetGuids: [guid], exportFormat: 'CSV' } } },
 ];
 const call = (name, args, reply) => callMcpTool(baseUrl, 'test-token', name, args, reply);
 afterEach(() => nock.cleanAll());
