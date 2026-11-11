@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.13-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.12-beta.9...2.6.13-beta.9) (2026-11-11)
+
+
+### Tests
+
+* cover global search MCP tool contract ([858344f](https://github.com/UteamUP/uteamup-mcp/commit/858344f8440457ed701e429fdeb6f7ea43ed674a))
+
 ## [2.6.12-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.11-beta.9...2.6.12-beta.9) (2026-11-10)
 
 
