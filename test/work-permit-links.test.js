@@ -114,6 +114,7 @@ describe("Work permit link and prerequisite MCP tools", () => {
       "KnowledgeArticle",
       "Tool",
       "Certificate",
+      "Project",
     ])("forwards link type %s verbatim", async (linkType) => {
       const args = { workPermitGuid, linkType, targetGuid };
       const response = await call(
@@ -221,6 +222,7 @@ describe("Work permit link and prerequisite MCP tools", () => {
       "knowledgearticle",
       "tool",
       "certificate",
+      "project",
     ])("forwards lowercase link type %s verbatim", async (linkType) => {
       const args = { linkType, targetGuid };
       const response = await call(
