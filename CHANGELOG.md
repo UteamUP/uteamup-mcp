@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.14-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.13-beta.9...2.6.14-beta.9) (2026-11-12)
+
+
+### Tests
+
+* cover document library history MCP transport ([08d2e29](https://github.com/UteamUP/uteamup-mcp/commit/08d2e29658018509d66a9ae14241c99d29eee691))
+* cover work permit project link transport ([05a475f](https://github.com/UteamUP/uteamup-mcp/commit/05a475ff9615389f95f4964c395e7e6bec01d0d3))
+
 ## [2.6.13-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.12-beta.9...2.6.13-beta.9) (2026-11-11)
 
 
