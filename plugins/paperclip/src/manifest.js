@@ -10,7 +10,7 @@ export const tools = [
     name: "cli",
     displayName: "UteamUP CLI",
     description:
-      "Run the installed UteamUP CLI on the configured Mac for this company and UteamUP tenant. Supply arguments without the executable. Use --help to discover commands. Includes bugs list/get for the authorized product-team workflow. Changes require the user task to authorize them. Authentication, global config changes, profile overrides and disabling TLS are unavailable.",
+      "Run the installed UteamUP CLI locally on the Paperclip server or over the configured SSH connection for this company and UteamUP tenant. Supply arguments without the executable. Use --help to discover commands. Includes bugs list/get for the authorized product-team workflow. Changes require the user task to authorize them. Authentication, global config changes, profile overrides and disabling TLS are unavailable.",
     parametersSchema: object(
       {
         args: {
@@ -63,35 +63,37 @@ const secret = (title) => ({
 export const manifest = {
   id: "uteamup.integration",
   apiVersion: 1,
-  version: "0.1.0",
+  version: "0.1.1",
   displayName: "UteamUP CLI & MCP",
   author: "UteamUP",
   categories: ["workspace"],
   description:
-    "Tenant-scoped UteamUP CLI on Mac over SSH and production MCP tools, including bug reporting and investigation. Uses encrypted secret references and preserves the operator CLI configuration.",
+    "Tenant-scoped UteamUP CLI on the Paperclip server or over SSH, plus production MCP tools for bug reporting and investigation. Uses encrypted secret references and preserves CLI configuration.",
   capabilities: ["agent.tools.register", "secrets.read-ref", "http.outbound"],
   entrypoints: { worker: "dist/worker.js" },
   instanceConfigSchema: object(
     {
       companyId: text("Paperclip company GUID"),
       tenantGuid: text("UteamUP tenant GUID"),
-      sshHost: text("Mac SSH host"),
-      sshUsername: text("Mac SSH username"),
-      sshHostKey: text("Pinned Mac host key (ssh-ed25519 public key)"),
-      workingDirectory: text("Mac working directory"),
-      cliPath: text("Installed CLI path", "/opt/homebrew/bin/uteamup"),
+      cliExecutionMode: {
+        type: "string",
+        title: "CLI execution: local server or SSH",
+        enum: ["local", "ssh"],
+        default: "local",
+      },
+      sshHost: text("SSH host (SSH mode only)"),
+      sshUsername: text("SSH username (SSH mode only)"),
+      sshHostKey: text("Pinned SSH host key (SSH mode only)"),
+      workingDirectory: text("CLI working directory"),
+      cliPath: text("Installed CLI path", "/usr/local/bin/uteamup"),
       sshKeyRef: secret("Existing Mac SSH private key"),
       mcpCredentialRef: secret("UteamUP MCP credential (API key:secret)"),
     },
     [
       "companyId",
       "tenantGuid",
-      "sshHost",
-      "sshUsername",
-      "sshHostKey",
       "workingDirectory",
       "cliPath",
-      "sshKeyRef",
       "mcpCredentialRef",
     ],
   ),

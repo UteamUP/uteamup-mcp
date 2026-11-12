@@ -39,7 +39,7 @@ export function registerTools(ctx) {
             error:
               error instanceof InputError
                 ? error.message
-                : "UteamUP connection failed. Check the encrypted credentials, permissions and Mac availability.",
+                : "UteamUP connection failed. Check the CLI installation, encrypted credentials and backend permissions.",
           };
         }
       },

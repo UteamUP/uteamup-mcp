@@ -7,6 +7,7 @@ import {
   validateArgs,
   cliCommand,
   runCli,
+  localCliEnvironment,
   findMcpTools,
   validateMcpCall,
 } from "../src/runtime.js";
@@ -45,6 +46,80 @@ test("fails closed for a different company or missing company identity", () => {
   assertCompany(config, { companyId: config.companyId });
   assert.throws(() => assertCompany(config, { companyId: "other" }));
   assert.throws(() => assertCompany(config, {}));
+});
+
+const localConfig = {
+  companyId: config.companyId,
+  tenantGuid: config.tenantGuid,
+  cliExecutionMode: "local",
+  workingDirectory: "/var/lib/paperclip",
+  cliPath: "/usr/local/bin/uteamup",
+  mcpCredentialRef: config.mcpCredentialRef,
+};
+
+test("local CLI needs no SSH connection but still requires a bound MCP secret", () => {
+  assert.equal(validateConfig(localConfig), localConfig);
+  assert.throws(() =>
+    validateConfig({ ...localConfig, cliExecutionMode: "other" }),
+  );
+  assert.throws(() =>
+    validateConfig({ ...localConfig, mcpCredentialRef: "raw" }),
+  );
+  assert.throws(() => validateConfig({ ...localConfig, cliPath: "uteamup" }));
+  assert.throws(() =>
+    validateConfig({ ...localConfig, cliExecutionMode: "ssh" }),
+  );
+});
+
+test("local environment pins production and tenant without inheriting service secrets", () => {
+  const env = localCliEnvironment(localConfig, {
+    HOME: "/var/lib/paperclip",
+    PATH: "/usr/local/bin:/usr/bin:/bin",
+    OPENAI_API_KEY: "private-service-value",
+    DATABASE_URL: "private-database-value",
+    UTEAMUP_API_KEY: "ambient-key",
+    UTEAMUP_API_BASE_URL: "https://wrong.invalid",
+    UTEAMUP_TENANT_GUID: "wrong-tenant",
+  });
+  assert.equal(env.HOME, "/var/lib/paperclip");
+  assert.equal(env.UTEAMUP_API_BASE_URL, "https://api.uteamup.com");
+  assert.equal(env.UTEAMUP_TENANT_GUID, config.tenantGuid);
+  for (const key of ["OPENAI_API_KEY", "DATABASE_URL", "UTEAMUP_API_KEY"])
+    assert.equal(env[key], undefined);
+});
+
+test("local CLI passes literal arguments without a shell or SSH secret reads", async () => {
+  const args = ["asset", "search", "a'; $(touch /tmp/unwanted)"];
+  const result = await runCli(
+    {},
+    localConfig,
+    args,
+    async (file, received, options) => {
+      assert.equal(file, localConfig.cliPath);
+      assert.deepEqual(received, args);
+      assert.equal(options.shell, false);
+      assert.equal(options.cwd, localConfig.workingDirectory);
+      assert.equal(options.env.UTEAMUP_TENANT_GUID, localConfig.tenantGuid);
+      return { stdout: "found", stderr: "" };
+    },
+  );
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout, "found");
+});
+
+test("local failures retain exit status and forbidden commands never launch", async () => {
+  const result = await runCli({}, localConfig, ["version"], async () => {
+    throw Object.assign(new Error("internal"), { code: 3, stderr: "denied" });
+  });
+  assert.equal(result.exitCode, 3);
+  assert.equal(result.stderr, "denied");
+  let launched = false;
+  await assert.rejects(
+    runCli({}, localConfig, ["login"], async () => {
+      launched = true;
+    }),
+  );
+  assert.equal(launched, false);
 });
 
 test("CLI cannot change global authentication, profile or TLS policy", () => {

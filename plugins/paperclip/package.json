@@ -1,6 +1,6 @@
 {
   "name": "@uteamup/paperclip-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "UteamUP CLI and MCP tools for Paperclip agents, including bug reports.",

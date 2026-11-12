@@ -3,7 +3,7 @@ UteamUP CLI & MCP for Paperclip
 This private package installs three Paperclip agent tools:
 
   uteamup.integration:cli
-    Runs the existing UteamUP CLI on the configured Mac over SSH. Pass an
+    Runs UteamUP CLI on the Paperclip server or on a configured SSH host. Pass an
     argument array without the executable. Put output flags after the command.
     The configured tenant is supplied through UTEAMUP_TENANT_GUID for each
     process. The operator's saved tenant selection is preserved. The existing
@@ -25,17 +25,24 @@ by local path using Paperclip's authenticated plugin manager/CLI. This package
 is private and is not published to npm. Runtime dependencies and the SDK are
 pinned in package-lock.json. Node 24.11 or newer is required.
 
-Configure the normal Paperclip settings form with the company and tenant GUIDs,
-Mac host/user, absolute working directory and CLI path, and the locally verified
-ed25519 SSH host key. Select encrypted Paperclip secret references for the SSH
-private key and the MCP credential. The latter contains API key:secret. Never
-put credential values into source files or JSON configuration. The SSH private
-key is written with mode 0600 only for the duration of a call and then removed.
+Configure the normal Paperclip settings form with company and tenant GUIDs,
+CLI execution mode, absolute working directory and CLI path. Local mode runs as
+the Paperclip service user and needs no Mac or SSH key. Authenticate the CLI in
+that user's private ~/.uteamup directory (0700 directory, 0600 files). Only the
+CLI's selected production login is used; service secrets are not inherited.
+
+For SSH mode, also configure the host/user, verified ed25519 host key and an
+encrypted Paperclip SSH private-key reference. The key is written with mode
+0600 only during a call and removed afterward. Existing configurations without
+an execution mode retain SSH behavior. The encrypted MCP credential reference
+is required in both modes and contains API key:secret; never put its value in
+source files or public configuration.
 
 MCP always uses https://api.uteamup.com/mcp with certificate validation and no
 redirect following. The plugin never changes the operator CLI login or profile.
-The Mac must be reachable over SSH. The CLI must already be authenticated to
-the production origin in its active profile; the normal CLI owns token refresh.
+SSH mode requires its host to be reachable. Local mode has no SSH dependency.
+The CLI must already be authenticated to the production origin in its active
+profile; the normal CLI owns token refresh.
 
 Bug workflow:
   1. Read the current CLI auth status and the authorized bug queue/conversation.

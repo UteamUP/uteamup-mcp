@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -15,12 +15,17 @@ export class InputError extends Error {}
 export function validateConfig(config) {
   if (!uuid.test(config.companyId) || !uuid.test(config.tenantGuid))
     throw new InputError("Company and tenant must be GUIDs.");
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(config.sshHost))
-    throw new InputError("Invalid SSH host.");
-  if (!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/.test(config.sshUsername))
-    throw new InputError("Invalid SSH username.");
-  if (!/^ssh-ed25519 [A-Za-z0-9+/=]+$/.test(config.sshHostKey))
-    throw new InputError("An ed25519 host key is required.");
+  const mode = config.cliExecutionMode ?? "ssh";
+  if (!["local", "ssh"].includes(mode))
+    throw new InputError("Choose local or SSH CLI execution.");
+  if (mode === "ssh") {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(config.sshHost))
+      throw new InputError("Invalid SSH host.");
+    if (!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/.test(config.sshUsername))
+      throw new InputError("Invalid SSH username.");
+    if (!/^ssh-ed25519 [A-Za-z0-9+/=]+$/.test(config.sshHostKey))
+      throw new InputError("An ed25519 host key is required.");
+  }
   for (const field of ["workingDirectory", "cliPath"]) {
     if (
       typeof config[field] !== "string" ||
@@ -31,7 +36,9 @@ export function validateConfig(config) {
         "Absolute paths without control characters are required.",
       );
   }
-  for (const field of ["sshKeyRef", "mcpCredentialRef"]) {
+  const secretFields =
+    mode === "ssh" ? ["sshKeyRef", "mcpCredentialRef"] : ["mcpCredentialRef"];
+  for (const field of secretFields) {
     if (
       config[field]?.type !== "secret_ref" ||
       !uuid.test(config[field]?.secretId)
@@ -113,6 +120,26 @@ export function cliCommand(config, args) {
 }
 
 export async function runCli(ctx, config, args, execute = executeFile) {
+  validateArgs(args);
+  const executionOptions = {
+    timeout: 60000,
+    maxBuffer: 1024 * 1024,
+    encoding: "utf8",
+    shell: false,
+  };
+  if (config.cliExecutionMode === "local") {
+    return captureCli(
+      config.cliPath,
+      args,
+      {
+        ...executionOptions,
+        cwd: config.workingDirectory,
+        env: localCliEnvironment(config),
+      },
+      config.tenantGuid,
+      execute,
+    );
+  }
   const command = cliCommand(config, args);
   const key = await ctx.secrets.resolve(config.sshKeyRef, {
     companyId: config.companyId,
@@ -148,32 +175,49 @@ export async function runCli(ctx, config, args, execute = executeFile) {
       config.sshUsername + "@" + config.sshHost,
       command,
     ];
-    try {
-      const result = await execute("ssh", options, {
-        timeout: 60000,
-        maxBuffer: 1024 * 1024,
-        encoding: "utf8",
-      });
-      return {
-        exitCode: 0,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        tenantGuid: config.tenantGuid,
-      };
-    } catch (error) {
-      return {
-        exitCode: typeof error.code === "number" ? error.code : null,
-        stdout: error.stdout ?? "",
-        stderr: error.stderr ?? "",
-        error:
-          "CLI execution failed (" +
-          (error.code ?? error.signal ?? "unknown") +
-          ").",
-        tenantGuid: config.tenantGuid,
-      };
-    }
+    return await captureCli(
+      "ssh",
+      options,
+      executionOptions,
+      config.tenantGuid,
+      execute,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+}
+
+export function localCliEnvironment(config, source = process.env) {
+  return {
+    HOME: source.HOME || homedir(),
+    PATH: source.PATH || "/usr/local/bin:/usr/bin:/bin",
+    ...(source.LANG ? { LANG: source.LANG } : {}),
+    ...(source.LC_ALL ? { LC_ALL: source.LC_ALL } : {}),
+    UTEAMUP_API_BASE_URL: "https://api.uteamup.com",
+    UTEAMUP_TENANT_GUID: config.tenantGuid,
+  };
+}
+
+async function captureCli(file, args, options, tenantGuid, execute) {
+  try {
+    const result = await execute(file, args, options);
+    return {
+      exitCode: 0,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      tenantGuid,
+    };
+  } catch (error) {
+    return {
+      exitCode: typeof error.code === "number" ? error.code : null,
+      stdout: error.stdout ?? "",
+      stderr: error.stderr ?? "",
+      error:
+        "CLI execution failed (" +
+        (error.code ?? error.signal ?? "unknown") +
+        ").",
+      tenantGuid,
+    };
   }
 }
 
@@ -199,7 +243,7 @@ export async function withMcp(ctx, config, operation) {
       return fetch(MCP_URL, { ...init, redirect: "error", signal });
     },
   });
-  const client = new Client({ name: "uteamup-paperclip", version: "0.1.0" });
+  const client = new Client({ name: "uteamup-paperclip", version: "0.1.1" });
   try {
     await client.connect(transport);
     return await operation(client);
