@@ -1,0 +1,31 @@
+{
+  "name": "@uteamup/paperclip-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UteamUP CLI and MCP tools for Paperclip agents, including bug reports.",
+  "license": "MIT",
+  "author": "UteamUP",
+  "paperclipPlugin": {
+    "manifest": "dist/manifest.js",
+    "worker": "dist/worker.js"
+  },
+  "files": [
+    "dist",
+    "USAGE.txt"
+  ],
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test checks/*.cases.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@paperclipai/plugin-sdk": "2026.1106.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

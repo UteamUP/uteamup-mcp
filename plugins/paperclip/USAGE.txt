@@ -1,0 +1,53 @@
+UteamUP CLI & MCP for Paperclip
+
+This private package installs three Paperclip agent tools:
+
+  uteamup.integration:cli
+    Runs the existing UteamUP CLI on the configured Mac over SSH. Pass an
+    argument array without the executable. Put output flags after the command.
+    The configured tenant is supplied through UTEAMUP_TENANT_GUID for each
+    process. The operator's saved tenant selection is preserved. The existing
+    CLI account and backend permissions determine access; this is not a shell
+    sandbox or an additional grant of platform authority.
+
+  uteamup.integration:mcp_tools
+    Discovers actual tool names and argument schemas from the production MCP
+    endpoint. Search for bug_report to find reporting and conversation tools.
+
+  uteamup.integration:mcp_call
+    Calls one discovered UteamUP tool with its arguments. The MCP API key's
+    tenant and role are enforced by UteamUP. Changes require authorization in
+    the user's task. Do not retry an uncertain write blindly; bug creation
+    supports a stable idempotencyKey.
+
+Build with npm ci --ignore-scripts, then npm run build. Install the built package
+by local path using Paperclip's authenticated plugin manager/CLI. This package
+is private and is not published to npm. Runtime dependencies and the SDK are
+pinned in package-lock.json. Node 24.11 or newer is required.
+
+Configure the normal Paperclip settings form with the company and tenant GUIDs,
+Mac host/user, absolute working directory and CLI path, and the locally verified
+ed25519 SSH host key. Select encrypted Paperclip secret references for the SSH
+private key and the MCP credential. The latter contains API key:secret. Never
+put credential values into source files or JSON configuration. The SSH private
+key is written with mode 0600 only for the duration of a call and then removed.
+
+MCP always uses https://api.uteamup.com/mcp with certificate validation and no
+redirect following. The plugin never changes the operator CLI login or profile.
+The Mac must be reachable over SSH. The CLI must already be authenticated to
+the production origin in its active profile; the normal CLI owns token refresh.
+
+Bug workflow:
+  1. Read the current CLI auth status and the authorized bug queue/conversation.
+  2. Discover bug-report tool schemas using mcp_tools.
+  3. Use the existing UteamUP debug workflow to reproduce and fix a scoped bug.
+  4. Run the final goal checks and record actual release/acceptance evidence.
+  5. Report through the existing bug conversation; create a new report only
+     when appropriate and use its returned public GUID.
+
+Company skill imports and Workflow Studio drafts are managed through Paperclip's
+native UI. Workflow Studio v1 generates instruction skills; it does not execute
+a workflow graph automatically. Publishing a draft and running a task are
+separate operations.
+
+Validation: run UTEAMUP_FINAL_GOAL_GATE=1 npm test at the end of the whole goal.
