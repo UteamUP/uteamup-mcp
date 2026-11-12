@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.14-beta.9...2.7.0-beta.9) (2026-11-12)
+
+
+### Features
+
+* **paperclip:** add local cli execution mode ([3605a78](https://github.com/UteamUP/uteamup-mcp/commit/3605a7829b4fcfc3275f8c7510c442c5c6fdf40f))
+* **paperclip:** add uteamup cli and mcp plugin ([4c94585](https://github.com/UteamUP/uteamup-mcp/commit/4c9458534d55ae59cf86fa72e4d3b1379c5ab5da))
+
 ## [2.6.14-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.6.13-beta.9...2.6.14-beta.9) (2026-11-12)
 
 
