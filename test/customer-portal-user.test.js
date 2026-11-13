@@ -6,6 +6,7 @@ const nock = require('nock');
 const {
   callMcpTool,
   successReply,
+  errorReply,
 } = require('./helpers/mcp-test-helpers');
 const {
   describe401Unauthorized,
@@ -91,6 +92,19 @@ describe('customer portal user MCP tools', () => {
     expect(JSON.stringify(result)).not.toMatch(
       /\"(?:id|tenantId|customerId)\"/,
     );
+  });
+
+  it('refuses withdrawing an activated portal user and points to deactivation', async () => {
+    const response = await callMcpTool(
+      BASE_URL,
+      ACCESS_TOKEN,
+      'UteamupCustomerPortalUserDelete',
+      { userExternalGuid },
+      errorReply(-32000, 'portal_user_activated: This portal user has accepted the invitation and has a recorded history, so it cannot be removed. Deactivate the user instead: sign-in stops and every request, message and rating is kept.'),
+    );
+
+    expect(response.body.error.message).toMatch(/portal_user_activated/);
+    expect(response.body.error.message).toMatch(/Deactivate the user instead/);
   });
 
   const errorTools = [

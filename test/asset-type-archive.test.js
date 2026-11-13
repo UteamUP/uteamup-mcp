@@ -4,8 +4,8 @@
  * Backend tools: ArchiveAssetTypeCommand / RestoreAssetTypeCommand + AssetTypeArchiveCommandHandler.
  * An asset type that assets, subtypes or recorded readings use is archived instead of deleted: it leaves type
  * lists and pickers, assets that carry it keep it. System types are refused with system_type. Both tools need
- * AssetType.Delete, the same permission as deleting a type. UteamupAssetTypeDelete refuses an in-use type with
- * asset_type_in_use.
+ * AssetType.Delete. Asset types are archived, never deleted: the deprecated UteamupAssetTypeDelete archives the
+ * type too and returns true.
  *
  * Generic-proxy pattern (nock-mocked backend; no real network).
  */
@@ -92,15 +92,11 @@ describe('Asset type archive MCP tools', () => {
     expect(response.body.error.message).toMatch(/not_found/);
   });
 
-  it('refuses deleting an in-use type with asset_type_in_use and points to archive', async () => {
-    const response = await call(
-      'UteamupAssetTypeDelete',
-      { assetTypeGuid: TYPE },
-      errorReply(-32000, 'asset_type_in_use: This asset type is used by 3 asset(s). Deleting it would erase or break those records. Archive it instead: it leaves the type pickers and keeps its history.'),
-    );
+  it('archives through the deprecated delete tool instead of deleting', async () => {
+    const response = await call('UteamupAssetTypeDelete', { assetTypeGuid: TYPE }, successReply(true));
 
-    expect(response.body.error.message).toMatch(/asset_type_in_use/);
-    expect(response.body.error.message).toMatch(/Archive it instead/);
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body.result.content[0].text)).toBe(true);
   });
 
   const errorTools = [

@@ -10,7 +10,7 @@
  *   UteamupWholesalerList(status, search)
  *   UteamupWholesalerGet(guid)
  *   UteamupWholesalerApplicationsList(status)
- *   UteamupWholesalerCatalogGet(guid)
+ *   UteamupWholesalerCatalogGet(guid, archived)
  *   UteamupWholesalerMyGet()
  */
 
@@ -125,6 +125,14 @@ describe('Wholesaler MCP Tools', () => {
       expect(data[0].externalSku).toBe('SKF-6205-2RS');
       expect(data[0].stockQuantity).toBe(1200);
       expect(data[0].isDiscontinued).toBe(false);
+    });
+
+    test('lists only archived items when archived=true', async () => {
+      const archivedItem = { ...mockCatalogItem, archivedAtUtc: '2026-11-13T09:00:00Z', archivedByUserGuid: WHOLESALER_GUID };
+      const response = await call('UteamupWholesalerCatalogGet', { guid: WHOLESALER_GUID, archived: true }, successReply([archivedItem]));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data).toHaveLength(1);
+      expect(data[0].archivedAtUtc).toBeTruthy();
     });
 
     test('returns empty catalog when nothing synced yet', async () => {
