@@ -2,11 +2,11 @@
  * ArchiveReferenceRecord and RestoreReferenceRecord MCP tool tests.
  *
  * Backend tools: ArchiveReferenceRecordCommand / RestoreReferenceRecordCommand + their handler.
- * Skills, certificates, currencies, shifts, work order templates and maintenance plans are marked inactive
- * instead of deleted once they have history: an inactive record leaves lists, searches and pickers and stays
+ * Skills, certificates, currencies, shifts, work order templates, maintenance plans, workforce groups and
+ * holidays are marked inactive instead of deleted: an inactive record leaves lists, searches and pickers and stays
  * readable by GUID and in every history row. Restore reactivates it. The permission follows the record type
  * (Skill.Delete, Certificate.Delete, Currency.Delete, Shift.Delete, WorkorderTemplate.Delete,
- * MaintenancePlan.Delete).
+ * MaintenancePlan.Delete, WorkforceGroup.Delete, TenantHoliday.Delete).
  *
  * Generic-proxy pattern (nock-mocked backend; no real network).
  */
@@ -45,6 +45,8 @@ describe('Reference data archive MCP tools', () => {
     'shift',
     'workordertemplate',
     'maintenanceplan',
+    'workforcegroup',
+    'holiday',
   ])('marks a %s inactive and returns its state', async (recordType) => {
     const response = await call(
       'ArchiveReferenceRecord',
@@ -71,6 +73,29 @@ describe('Reference data archive MCP tools', () => {
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.type).toBe('maintenanceplan');
     expect(data.isActive).toBe(true);
+  });
+
+  it('reactivates an inactive workforce group', async () => {
+    const response = await call(
+      'RestoreReferenceRecord',
+      { recordType: 'workforcegroup', recordGuid: PLAN },
+      successReply({ type: 'workforcegroup', guid: PLAN, isActive: true }),
+      { recordType: 'workforcegroup', recordGuid: PLAN },
+    );
+
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.type).toBe('workforcegroup');
+    expect(data.isActive).toBe(true);
+  });
+
+  it('surfaces a missing TenantHoliday.Delete right as a JSON-RPC error', async () => {
+    const response = await call(
+      'ArchiveReferenceRecord',
+      { recordType: 'holiday', recordGuid: SKILL },
+      errorReply(-32000, 'Permission denied: TenantHoliday.Delete required'),
+    );
+
+    expect(response.body.error.message).toMatch(/TenantHoliday\.Delete/);
   });
 
   it('surfaces a missing delete right for the record type as a JSON-RPC error', async () => {
