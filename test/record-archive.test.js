@@ -2,10 +2,12 @@
  * ArchiveRecord and RestoreRecord MCP tool tests.
  *
  * Backend tools: ArchiveRecordCommand / RestoreRecordCommand + RecordArchiveCommandHandler.
- * Contacts, checklists, task lists, tags, floorplans, failure codes and warranties are archived, never deleted:
- * an archived record leaves lists, searches, pickers and mention search, nothing linked to it is removed, and it
- * stays readable by GUID. Restore brings it back. The permission follows the record type (Contact.Delete,
- * CheckList.Delete, TaskList.Delete, Tag.Delete, Floorplan.Delete, Coding.Update, Warranty.Delete).
+ * Contacts, checklists, task lists, tags, floorplans, failure codes, warranties, UPMate agents, automations, work
+ * reports, report templates, drivers, knowledge spaces and journals are archived, never deleted: an archived record
+ * leaves lists, searches, pickers and mention search, nothing linked to it is removed, and it stays readable by GUID.
+ * Restore brings it back. The permission follows the record type (Contact.Delete, CheckList.Delete,
+ * TaskList.Delete, Tag.Delete, Floorplan.Delete, Coding.Update, Warranty.Delete, Automation.Update,
+ * Automation.Delete, Report.Delete, Report.Export, Driver.Delete, KnowledgeSpace.Delete, Journal.Delete).
  *
  * Generic-proxy pattern (nock-mocked backend; no real network).
  */
@@ -44,6 +46,10 @@ describe('Record archive MCP tools', () => {
     'tag',
     'floorplan',
     'failurecode',
+    'upmateagent',
+    'automation',
+    'report',
+    'reporttemplate',
   ])('archives a %s and returns who and when', async (recordType) => {
     const response = await call(
       'ArchiveRecord',
@@ -77,6 +83,65 @@ describe('Record archive MCP tools', () => {
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.isArchived).toBe(true);
     expect(data.archivedByUserGuid).toBeUndefined();
+  });
+
+  it.each(['driver', 'knowledgespace', 'journal'])(
+    'archives a %s through its existing flag (no archiver GUID)',
+    async (recordType) => {
+      const response = await call(
+        'ArchiveRecord',
+        { recordType, recordGuid: RECORD },
+        successReply({ type: recordType, guid: RECORD, archivedAtUtc: '2026-11-13T10:00:00Z', isArchived: true }),
+        { recordType, recordGuid: RECORD },
+      );
+
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.type).toBe(recordType);
+      expect(data.isArchived).toBe(true);
+      expect(data.archivedByUserGuid).toBeUndefined();
+    },
+  );
+
+  it('restores an archived automation, which stays disabled', async () => {
+    const response = await call(
+      'RestoreRecord',
+      { recordType: 'automation', recordGuid: RECORD },
+      successReply({ type: 'automation', guid: RECORD, archivedAtUtc: null, isArchived: false }),
+      { recordType: 'automation', recordGuid: RECORD },
+    );
+
+    const data = JSON.parse(response.body.result.content[0].text);
+    expect(data.isArchived).toBe(false);
+  });
+
+  it('surfaces a built-in automation monitor as BUILT_IN_AUTOMATION', async () => {
+    const response = await call(
+      'ArchiveRecord',
+      { recordType: 'automation', recordGuid: RECORD },
+      errorReply(-32000, 'BUILT_IN_AUTOMATION: A built-in monitor cannot be archived. Disable it instead.'),
+    );
+
+    expect(response.body.error.message).toMatch(/BUILT_IN_AUTOMATION/);
+  });
+
+  it('surfaces a report template that schedules still use as TEMPLATE_SCHEDULED', async () => {
+    const response = await call(
+      'ArchiveRecord',
+      { recordType: 'reporttemplate', recordGuid: RECORD },
+      errorReply(-32000, 'TEMPLATE_SCHEDULED: This template is used by 2 schedule(s). Change or archive those schedules first.'),
+    );
+
+    expect(response.body.error.message).toMatch(/TEMPLATE_SCHEDULED/);
+  });
+
+  it('surfaces a missing Report.Delete right as a JSON-RPC error', async () => {
+    const response = await call(
+      'ArchiveRecord',
+      { recordType: 'report', recordGuid: RECORD },
+      errorReply(-32000, 'Permission denied: Report.Delete required'),
+    );
+
+    expect(response.body.error.message).toMatch(/Report\.Delete/);
   });
 
   it('restores an archived checklist', async () => {
