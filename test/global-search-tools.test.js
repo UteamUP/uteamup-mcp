@@ -11,4 +11,18 @@ describe('global search wire contract', () => {
     expect(JSON.parse(response.body.result.content[0].text)).toEqual(expected);
     expect(nock.isDone()).toBe(true);
   });
+
+  test('forwards the change date and page and keeps the Help and UPSense groups', async () => {
+    const args = { query: 'pump', maxResults: 50, entityTypes: 'iotalert', changedSince: '2026-11-01T00:00:00Z', page: 2 };
+    const expected = {
+      iotAlerts: [{ id: '33333333-3333-4333-8333-333333333333', name: 'Pump vibration', changedAt: '2026-11-12T13:40:00Z' }],
+      helpArticles: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Reading pump meters', reference: '/meter-readings' }],
+      warnings: [],
+    };
+    const response = await callMcpTool('https://api.uteamup.com', 'offline-test-token', 'uteamup_global_search', args, successReply(expected), args);
+    const result = JSON.parse(response.body.result.content[0].text);
+    expect(result).toEqual(expected);
+    expect(result.iotAlerts[0]).not.toHaveProperty('deviceId');
+    expect(nock.isDone()).toBe(true);
+  });
 });
