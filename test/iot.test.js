@@ -122,6 +122,8 @@ describe('IoT MCP tools', () => {
   });
 
   const tools = [
+    { name: 'UteamupIoTAlertsList', args: { severity: 'Critical', status: 'open', text: '10.0.0.5', pageSize: 25 } },
+    { name: 'UteamupIoTAlertGet', args: { alertGuid: DEVICE_GUID } },
     { name: 'UteamupIoTAlertWorkorderGet', args: { alertGuid: DEVICE_GUID } },
     { name: 'UteamupIoTAlertConvertToWorkorder', args: { alertGuid: DEVICE_GUID } },
     { name: 'UteamupIoTNetworkClientLinks', args: { gatewayGuid: DEVICE_GUID } },
@@ -141,6 +143,21 @@ describe('IoT MCP tools', () => {
     { name: 'UteamupIoTDeviceUpdate', args: { deviceGuid: '33333333-3333-4333-8333-333333333333', firmwareVersion: '2.1' } },
     { name: 'UteamupIoTDeviceKeysList', args: { deviceGuid: '33333333-3333-4333-8333-333333333333' } },
   ];
+  test('alert list forwards filters verbatim and returns GUIDs only', async () => {
+    const args = { from: '2026-11-02T00:00:00Z', severity: 'Critical', deviceGuid: DEVICE_GUID, text: '10.0.0.5', status: 'open', page: 1, pageSize: 25 };
+    const response = await callTool(BASE_URL, ACCESS_TOKEN, 'UteamupIoTAlertsList', args, successReply({
+      items: [{ alertGuid: KEY_GUID, deviceGuid: DEVICE_GUID, deviceName: 'Sentinel', severity: 'Critical', title: 'Port scan', status: 'open' }],
+      totalItems: 1, page: 1, pageSize: 25,
+    }), args);
+    const page = JSON.parse(response.body.result.content[0].text);
+    expect(page.items[0].alertGuid).toBe(KEY_GUID);
+    expect(page.items[0]).not.toHaveProperty('id');
+    expect(page.items[0]).not.toHaveProperty('deviceId');
+    const missing = await call('UteamupIoTAlertGet', { alertGuid: DEVICE_GUID }, successReply(null));
+    expect(JSON.parse(missing.body.result.content[0].text)).toBeNull();
+    const refused = await call('UteamupIoTAlertsList', { severity: 'loud' }, errorReply(-32602, 'severity must be Info, Warning, Error or Critical.'));
+    expect(refused.body.error.message).toContain('severity');
+  });
   test('alert conversion preserves the source GUID, linked workorder and permission errors', async () => {
     const args = { alertGuid: DEVICE_GUID };
     const empty = await call('UteamupIoTAlertWorkorderGet', args, successReply(null));
