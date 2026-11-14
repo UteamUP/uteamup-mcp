@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.3-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.2-beta.9...2.7.3-beta.9) (2026-11-14)
+
+
+### Tests
+
+* **archive:** asset type, wholesaler catalog and portal invitation tools ([c813635](https://github.com/UteamUP/uteamup-mcp/commit/c8136358e4612f9999483630003f5caa9bfd9499))
+* **compliance:** MCP contracts for tool certifications and calibrations ([acd3965](https://github.com/UteamUP/uteamup-mcp/commit/acd396552b4a9b847fa42157835e0ca3ce474383))
+* **iot:** cover the alert list and get tools ([27e2fd1](https://github.com/UteamUP/uteamup-mcp/commit/27e2fd1dfb02c0827c4d2011cac6328358aacae9))
+* **knowledge:** cover the publish and submit-review MCP tools ([10cdc75](https://github.com/UteamUP/uteamup-mcp/commit/10cdc75ab6f2c0e0bcb0a250f1ad888377c87286))
+* **search:** cover change date, page and the new result groups ([8d32a91](https://github.com/UteamUP/uteamup-mcp/commit/8d32a91d3a2ed63dfed29e84fade55436c69edd5))
+* **weather:** cover the coordinates weather tool ([ca3f807](https://github.com/UteamUP/uteamup-mcp/commit/ca3f807f3278006d9da0eb39910fff4a0f9b0a9b))
+* **workorder:** cover the similar jobs tool proxy ([54b57b4](https://github.com/UteamUP/uteamup-mcp/commit/54b57b45fb7c83e2fbd394eea0df950595d58df6))
+
 ## [2.7.2-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.1-beta.9...2.7.2-beta.9) (2026-11-13)
 
 
