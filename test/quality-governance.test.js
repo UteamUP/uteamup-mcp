@@ -27,6 +27,7 @@ describe('Quality governance MCP tools', () => {
       retentionDispositionStatus: 'Active',
       historyIntegrityStatus: 'Verified',
       search: 'NCR-2026',
+      view: 'Overdue',
       page: 2,
       pageSize: 25,
     },
@@ -55,16 +56,24 @@ describe('Quality governance MCP tools', () => {
           recordKind: 'NonConformance',
           displayNumber: 'NCR-2026-0042',
           historyIntegrityStatus: 'Verified',
+          title: 'Weld porosity on frame batch 7',
+          status: 'investigation',
+          isOpen: true,
+          dueAtUtc: '2026-11-01T00:00:00Z',
+          ownerUserGuid: EVIDENCE_GUID,
         }],
         totalCount: 1,
         page: 2,
         pageSize: 25,
+        viewCounts: { all: 4, open: 3, overdue: 1, mine: 2 },
       }),
       searchTool.args,
     );
 
     const data = JSON.parse(response.body.result.content[0].text);
     expect(data.items[0].domainRecordGuid).toBe(RECORD_GUID);
+    expect(data.items[0]).toMatchObject({ status: 'investigation', isOpen: true });
+    expect(data.viewCounts).toEqual({ all: 4, open: 3, overdue: 1, mine: 2 });
     expect(data.items[0]).not.toHaveProperty('id');
     expect(searchTool.args).not.toHaveProperty('tenantGuid');
     expect(searchTool.args).not.toHaveProperty('userId');
