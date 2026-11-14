@@ -6,7 +6,7 @@
  * responses from the backend /mcp endpoint.
  *
  * Tools under test (all identifiers are GUIDs — never integer ids):
- *   UteamupOncallScheduleList()
+ *   UteamupOncallScheduleList(includeInactive?)
  *   UteamupOncallWhoIsOnCall(scheduleGuid?, atUtc?)
  *   UteamupOncallActiveCallouts()
  *
@@ -167,6 +167,23 @@ describe('On-Call MCP Tools', () => {
       expect(schedules).toHaveLength(2);
       expect(schedules[0].scheduleGuid).toBe(SCHEDULE_GUID);
       expect(schedules[0].name).toBe('Electrical — Night Shift');
+    });
+
+    test('forwards includeInactive verbatim so archived schedules can be requested', async () => {
+      const response = await callWithArgCapture(
+        'UteamupOncallScheduleList',
+        { includeInactive: true },
+        successReply(scheduleList)
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.capturedArgs).toEqual({ includeInactive: true });
+    });
+
+    test('sends no includeInactive argument by default, so inactive schedules stay hidden', async () => {
+      const response = await callWithArgCapture('UteamupOncallScheduleList', {}, successReply(scheduleList));
+
+      expect(response.capturedArgs).toEqual({});
     });
 
     test('returns an empty array when the tenant has no on-call schedules', async () => {
