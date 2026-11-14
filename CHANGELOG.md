@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.4-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.3-beta.9...2.7.4-beta.9) (2026-11-14)
+
+
+### Tests
+
+* **filter-presets:** cover saved filter MCP tool contracts ([3ad44c7](https://github.com/UteamUP/uteamup-mcp/commit/3ad44c7668aa0f88d888852771d027d840f96a7c))
+* **quality:** records search forwards view and passes the row fields through ([015bb04](https://github.com/UteamUP/uteamup-mcp/commit/015bb04764df4bc2be05f72a430df85b0dbf579e))
+
 ## [2.7.3-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.2-beta.9...2.7.3-beta.9) (2026-11-14)
 
 
