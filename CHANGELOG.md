@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.5-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.4-beta.9...2.7.5-beta.9) (2026-11-14)
+
+
+### Tests
+
+* **oncall:** cover the includeInactive schedule list argument ([c34360e](https://github.com/UteamUP/uteamup-mcp/commit/c34360ea919672981dfee7cfca6c9db055351ed8))
+
 ## [2.7.4-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.3-beta.9...2.7.4-beta.9) (2026-11-14)
 
 
