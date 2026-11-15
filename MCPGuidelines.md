@@ -99,7 +99,10 @@ Because the MCP server is a generic proxy, **adding a new tool happens on the ba
    UteamUP_Backend/UteamUP_API/MCP/Handlers/<Domain>/<Name>CommandHandler.cs
    UteamUP_Backend/UteamUP_API/MCP/Tools/<Domain>Tools.cs  ← add [McpServerTool] method
    ```
-   The method name (e.g. `UteamupProjectMyProjects`) **is** the tool name exposed over MCP.
+   The method name (e.g. `UteamupProjectMyProjects`) is exposed over MCP in **snake_case**
+   (`uteamup_project_my_projects`). The backend derives it automatically and asserts every served
+   name against `^[a-z][a-z0-9_]{0,63}$` (`McpToolCatalogContractTests.ServedToolNamesAreSnakeCase`),
+   so the MCP test must call the snake_case name, not the C# method name.
 
 2. **MCP test** — add a Jest file under `UteamUP_MCP/test/` following the `labour-rate.test.js` / `project-my-projects.test.js` pattern:
    - `nock`-mock the backend `/mcp` POST
