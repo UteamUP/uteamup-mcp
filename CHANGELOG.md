@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.6-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.5-beta.9...2.7.6-beta.9) (2026-11-15)
+
+
+### Tests
+
+* **part-requests:** cover the requisition draft, list, get and update tool contracts ([b328abb](https://github.com/UteamUP/uteamup-mcp/commit/b328abba89605b2badb917cbeb904d209e1260f3))
+
 ## [2.7.5-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.4-beta.9...2.7.5-beta.9) (2026-11-14)
 
 
