@@ -48,7 +48,7 @@ jobs:
           if-no-files-found: error
       - name: Unit tests
         if: github.event_name != 'workflow_dispatch' || inputs.run_tests
-        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js test/marketplace-manifests.test.js test/part-request-tools.test.js test/bugs-and-features.test.js
+        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js test/marketplace-manifests.test.js test/part-request-tools.test.js test/bugs-and-features.test.js test/asset-maintenance-history.test.js
       - name: AI governance boundary
         run: npm run test:ai-governance
       - name: Lint
