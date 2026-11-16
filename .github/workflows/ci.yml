@@ -7,6 +7,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: Run MCP tests in the dev CI runner
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +47,8 @@ jobs:
           path: sbom-mcp.cdx.json
           if-no-files-found: error
       - name: Unit tests
-        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js test/marketplace-manifests.test.js test/part-request-tools.test.js
+        if: github.event_name != 'workflow_dispatch' || inputs.run_tests
+        run: npx jest test/config.test.js test/logger.test.js test/metrics.test.js test/sse-parser.test.js test/marketplace-manifests.test.js test/part-request-tools.test.js test/bugs-and-features.test.js
       - name: AI governance boundary
         run: npm run test:ai-governance
       - name: Lint

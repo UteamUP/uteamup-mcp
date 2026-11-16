@@ -1,255 +1,68 @@
-/**
- * Bugs & Features MCP tool tests
- *
- * Covers the four MCP tools that proxy to the backend /api/bugsandfeatures endpoints:
- *   - UteamupBugsAndFeaturesCreate
- *   - UteamupBugsAndFeaturesGet
- *   - UteamupBugsAndFeaturesList
- *   - UteamupBugsAndFeaturesUpdateStatus
- *
- * Verifies: JSON-RPC 2.0 proxying, success replies, empty lists, 401/403 errors.
- * Pattern mirrors project-my-projects.test.js: nock-mocked HTTPS calls.
- */
-
+/** Canonical report administration and reporter tools forwarded by the generic MCP proxy. */
 'use strict';
 
 const nock = require('nock');
-const { callMcpTool: _callMcpTool, successReply } = require('./helpers/mcp-test-helpers');
+const { callMcpTool, successReply } = require('./helpers/mcp-test-helpers');
 const {
   describeJsonRpcCompliance,
   describe401Unauthorized,
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');
 
-describe('Bugs & Features MCP Tools', () => {
-  const BASE_URL = 'https://api.test.com';
-  const ACCESS_TOKEN = 'test_access_token_bugs_and_features';
+const BASE_URL = 'https://api.test.com';
+const TOKEN = 'unit-test-token';
+const report = '11111111-1111-4111-8111-111111111111';
+const attachment = '22222222-2222-4222-8222-222222222222';
+const row = { externalGuid: report, title: 'Example report', type: 'bug', status: 'new' };
+const cases = [
+  { name: 'uteamup_bugsandfeatures_list', args: { query: { page: 2, pageSize: 10, search: 'MCP' } }, result: { items: [row], totalCount: 11, page: 2, pageSize: 10 } },
+  { name: 'uteamup_bugsandfeatures_get', args: { externalGuid: report }, result: { ...row, statusHistory: [], comments: [] } },
+  { name: 'uteamup_bugsandfeatures_update_status', args: { externalGuid: report, input: { toStatus: 'validated', note: 'Verified reproduction' } }, result: { ...row, status: 'validated' } },
+  { name: 'uteamup_bugsandfeatures_update_notes', args: { externalGuid: report, input: { additionalNotes: 'Acceptance evidence' } }, result: { ...row, additionalNotes: 'Acceptance evidence' } },
+  { name: 'uteamup_bugsandfeatures_update_type', args: { externalGuid: report, input: { type: 'feature', note: 'Product request' } }, result: { ...row, type: 'feature' } },
+  { name: 'uteamup_bugsandfeatures_increment_hit', args: { externalGuid: report, input: { environment: 'dev', evidence: 'A new observation' } }, result: { cluster: row, occurrenceCountBefore: 1, occurrenceCountAfter: 2 } },
+  { name: 'uteamup_bugsandfeatures_delete', args: { externalGuid: report }, result: true },
+  { name: 'uteamup_bugsandfeatures_comments_list', args: { externalGuid: report, page: 1, pageSize: 20 }, result: { items: [], totalCount: 0, page: 1, pageSize: 20 } },
+  { name: 'uteamup_bugsandfeatures_comments_add', args: { externalGuid: report, input: { bodyHtml: '<p>Verified</p>', isVisibleToReporter: false } }, result: { externalGuid: attachment, bodyHtml: '<p>Verified</p>', isVisibleToReporter: false } },
+  { name: 'uteamup_bugsandfeatures_attachments_list', args: { externalGuid: report }, result: [] },
+  { name: 'uteamup_bugsandfeatures_attachments_upload', args: { externalGuid: report, contentType: 'image/png', fileName: 'evidence.png', base64: 'aW1hZ2U=' }, result: { externalGuid: attachment } },
+  { name: 'uteamup_bugsandfeatures_attachments_download', args: { externalGuid: report, attachmentExternalGuid: attachment }, result: { url: 'https://storage.example.test/short-lived-attachment' } },
+  { name: 'uteamup_bugsandfeatures_attachments_delete', args: { externalGuid: report, attachmentExternalGuid: attachment }, result: true },
+  { name: 'uteamup_bug_report_create', args: { type: 'bug', title: 'Example report', description: 'Steps and expected result', severity: 'high', idempotencyKey: 'same-request' }, result: { ...row, wasCreated: true } },
+  { name: 'uteamup_bug_report_list_mine', args: {}, result: [row] },
+  { name: 'uteamup_bug_report_get_conversation', args: { reportGuid: report }, result: { ...row, statusTimeline: [], comments: [] } },
+  { name: 'uteamup_bug_report_add_comment', args: { reportGuid: report, message: 'More reproduction steps' }, result: { bodyHtml: 'More reproduction steps' } },
+];
 
+describe('Bugs & Features MCP contracts', () => {
   beforeEach(() => nock.cleanAll());
   afterEach(() => nock.cleanAll());
 
-  const call = (toolName, toolArgs, mockReply) =>
-    _callMcpTool(BASE_URL, ACCESS_TOKEN, toolName, toolArgs, mockReply);
+  const call = (name, args, reply) => callMcpTool(BASE_URL, TOKEN, name, args, reply, args);
 
-  // ── Shared mock data ─────────────────────────────────────────────────────
-  const bugRow = {
-    externalGuid: '11111111-1111-1111-1111-111111111111',
-    type: 'Bug',
-    status: 'New',
-    severity: 'High',
-    title: 'Example bug',
-    description: 'Something broke',
-    tenantGuid: '22222222-2222-2222-2222-222222222222',
-    tenantName: 'Acme Corp',
-    userEmail: 'submitter@example.com',
-    userDisplayName: 'Submitter',
-    consoleTail: '[error] [redacted]',
-    isPinned: false,
-    capturedAtUtc: '2026-04-18T12:00:00Z',
-    createdAt: '2026-04-18T12:00:00Z',
-    lastStatusChangedAtUtc: '2026-04-18T12:00:00Z',
-    statusHistory: [],
-  };
-  const featureRow = { ...bugRow, externalGuid: '33333333-3333-3333-3333-333333333333', type: 'Feature', consoleTail: null };
-
-  // ── Create ───────────────────────────────────────────────────────────────
-  describe('UteamupBugsAndFeaturesCreate', () => {
-    test('returns the created row with status=New', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesCreate',
-        {
-          type: 'Bug',
-          severity: 'High',
-          title: 'Example bug',
-          description: 'Something broke',
-          idempotencyKey: 'abcd-efgh-ijkl',
-        },
-        successReply(bugRow),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.externalGuid).toBe(bugRow.externalGuid);
-      expect(data.status).toBe('New');
-    });
+  test.each(cases)('$name preserves its complete arguments and response', async ({ name, args, result }) => {
+    const response = await call(name, args, successReply(result));
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(result);
+    expect(nock.isDone()).toBe(true);
   });
 
-  // ── Get ──────────────────────────────────────────────────────────────────
-  describe('UteamupBugsAndFeaturesGet', () => {
-    test('returns a single submission by externalGuid', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesGet',
-        { externalGuid: bugRow.externalGuid },
-        successReply(bugRow),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.title).toBe('Example bug');
-    });
+  test('an empty platform search remains an empty result', async () => {
+    const empty = { items: [], totalCount: 0, page: 1, pageSize: 50 };
+    const response = await call('uteamup_bugsandfeatures_list', { query: { search: 'no matches' } }, successReply(empty));
+    expect(JSON.parse(response.body.result.content[0].text)).toEqual(empty);
   });
 
-  // ── Conversation (reporter-facing read) ───────────────────────────────────
-  describe('UteamupBugsAndFeaturesConversation', () => {
-    test('returns the reporter conversation (report + timeline + shared comments)', async () => {
-      const conversation = {
-        externalGuid: bugRow.externalGuid,
-        type: 'Bug',
-        status: 'Validated',
-        title: 'Example bug',
-        description: 'Something broke',
-        createdAtUtc: '2026-06-03T10:00:00Z',
-        statusTimeline: [
-          { fromStatus: 'New', toStatus: 'Validated', note: 'Looks valid', changedAtUtc: '2026-06-03T11:00:00Z' },
-        ],
-        comments: [
-          {
-            externalGuid: '33333333-3333-3333-3333-333333333333',
-            bodyHtml: '<p>We are on it</p>',
-            authorDisplayName: 'Support',
-            isVisibleToReporter: true,
-            isFromReporter: false,
-            createdAt: '2026-06-03T11:05:00Z',
-            mentions: [],
-            replies: [],
-          },
-        ],
-      };
-      const response = await call(
-        'UteamupBugsAndFeaturesConversation',
-        { bugExternalGuid: bugRow.externalGuid },
-        successReply(conversation),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.externalGuid).toBe(bugRow.externalGuid);
-      expect(data.statusTimeline).toHaveLength(1);
-      expect(data.comments[0].isVisibleToReporter).toBe(true);
-    });
+  test('platform authority refusal is preserved as a tool error', async () => {
+    const reply = { status: 200, body: { jsonrpc: '2.0', id: 1,
+      result: { isError: true, content: [{ type: 'text', text: 'Configured Global Admin access required' }] } } };
+    const response = await call('uteamup_bugsandfeatures_list', {}, reply);
+    expect(response.body.result.isError).toBe(true);
+    expect(response.body.result.content[0].text).toContain('Global Admin');
   });
 
-  // ── My reports (reporter-facing list of the caller's own reports) ─────────
-  describe('UteamupBugsAndFeaturesMine', () => {
-    test('returns the caller\'s own reports as a slim list', async () => {
-      const reports = [
-        {
-          externalGuid: bugRow.externalGuid,
-          type: 'Bug',
-          status: 'Validated',
-          severity: 'Low',
-          title: 'Example bug',
-          createdAtUtc: '2026-06-03T10:00:00Z',
-          lastActivityAtUtc: '2026-06-03T11:00:00Z',
-          sharedCommentCount: 2,
-        },
-      ];
-      const response = await call('UteamupBugsAndFeaturesMine', {}, successReply(reports));
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data[0].externalGuid).toBe(bugRow.externalGuid);
-      expect(data[0].sharedCommentCount).toBe(2);
-    });
-  });
-
-  // ── List ─────────────────────────────────────────────────────────────────
-  describe('UteamupBugsAndFeaturesList', () => {
-    test('returns a paginated list of submissions', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesList',
-        { hideRejectedAndConfirmed: true },
-        successReply({ items: [bugRow, featureRow], totalCount: 2, page: 1, pageSize: 50 }),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(2);
-      expect(data.totalCount).toBe(2);
-    });
-
-    test('returns empty list when no submissions match', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesList',
-        { status: 'Rejected' },
-        successReply({ items: [], totalCount: 0, page: 1, pageSize: 50 }),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toEqual([]);
-    });
-
-    test('forwards the source filter parameter', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesList',
-        { source: 'PerformanceAuto' },
-        successReply({ items: [bugRow], totalCount: 1, page: 1, pageSize: 50 }),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.items).toHaveLength(1);
-    });
-  });
-
-  // ── UpdateStatus ─────────────────────────────────────────────────────────
-  describe('UteamupBugsAndFeaturesUpdateStatus', () => {
-    test('transitions New → Validated', async () => {
-      const updated = { ...bugRow, status: 'Validated' };
-      const response = await call(
-        'UteamupBugsAndFeaturesUpdateStatus',
-        { externalGuid: bugRow.externalGuid, toStatus: 'Validated' },
-        successReply(updated),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.status).toBe('Validated');
-    });
-
-    // The wait list is feature-only (the backend rejects a bug with waitlist_features_only),
-    // so these two use featureRow rather than bugRow.
-    test('parks a feature request New → WaitList', async () => {
-      // Backend serializes the enum camelCase, so WaitList comes back as "waitList".
-      const updated = { ...featureRow, status: 'waitList' };
-      const response = await call(
-        'UteamupBugsAndFeaturesUpdateStatus',
-        { externalGuid: featureRow.externalGuid, toStatus: 'WaitList' },
-        successReply(updated),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.status).toBe('waitList');
-    });
-
-    test('returns a parked feature request WaitList → New', async () => {
-      const updated = { ...featureRow, status: 'New' };
-      const response = await call(
-        'UteamupBugsAndFeaturesUpdateStatus',
-        { externalGuid: featureRow.externalGuid, toStatus: 'New' },
-        successReply(updated),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data.status).toBe('New');
-    });
-  });
-
-  // ── Delete ───────────────────────────────────────────────────────────────
-  describe('UteamupBugsAndFeaturesDelete', () => {
-    test('hard-deletes a cluster by externalGuid', async () => {
-      const response = await call(
-        'UteamupBugsAndFeaturesDelete',
-        { externalGuid: bugRow.externalGuid },
-        successReply(true),
-      );
-      expect(response.status).toBe(200);
-      const data = JSON.parse(response.body.result.content[0].text);
-      expect(data).toBe(true);
-    });
-  });
-
-  // ── Shared error-path tests ──────────────────────────────────────────────
-  // Helpers expect an array of tool descriptors; 401/503 also take BASE_URL
-  // (not the `call` fn) as their first argument. See test/helpers/mcp-error-tests.js.
-  const errorPathTools = [
-    { name: 'UteamupBugsAndFeaturesList', args: {} },
-  ];
-  describeJsonRpcCompliance(call, errorPathTools);
-  describe401Unauthorized(BASE_URL, errorPathTools);
-  describe503ServiceUnavailable(BASE_URL, errorPathTools);
+  const tools = cases.map(({ name, args }) => ({ name, args }));
+  describeJsonRpcCompliance(call, tools);
+  describe401Unauthorized(BASE_URL, tools);
+  describe503ServiceUnavailable(BASE_URL, tools);
 });
