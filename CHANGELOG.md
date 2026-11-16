@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.8-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.7-beta.9...2.7.8-beta.9) (2026-11-16)
+
+
+### Tests
+
+* **mcp:** verify canonical platform report tool contracts in dev CI ([2432110](https://github.com/UteamUP/uteamup-mcp/commit/2432110ff2c408d9078628e122b60f8aea123287))
+
 ## [2.7.7-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.6-beta.9...2.7.7-beta.9) (2026-11-15)
 
 
