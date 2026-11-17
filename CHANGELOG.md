@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.10-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.9-beta.9...2.7.10-beta.9) (2026-11-17)
+
+
+### Miscellaneous
+
+* **deps:** bump the npm-minor-and-patch group across 1 directory with 5 updates ([#29](https://github.com/UteamUP/uteamup-mcp/issues/29)) ([5c605b4](https://github.com/UteamUP/uteamup-mcp/commit/5c605b45b0940b72100bfefaf83dbc5da53448cf))
+
 ## [2.7.9-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.8-beta.9...2.7.9-beta.9) (2026-11-17)
 
 
