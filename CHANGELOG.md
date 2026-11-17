@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.9-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.8-beta.9...2.7.9-beta.9) (2026-11-17)
+
+
+### Tests
+
+* **mcp:** pin workorder actualCost read-only refusal (UTE-416) ([#50](https://github.com/UteamUP/uteamup-mcp/issues/50)) ([27f8ddf](https://github.com/UteamUP/uteamup-mcp/commit/27f8ddf55f3c8ab984c9b60835f362b2e1343796))
+* require paginated asset maintenance MCP contract ([43ce7bf](https://github.com/UteamUP/uteamup-mcp/commit/43ce7bff3db5e3767c9b2fa3505f415f6299251b))
+
 ## [2.7.8-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.7-beta.9...2.7.8-beta.9) (2026-11-16)
 
 
