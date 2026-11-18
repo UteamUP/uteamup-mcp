@@ -25,7 +25,10 @@ describe('MCP proxy process security boundary', () => {
     expect(responses).toEqual([
       {
         jsonrpc: '2.0',
-        error: { code: -32600, message: 'Request exceeds the configured size limit' },
+        error: {
+          code: -32600,
+          message: 'Request exceeds the configured size limit (1024 bytes). Increase UTEAMUP_MAX_REQUEST_BYTES (up to 104857600) or send fewer/smaller images per call.'
+        },
         id: null
       },
       {

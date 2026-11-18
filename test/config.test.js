@@ -31,7 +31,7 @@ describe('Configuration Validation', () => {
       expect(config.logFormat).toBe('text');
       expect(config.requestTimeout).toBe(30000);
       expect(config.maxRetries).toBe(3);
-      expect(config.maxRequestBytes).toBe(1048576);
+      expect(config.maxRequestBytes).toBe(52428800);
       expect(config.maxResponseBytes).toBe(10485760);
     });
 
@@ -95,6 +95,18 @@ describe('Configuration Validation', () => {
 
       expect(config.maxRequestBytes).toBe(2048);
       expect(config.maxResponseBytes).toBe(4096);
+    });
+
+    test('should allow maxRequestBytes up to 100 MiB for base64 image payloads', () => {
+      process.env.UTEAMUP_API_KEY = '12345678901234567890123456789012';
+      process.env.UTEAMUP_SECRET = '1234567890123456789012345678901234567890123456789012345678901234';
+      process.env.UTEAMUP_MAX_REQUEST_BYTES = '104857600';
+
+      const config = loadConfig();
+      expect(config.maxRequestBytes).toBe(104857600);
+
+      process.env.UTEAMUP_MAX_REQUEST_BYTES = '104857601';
+      expect(() => loadConfig()).toThrow(/maxRequestBytes/i);
     });
 
     test('should validate log level enum', () => {

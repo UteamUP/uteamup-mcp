@@ -237,7 +237,7 @@ That's it! 🎉
 | `UTEAMUP_DEBUG` | Legacy debug mode (`1` or `true`) | `false` |
 | `UTEAMUP_REQUEST_TIMEOUT` | Request timeout in milliseconds | `30000` |
 | `UTEAMUP_MAX_RETRIES` | Max retry attempts for network errors | `3` |
-| `UTEAMUP_MAX_REQUEST_BYTES` | Maximum bytes in one JSON-RPC request | `1048576` |
+| `UTEAMUP_MAX_REQUEST_BYTES` | Maximum bytes in one JSON-RPC request (max `104857600`) | `52428800` |
 | `UTEAMUP_MAX_RESPONSE_BYTES` | Maximum bytes buffered from one backend response | `10485760` |
 | `UTEAMUP_TOKEN_CACHE_DIR` | Persistent token cache directory | - |
 | `UTEAMUP_TOKEN_REFRESH_MARGIN` | Token refresh margin in seconds | `300` |
@@ -348,6 +348,16 @@ Your AI assistant's permissions are controlled by the **role assigned to your AP
 3. Ask a company administrator to check the specific read permissions needed for your workflow
 4. For the remote read-only connector, use a restricted read-only role; write or wildcard grants are not eligible
 5. Reconnect the client to refresh its tool list after an authorized permission change
+
+---
+
+#### "Request exceeds the configured size limit"
+
+**Cause:** A single JSON-RPC request (such as a `uteamup_journal_add_images` call with multiple base64-encoded images) exceeded `UTEAMUP_MAX_REQUEST_BYTES` (default `52428800` / 50 MiB). Base64 encoding adds ~33% overhead over decoded image bytes, so 25 MB of decoded images is ~35 MB in JSON-RPC.
+
+**Solution:**
+1. Increase `UTEAMUP_MAX_REQUEST_BYTES` in your MCP `env` configuration (allowed range: `1024` to `104857600` bytes / 100 MiB)
+2. Or split large image batches across multiple calls (the backend accepts up to 25 MB of decoded images per request)
 
 ---
 
