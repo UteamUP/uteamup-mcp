@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "uteamup": {
+      "type": "http",
+      "url": "https://api.uteamup.com/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "dcr"
+            },
+            "authorizationUrl": "https://api.uteamup.com/oauth/authorize",
+            "tokenUrl": "https://api.uteamup.com/oauth/token",
+            "registrationUrl": "https://api.uteamup.com/oauth/register",
+            "resource": "https://api.uteamup.com/mcp",
+            "baseScopes": [
+              "mcp:full"
+            ],
+            "defaultScopes": [
+              "mcp:full"
+            ]
+          }
+        }
+      },
+      "oauth_resource": "https://api.uteamup.com/mcp"
+    }
+  }
+}
