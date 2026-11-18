@@ -80,6 +80,10 @@ no separate credential store or tool implementation is required.
 References: [OpenAI custom MCP servers](https://developers.openai.com/api/docs/guides/custom-mcp-server)
 and [Grok connectors](https://docs.x.ai/grok/connectors).
 
+### Full (writable) access for Claude and ChatGPT — staged
+
+Staged, unpublished connectors for the full endpoint `https://api.uteamup.com/mcp` with scope `mcp:full`: you sign in with your own UteamUP account (same consent flow as read-only) and the assistant gets read **and** write access bounded by your role in the company you select — no local `npx` proxy and no copied API key. They live in [`plugins/claude-full`](plugins/claude-full) and [`plugins/openai-full`](plugins/openai-full). They stay staged and unreferenced by any marketplace listing until the backend release that enables user login on `/mcp` is live and verified; see the activation checklist in [docs/writable-connectors.md](docs/writable-connectors.md). Grok Bot will follow when its marketplace allows a full-scope remote connector.
+
 **Key Features:**
 - ✅ Automatic OAuth 2.0 + PKCE authentication
 - ✅ Token caching with automatic refresh
