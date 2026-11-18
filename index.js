@@ -63,7 +63,7 @@ ENVIRONMENT VARIABLES:
     UTEAMUP_DEBUG            Enable debug mode (1 or true) - legacy, use LOG_LEVEL instead
     UTEAMUP_REQUEST_TIMEOUT  Request timeout in ms (default: 30000)
     UTEAMUP_MAX_RETRIES      Max retry attempts (default: 3)
-    UTEAMUP_MAX_REQUEST_BYTES   Max JSON-RPC request bytes (default: 1048576)
+    UTEAMUP_MAX_REQUEST_BYTES   Max JSON-RPC request bytes (default: 52428800, max: 104857600)
     UTEAMUP_MAX_RESPONSE_BYTES  Max backend response bytes (default: 10485760)
     UTEAMUP_TOKEN_CACHE_DIR  Persistent token cache directory (optional)
     UTEAMUP_TOKEN_REFRESH_MARGIN  Token refresh margin in seconds (default: 300)
@@ -579,7 +579,7 @@ async function forwardRequest(request, requestId) {
     const data = JSON.stringify(request);
     const requestBytes = Buffer.byteLength(data);
     if (requestBytes > config.maxRequestBytes) {
-      throw new ProxyTransportError('Request exceeds the configured size limit');
+      throw new ProxyTransportError(formatRequestSizeLimitError(config.maxRequestBytes));
     }
 
     trace('Forwarding MCP request', {
@@ -654,6 +654,10 @@ if (args.includes('--test-auth')) {
   return; // Don't start main loop
 }
 
+function formatRequestSizeLimitError(maxRequestBytes) {
+  return `Request exceeds the configured size limit (${maxRequestBytes} bytes). Increase UTEAMUP_MAX_REQUEST_BYTES (up to 104857600) or send fewer/smaller images per call.`;
+}
+
 // Main stdio loop
 async function main() {
   info('Starting UteamUP MCP Server', {
@@ -680,7 +684,7 @@ async function main() {
 
   const processInputEvent = async inputEvent => {
     if (inputEvent.oversized) {
-      writeErrorResponse(-32600, 'Request exceeds the configured size limit');
+      writeErrorResponse(-32600, formatRequestSizeLimitError(config.maxRequestBytes));
       return;
     }
 
