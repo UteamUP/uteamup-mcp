@@ -20,6 +20,7 @@ const cases = [
   { name: 'uteamup_bugsandfeatures_update_status', args: { externalGuid: report, input: { toStatus: 'validated', note: 'Verified reproduction' } }, result: { ...row, status: 'validated' } },
   { name: 'uteamup_bugsandfeatures_update_notes', args: { externalGuid: report, input: { additionalNotes: 'Acceptance evidence' } }, result: { ...row, additionalNotes: 'Acceptance evidence' } },
   { name: 'uteamup_bugsandfeatures_update_type', args: { externalGuid: report, input: { type: 'feature', note: 'Product request' } }, result: { ...row, type: 'feature' } },
+  { name: 'uteamup_bugsandfeatures_update_severity', args: { externalGuid: report, input: { severity: 'critical', note: 'Owner escalation' } }, result: { ...row, severity: 'critical' } },
   { name: 'uteamup_bugsandfeatures_increment_hit', args: { externalGuid: report, input: { environment: 'dev', evidence: 'A new observation' } }, result: { cluster: row, occurrenceCountBefore: 1, occurrenceCountAfter: 2 } },
   { name: 'uteamup_bugsandfeatures_delete', args: { externalGuid: report }, result: true },
   { name: 'uteamup_bugsandfeatures_comments_list', args: { externalGuid: report, page: 1, pageSize: 20 }, result: { items: [], totalCount: 0, page: 1, pageSize: 20 } },
