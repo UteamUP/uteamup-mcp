@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.9.0-beta.9...2.9.1-beta.9) (2026-11-20)
+
+
+### Tests
+
+* **bugsandfeatures:** cover update-severity MCP tool contract (UTE-1150) ([e85d666](https://github.com/UteamUP/uteamup-mcp/commit/e85d66650753bb21c44fea6fc328d747731a0ac3))
+* **journal:** cover the journal link suggestions tool ([d5aade0](https://github.com/UteamUP/uteamup-mcp/commit/d5aade0aa40a007c452f3537aa23ba76a8ea1794))
+
 ## [2.8.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.10-beta.9...2.8.0-beta.9) (2026-11-18)
 
 
