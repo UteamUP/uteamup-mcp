@@ -58,4 +58,31 @@ describe('MCP proxy process security boundary', () => {
       id: 'request-id'
     });
   });
+
+  test('drains buffered bursts cleanly under bounded in-flight backpressure', () => {
+    const requestCount = 20;
+    const input = Array.from({ length: requestCount }, (_, index) =>
+      JSON.stringify({ jsonrpc: '2.0', id: index + 1, method: 'ping' })
+    ).join('\n') + '\n';
+
+    const result = spawnSync(process.execPath, [proxyPath], {
+      env: {
+        ...validEnvironment,
+        UTEAMUP_MAX_IN_FLIGHT_REQUESTS: '4'
+      },
+      input,
+      encoding: 'utf8',
+      timeout: 10000
+    });
+
+    expect(result.status).toBe(0);
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line));
+    expect(responses).toHaveLength(requestCount);
+    expect(responses.map(r => r.id).sort((a, b) => a - b)).toEqual(
+      Array.from({ length: requestCount }, (_, index) => index + 1)
+    );
+    for (const response of responses) {
+      expect(response).toEqual({ jsonrpc: '2.0', id: response.id, result: {} });
+    }
+  });
 });

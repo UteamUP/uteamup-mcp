@@ -120,6 +120,27 @@ let requestIdCounter = 0;
 const OAUTH_REDIRECT_URI = 'http://localhost:3000/callback';
 const STDIN_CLOSE_GRACE_MS = 2000;
 const MAX_FORWARDED_ERROR_LENGTH = 500;
+const DEFAULT_MAX_IN_FLIGHT_REQUESTS = 16;
+const MAX_IN_FLIGHT_REQUESTS_CAP = 128;
+
+/**
+ * Parses an optional positive concurrency limit for stdio backpressure.
+ * @param {string|undefined} rawValue
+ * @returns {number}
+ */
+function resolveMaxInFlightRequests(rawValue) {
+  if (rawValue === undefined || rawValue === '') {
+    return DEFAULT_MAX_IN_FLIGHT_REQUESTS;
+  }
+  const trimmed = String(rawValue).trim();
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0 || String(parsed) !== trimmed) {
+    return DEFAULT_MAX_IN_FLIGHT_REQUESTS;
+  }
+  return Math.min(parsed, MAX_IN_FLIGHT_REQUESTS_CAP);
+}
+
+const MAX_IN_FLIGHT_REQUESTS = resolveMaxInFlightRequests(process.env.UTEAMUP_MAX_IN_FLIGHT_REQUESTS);
 
 /**
  * Generates a unique request ID
@@ -669,10 +690,21 @@ async function main() {
 
   printConfigSummary(config);
 
+  const inputStream = process.stdin;
   const lineBuffer = new BoundedLineBuffer(config.maxRequestBytes);
-  // Requests run concurrently so one slow tools/call cannot block the rest.
+  // Requests run concurrently (up to MAX_IN_FLIGHT_REQUESTS) so one slow
+  // tools/call cannot block the rest while backpressure bounds memory and fan-out.
   // Each response is one stdout.write call, so messages never interleave.
   const inFlight = new Set();
+  const pendingEvents = [];
+  let pendingIndex = 0;
+  let inputPaused = false;
+  let inputEnded = false;
+  let exiting = false;
+  let resolveDrained = null;
+  const allDrained = new Promise(resolve => {
+    resolveDrained = resolve;
+  });
 
   const writeErrorResponse = (code, message, id = null) => {
     process.stdout.write(JSON.stringify({
@@ -762,31 +794,77 @@ async function main() {
     }
   };
 
-  process.stdin.on('data', chunk => {
-    for (const inputEvent of lineBuffer.push(chunk)) {
-      const task = processInputEvent(inputEvent).finally(() => inFlight.delete(task));
+  const maybeResolveDrained = () => {
+    if (inputEnded && pendingIndex >= pendingEvents.length && inFlight.size === 0) {
+      resolveDrained();
+    }
+  };
+
+  const drainPendingEvents = () => {
+    while (pendingIndex < pendingEvents.length && inFlight.size < MAX_IN_FLIGHT_REQUESTS) {
+      const inputEvent = pendingEvents[pendingIndex++];
+      const task = processInputEvent(inputEvent).finally(() => {
+        inFlight.delete(task);
+        drainPendingEvents();
+      });
       inFlight.add(task);
     }
+
+    if (pendingIndex >= pendingEvents.length) {
+      pendingEvents.length = 0;
+      pendingIndex = 0;
+    } else if (pendingIndex >= 1024) {
+      pendingEvents.splice(0, pendingIndex);
+      pendingIndex = 0;
+    }
+
+    if (inFlight.size >= MAX_IN_FLIGHT_REQUESTS || pendingIndex < pendingEvents.length) {
+      if (!inputPaused && !inputEnded) {
+        inputPaused = true;
+        inputStream.pause();
+      }
+    } else if (inputPaused && !inputEnded) {
+      inputPaused = false;
+      inputStream.resume();
+    }
+
+    maybeResolveDrained();
+  };
+
+  inputStream.on('data', chunk => {
+    for (const inputEvent of lineBuffer.push(chunk)) {
+      pendingEvents.push(inputEvent);
+    }
+    drainPendingEvents();
   });
 
   // The client closing stdin means it is gone (e.g. a reconnect started a new
   // proxy). Give in-flight requests a short grace period, then exit even if one
   // is stuck, so this process never outlives its client.
-  let exiting = false;
   const exitAfterInFlight = () => {
+    inputEnded = true;
+    maybeResolveDrained();
     if (exiting) return;
     exiting = true;
-    info('stdin closed, exiting', { inFlight: inFlight.size, graceMs: STDIN_CLOSE_GRACE_MS });
-    const grace = new Promise(resolve => setTimeout(resolve, STDIN_CLOSE_GRACE_MS));
-    Promise.race([Promise.allSettled([...inFlight]), grace]).then(() => {
+    info('stdin closed, exiting', {
+      inFlight: inFlight.size,
+      queued: pendingEvents.length - pendingIndex,
+      graceMs: STDIN_CLOSE_GRACE_MS
+    });
+    let graceTimer;
+    const grace = new Promise(resolve => {
+      graceTimer = setTimeout(resolve, STDIN_CLOSE_GRACE_MS);
+    });
+    Promise.race([allDrained, grace]).then(() => {
+      clearTimeout(graceTimer);
       printMetrics();
       process.exit(0);
     });
   };
-  process.stdin.on('end', exitAfterInFlight);
-  process.stdin.on('close', exitAfterInFlight);
+  inputStream.on('end', exitAfterInFlight);
+  inputStream.on('close', exitAfterInFlight);
 
-  process.stdin.resume();
+  inputStream.resume();
 }
 
 // Graceful shutdown handlers

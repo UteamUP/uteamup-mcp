@@ -50,6 +50,43 @@ describe('MCP transport security', () => {
 
       expect(buffer.push('ééé\n')).toEqual([{ oversized: true }]);
     });
+
+    test('buffers a large multi-chunk line in O(N) without quadratic Buffer.concat calls', () => {
+      const chunkSize = 1024;
+      const chunkCount = 1024; // 1 MiB total
+      const chunk = Buffer.alloc(chunkSize, 'a');
+      const buffer = new BoundedLineBuffer(chunkSize * chunkCount + 16);
+      const concatSpy = jest.spyOn(Buffer, 'concat');
+
+      try {
+        for (let i = 0; i < chunkCount; i += 1) {
+          expect(buffer.push(chunk)).toEqual([]);
+        }
+        expect(concatSpy).not.toHaveBeenCalled();
+
+        const events = buffer.push('\r\n');
+        expect(concatSpy).toHaveBeenCalledTimes(1);
+        expect(events).toHaveLength(1);
+        expect(events[0].line.length).toBe(chunkSize * chunkCount);
+        expect(events[0].line).toBe('a'.repeat(chunkSize * chunkCount));
+        expect(buffer.pendingChunks).toEqual([]);
+        expect(buffer.pendingLength).toBe(0);
+      } finally {
+        concatSpy.mockRestore();
+      }
+    });
+
+    test('preserves multi-byte UTF-8 sequences split across chunks and CRLF stripping', () => {
+      const buffer = new BoundedLineBuffer(32);
+      const encoded = Buffer.from('café\r\nnext\n', 'utf8');
+
+      // Split right in the middle of the 2-byte UTF-8 sequence for 'é' (0xc3, 0xa9)
+      expect(buffer.push(encoded.subarray(0, 4))).toEqual([]);
+      expect(buffer.push(encoded.subarray(4))).toEqual([
+        { line: 'café' },
+        { line: 'next' }
+      ]);
+    });
   });
 
   describe('parseOAuthTokenResponse', () => {
