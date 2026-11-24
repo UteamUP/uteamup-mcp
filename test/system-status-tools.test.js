@@ -56,6 +56,24 @@ describe('System status MCP Tools', () => {
       const response = await call('UteamupExternalServiceStatus', {}, successReply(report(true)));
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.overallStatus).toBe('down');
+      expect(data.fromCache).toBe(true);
+      expect(data.services).toHaveLength(2);
+    });
+
+    // UTE-1647: the report must carry per-service status, not only overallStatus.
+    test('keeps per-service status, latency and error code alongside overallStatus', async () => {
+      const response = await call('UteamupExternalServiceStatus', {}, successReply(report(false)));
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.overallStatus).toBe('down');
+      expect(data.services).toEqual(report(false).services);
+      const failing = data.services.find(service => service.status === 'down');
+      expect(failing.key).toBe('ai:d7054d6c-3e5a-4573-8391-55af67f1a678');
+      expect(failing.errorCode).toBe('provider_http_403');
+      expect(failing.latencyMs).toBe(209);
+      const healthy = data.services.find(service => service.status === 'online');
+      expect(healthy.key).toBe('database:postgres');
     });
 
     test('forwards refresh=true to force a new run', async () => {
@@ -67,6 +85,9 @@ describe('System status MCP Tools', () => {
       );
       expect(response.status).toBe(200);
       expect(response.body.result).toBeDefined();
+      const data = JSON.parse(response.body.result.content[0].text);
+      expect(data.fromCache).toBe(false);
+      expect(data.services).toHaveLength(2);
     });
   });
 
