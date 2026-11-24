@@ -52,3 +52,6 @@ jest-results.json
 SESSION_LOG_*.md
 # MSBuild binary logs
 *.binlog
+
+# Paperclip attachment staging (never commit live run payload)
+.paperclip-inbound/
