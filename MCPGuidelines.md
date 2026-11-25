@@ -133,6 +133,19 @@ The backend is the OAuth 2.1 authorization server for `/mcp` and `/mcp/read-only
   5 KB). The document's `client_id` must equal the URL, the client must be public, and at least one
   `redirect_uri` must pass the redirect policy. It maps to a stable client row (`ToRegisteredClientId`) and then
   follows the registered-client consent flow; the consent page shows the document host next to the name.
+  A document may instead declare `token_endpoint_auth_method: private_key_jwt` with an https `jwks_uri`
+  (redirects then optional); such a client must send an RFC 7523 `client_assertion` on every token request.
+- **Enterprise-Managed Authorization** (`io.modelcontextprotocol/enterprise-managed-authorization`, ID-JAG):
+  a company owner sets one trusted issuer with `PUT /api/tenant/enterprise-auth` (`Tenant.ManageSaml`, owner
+  or configured platform admin); enabling reads `<issuer>/.well-known/openid-configuration`, whose `issuer`
+  must match exactly. A `private_key_jwt` client sends `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`
+  with the ID-JAG as `assertion`. `McpEnterpriseAuthorizationService` checks: typ `oauth-id-jag+jwt`,
+  RS256/ES256, keys only from the issuer's discovery document, a single `aud` equal to our issuer,
+  `client_id` equal to the authenticated client, `sub`, `jti` single use (`OAuthAssertionReplays`), lifetime
+  at most one hour, 60 s skew, no `cnf`, `resource` limited to `/mcp` and `/mcp/read-only`. The person is the
+  account already linked to the issuer and `sub`, or else one confirmed account whose email is in a verified
+  company domain (then linked). Accounts with local two-factor sign-in use the consent flow. `CanLinkAsync`
+  (current licensed member, assistant linking on) applies as for consent. No refresh token is issued.
 
 ## Upload tickets (large files)
 
