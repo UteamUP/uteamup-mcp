@@ -47,6 +47,7 @@
     "test:ai-governance": "jest test/ai-governance-boundary.test.js test/ai-governance-ci.test.js --runInBand",
     "lint": "eslint index.js lib/ test/",
     "format": "prettier --write \"**/*.{js,json,md}\"",
+    "sync-skills": "node scripts/sync-skills.js",
     "prepublishOnly": "npm test"
   },
   "dependencies": {

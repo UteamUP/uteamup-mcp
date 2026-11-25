@@ -117,6 +117,28 @@ Because the MCP server is a generic proxy, **adding a new tool happens on the ba
 
 ---
 
+## Agent Skills (portable, every host)
+
+Workflow skills live in **one** place: `UteamUP_Backend/Skills/<name>/SKILL.md` (+ optional `references/*.md`).
+They reach every agent host three ways, from the same bytes:
+
+| Route | Hosts | How |
+|-------|-------|-----|
+| MCP Skills extension (`io.modelcontextprotocol/skills`, `skills/list`, `skills/get`, `skill://` resources) | Claude Code ≥2.1.331, claude.ai, VS Code Copilot, other hosts that implement SEP-2640 | Backend `McpConfiguration.cs` → `WithSkillPackages(McpAgentSkillCatalog.Packages)` |
+| Tools `uteamup_agent_skill_list` / `uteamup_agent_skill_get` | Every MCP client: ChatGPT/OpenAI, Kimi, MiniMax, ZCode, Cursor, Gemini, older Claude clients | Backend `MCP/Tools/AgentSkillTools.cs` |
+| `SKILL.md` folders in host plugins | Claude Code plugin, MiniMax, ZCode | `npm run sync-skills` copies from the backend; `node scripts/sync-skills.js --check` verifies |
+
+Authoring rules (enforced by `UteamUP_API_Tests/Unit/MCP/McpAgentSkillsTests.cs` and `test/plugin-skills.test.js`):
+
+- agentskills.io format only: frontmatter keys `name`, `description`, `license`, `compatibility`, `metadata`. No host-specific keys (`allowed-tools`, `when_to_use`, `model`, …).
+- `name` is kebab-case, prefixed `uteamup-`, and equals the folder name. `description` ≤ 1,024 chars, third person, with "Use when …".
+- `metadata.access` is `read` or `write`. Read skills may only name read tools; read-only plugins and `/mcp/read-only` get read skills only. Home and Individual tenants get none.
+- Name tools by their bare MCP name (`uteamup_asset_search`); every name must exist in the served catalogue.
+- Text only (`.md`), references one level deep, ≤ 100 KB per file and ≤ 400 KB per skill (Anthropic's directory scan limits). No scripts, no tenant data.
+- Changing a skill changes its digest, so hosts ask users to approve it again. Edit deliberately, then run `npm run sync-skills` in this repo.
+
+---
+
 ## Test Structure
 
 All tests live under `UteamUP_MCP/test/` and run via Jest.

@@ -77,16 +77,16 @@ describe('MiniMax Code local plugin package', () => {
     );
   });
 
-  test('ships one cmms skill whose frontmatter matches its directory', () => {
-    expect(manifest.skills).toEqual(['skills/cmms/SKILL.md']);
+  test('ships the read-only lookup skill whose frontmatter matches its directory', () => {
+    expect(manifest.skills).toContain('skills/uteamup-cmms-lookup/SKILL.md');
 
     const skill = fs.readFileSync(
-      path.join(PLUGIN_ROOT, 'skills/cmms/SKILL.md'),
+      path.join(PLUGIN_ROOT, 'skills/uteamup-cmms-lookup/SKILL.md'),
       'utf8',
     );
     expect(skill.startsWith('---\n')).toBe(true);
     const frontmatter = skill.slice(3, skill.indexOf('\n---', 3));
-    expect(frontmatter.match(/^name:\s*(.+)$/m)[1].trim()).toBe('cmms');
+    expect(frontmatter.match(/^name:\s*(.+)$/m)[1].trim()).toBe('uteamup-cmms-lookup');
     expect(
       frontmatter
         .match(/^description:\s*([\s\S]+?)(?=\n[a-zA-Z_-]+:|$)/m)[1]
