@@ -117,6 +117,26 @@ Because the MCP server is a generic proxy, **adding a new tool happens on the ba
 
 ---
 
+## Tasks (long-running tools, SEP-2663)
+
+The backend implements the `io.modelcontextprotocol/tasks` extension for a short allow-list of slow tools
+(`McpTaskExecution.TaskCapableTools`: reports, PDFs, exports, imports, summaries). A client that declares the
+extension gets a task handle and polls `tasks/get`; every other tool, and every client that does not declare
+it, stays synchronous. The proxy forwards `tasks/*` unchanged.
+
+Security model — read before adding a tool to the list:
+
+- The SDK runs a task's call pipeline **after** the HTTP request ends, when `HttpContext` would be null.
+  `McpTaskExecution.PinCallerAsync` (an alternate-result filter registered before `WithTasks`) copies the
+  caller's user, request items (tenant, API key, `TenantDbInfo`) and connection into a detached context, gives
+  the call its own service scope and pins both through `McpTaskHttpContextAccessor` (an `AsyncLocal`, never the
+  live request's holder). All ordinary filters (session revocation, tenant kind, argument checks) still run.
+- `McpTaskStore` keeps tasks in the tenant's data database (`McpTaskRecords`, dedicated databases included) and
+  binds every read, cancel and status change to the creating tenant **and** owner (`userId|apiKeyId`).
+  A missing caller is nobody. Terminal states never change. A task past its one-hour lease reads as failed.
+- Only add a tool whose handler takes everything from its command and the pinned context. Tests:
+  `McpTaskStoreTests`, `McpTaskExecutionTests` (real SDK client, other-user and other-tenant denial).
+
 ## Agent Skills (portable, every host)
 
 Workflow skills live in **one** place: `UteamUP_Backend/Skills/<name>/SKILL.md` (+ optional `references/*.md`).
