@@ -1,128 +1,85 @@
-/**
- * SSE (Server-Sent Events) parser tests
- *
- * Note: Since parseSSE is an internal function in index.js,
- * we'll extract it for testing or test it indirectly through integration tests.
- * For now, these are the test cases we would implement.
- */
+'use strict';
 
-describe('SSE Parser', () => {
-  // Helper function extracted from index.js for testing
-  function parseSSE(sseData) {
-    const lines = sseData.trim().split('\n');
-    let jsonData = null;
+const { parseSseMessages, selectResponse, looksLikeSse } = require('../lib/sse');
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        jsonData = line.substring(6); // Remove "data: " prefix
-        break;
-      }
-    }
+describe('SSE parser (lib/sse)', () => {
+  test('parses a single response event', () => {
+    const body = 'event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"ok":true}}\n\n';
 
-    if (jsonData) {
-      try {
-        return JSON.parse(jsonData);
-      } catch (e) {
-        return null;
-      }
-    }
+    expect(parseSseMessages(body)).toEqual([{ jsonrpc: '2.0', id: 1, result: { ok: true } }]);
+  });
 
-    return null;
-  }
+  test('accepts data lines without the optional space and CRLF line endings', () => {
+    const body = 'event: message\r\ndata:{"jsonrpc":"2.0","id":2,"result":{}}\r\n\r\n';
 
-  describe('parseSSE', () => {
-    test('should parse valid SSE format', () => {
-      const sseData = `event: message
-data: {"jsonrpc":"2.0","result":{"tools":[]},"id":1}`;
+    expect(parseSseMessages(body)).toEqual([{ jsonrpc: '2.0', id: 2, result: {} }]);
+  });
 
-      const result = parseSSE(sseData);
+  test('joins multi-line data of one event with newlines', () => {
+    const body = 'data: {"jsonrpc":"2.0",\ndata: "id":3,"result":{"text":"a"}}\n\n';
 
-      expect(result).toEqual({
-        jsonrpc: '2.0',
-        result: { tools: [] },
-        id: 1
-      });
-    });
+    expect(parseSseMessages(body)).toEqual([{ jsonrpc: '2.0', id: 3, result: { text: 'a' } }]);
+  });
 
-    test('should parse SSE with only data field', () => {
-      const sseData = `data: {"success":true}`;
+  test('keeps every event, skipping comments, keep-alives and non-JSON data', () => {
+    const body = [
+      ': keep-alive',
+      '',
+      'data: not json',
+      '',
+      'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progress":1}}',
+      '',
+      'data: {"jsonrpc":"2.0","id":4,"result":{}}',
+      '',
+    ].join('\n');
 
-      const result = parseSSE(sseData);
+    expect(parseSseMessages(body)).toHaveLength(2);
+  });
 
-      expect(result).toEqual({ success: true });
-    });
+  test('returns the response for the request id and forwards notifications sent before it', () => {
+    const messages = [
+      { jsonrpc: '2.0', method: 'notifications/progress', params: { progress: 50 } },
+      { jsonrpc: '2.0', method: 'notifications/message', params: { level: 'info', data: 'x' } },
+      { jsonrpc: '2.0', id: 7, result: { content: [] } },
+    ];
 
-    test('should parse SSE with multiple lines', () => {
-      const sseData = `event: message
-id: 123
-data: {"message":"hello"}
-retry: 1000`;
+    const { response, notifications } = selectResponse(messages, 7);
 
-      const result = parseSSE(sseData);
+    expect(response).toEqual({ jsonrpc: '2.0', id: 7, result: { content: [] } });
+    expect(notifications.map(n => n.method)).toEqual(['notifications/progress', 'notifications/message']);
+  });
 
-      expect(result).toEqual({ message: 'hello' });
-    });
+  test('prefers the response whose id matches over another response in the stream', () => {
+    const messages = [
+      { jsonrpc: '2.0', id: 8, result: { mine: true } },
+      { jsonrpc: '2.0', id: 9, result: { mine: false } },
+    ];
 
-    test('should return null for non-SSE format', () => {
-      const plainJson = `{"jsonrpc":"2.0","result":{}}`;
+    expect(selectResponse(messages, 8).response.result.mine).toBe(true);
+  });
 
-      const result = parseSSE(plainJson);
+  test('keeps error responses', () => {
+    const { response } = selectResponse([{ jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'bad' } }], 1);
 
-      expect(result).toBeNull();
-    });
+    expect(response.error.code).toBe(-32602);
+  });
 
-    test('should return null for empty data', () => {
-      const sseData = `event: message
-data: `;
+  test('does not forward server-to-client requests as notifications', () => {
+    const messages = [{ jsonrpc: '2.0', id: 'srv-1', method: 'sampling/createMessage', params: {} }];
 
-      const result = parseSSE(sseData);
+    expect(selectResponse(messages, 1)).toEqual({ response: null, notifications: [] });
+  });
 
-      expect(result).toBeNull();
-    });
+  test('returns no response for an empty stream', () => {
+    expect(selectResponse(parseSseMessages(''), 1)).toEqual({ response: null, notifications: [] });
+  });
 
-    test('should return null for invalid JSON in data field', () => {
-      const sseData = `data: {invalid json}`;
-
-      const result = parseSSE(sseData);
-
-      expect(result).toBeNull();
-    });
-
-    test('should handle whitespace correctly', () => {
-      const sseData = `event: message
-data: {"test": true}`;
-
-      const result = parseSSE(sseData);
-
-      expect(result).toEqual({ test: true });
-    });
-
-    test('should parse complex JSON in data field', () => {
-      const complexData = {
-        jsonrpc: '2.0',
-        result: {
-          tools: [
-            { name: 'tool1', description: 'First tool' },
-            { name: 'tool2', description: 'Second tool' }
-          ]
-        },
-        id: 1
-      };
-
-      const sseData = `data: ${JSON.stringify(complexData)}`;
-
-      const result = parseSSE(sseData);
-
-      expect(result).toEqual(complexData);
-    });
-
-    test('should stop at first data field', () => {
-      const sseData = `data: {"first":true}
-data: {"second":true}`;
-
-      const result = parseSSE(sseData);
-
-      expect(result).toEqual({ first: true });
-    });
+  test.each([
+    ['event: message\ndata: {}', true],
+    ['data: {}', true],
+    [': comment\n', true],
+    ['{"jsonrpc":"2.0","id":1,"result":{"text":"data: inside"}}', false],
+  ])('detects SSE bodies (%p)', (body, expected) => {
+    expect(looksLikeSse(body)).toBe(expected);
   });
 });

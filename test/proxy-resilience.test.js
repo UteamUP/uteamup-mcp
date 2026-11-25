@@ -146,6 +146,20 @@ describe('MCP proxy resilience (real stdio proxy, mocked backend)', () => {
     expect(result.pending).toEqual([]);
   }, TEST_TIMEOUT_MS);
 
+  test('forwards SSE notifications sent before the response, then the response', async () => {
+    const progress = { jsonrpc: '2.0', method: 'notifications/progress', params: { progressToken: 't', progress: 1, total: 2 } };
+    const body = `event: message\\ndata: ${JSON.stringify(progress)}\\n\\nevent: message\\ndata: ${JSON.stringify(success(1))}\\n\\n`;
+    const result = await runProxy({
+      backend: `oauth("fixture-token"); nock(BASE).post("/mcp").reply(200, "${body.replace(/"/g, '\\"')}", { "Content-Type": "text/event-stream" });`,
+      requests: [toolCall(1)],
+      closeAfter: 2
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.responses).toEqual([progress, success(1)]);
+    expect(result.pending).toEqual([]);
+  }, TEST_TIMEOUT_MS);
+
   test('returns a JSON-RPC error instead of a fake success for an empty backend body', async () => {
     const result = await runProxy({
       backend: 'oauth("fixture-token"); nock(BASE).post("/mcp").reply(200, "");',

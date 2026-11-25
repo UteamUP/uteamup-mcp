@@ -20,6 +20,7 @@ const { trace, debug, info, error } = require('./lib/logger');
 const { startTimer, recordOAuthAttempt, recordRequest, recordCacheHit, recordCacheMiss, printMetrics } = require('./lib/metrics');
 const { retryWithBackoff } = require('./lib/retry');
 const { buildMcpForwardHeaders } = require('./lib/mcp-http-headers');
+const { parseSseMessages, selectResponse, looksLikeSse } = require('./lib/sse');
 const {
   BoundedLineBuffer,
   ProxyTransportError,
@@ -395,35 +396,12 @@ async function requestNewAccessToken() {
 }
 
 /**
- * Parses Server-Sent Events (SSE) format response to extract JSON data.
- * SSE format looks like:
- *   event: message
- *   data: {"json":"here"}
- *
+ * Returns the JSON-RPC response carried by an SSE body, or null when it carries none.
  * @param {string} sseData - Raw SSE response string
- * @returns {object|null} Parsed JSON object from data field, or null if not SSE format
+ * @param {string|number|null} [requestId] - id of the request being answered
  */
-function parseSSE(sseData) {
-  const lines = sseData.trim().split('\n');
-  let jsonData = null;
-
-  for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      jsonData = line.substring(6); // Remove "data: " prefix
-      break;
-    }
-  }
-
-  if (jsonData) {
-    try {
-      return JSON.parse(jsonData);
-    } catch {
-      debug('SSE data parse error');
-      return null;
-    }
-  }
-
-  return null;
+function parseSSE(sseData, requestId) {
+  return selectResponse(parseSseMessages(sseData), requestId).response;
 }
 
 /**
@@ -530,17 +508,27 @@ function postToBackend(request, requestId, data, token) {
               return;
             }
 
-            // Try parsing as SSE format first (text/event-stream)
-            if (responseData.includes('event:') || responseData.includes('data:')) {
+            // Try parsing as SSE format first (text/event-stream). Notifications sent before the
+            // response (progress, log messages) are forwarded to the client in order.
+            if (looksLikeSse(responseData)) {
               debug('Detected SSE format, parsing...', { requestId });
-              const parsed = parseSSE(responseData);
+              const { response: parsed, notifications } = selectResponse(
+                parseSseMessages(responseData), request.id);
+              for (const notification of notifications) {
+                process.stdout.write(JSON.stringify(notification) + '\n');
+              }
               if (parsed) {
                 trace('SSE parsed successfully', {
                   requestId,
                   responseId: parsed?.id,
-                  hasError: Boolean(parsed?.error)
+                  hasError: Boolean(parsed?.error),
+                  notifications: notifications.length
                 });
                 resolve(parsed);
+                return;
+              }
+              if (request.id === undefined || request.id === null) {
+                resolve(null);
                 return;
               }
             }
