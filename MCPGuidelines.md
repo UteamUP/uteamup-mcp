@@ -169,6 +169,9 @@ and returns the DTO as `structuredContent` next to the same JSON as text (the CL
 text). Rules, enforced by `McpStructuredOutputContractTests`:
 
 - Add a tool to the list only when its DTO schema stays under 16 KB; every schema is sent on each `tools/list`.
+- The OpenAI connector is recognised by its client name (`_meta["io.modelcontextprotocol/clientInfo"].name`)
+  or User-Agent containing `openai`/`chatgpt` (`IsOpenAiConnectorRequest`, `ClientNameOf`); only a request that
+  names no client falls back to "2026-07-28 without `X-Request-ID`".
 - `SanitizeToolForMcp` keeps the schema for standard MCP clients and removes integer `*Id`/`*Ids` properties
   (results lose them through `McpIntegerIdentifiers`). The OpenAI connector path and the read-only pilot
   still strip `outputSchema`.
