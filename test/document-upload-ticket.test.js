@@ -8,7 +8,7 @@ const {
   describe503ServiceUnavailable,
 } = require('./helpers/mcp-error-tests');
 
-describe('Document upload ticket MCP tools', () => {
+describe('Document upload ticket and download link MCP tools', () => {
   const BASE_URL = 'https://api.test.com';
   const ACCESS_TOKEN = 'upload-ticket-token';
   const ticketGuid = '7b1d3c0e-2f4a-4b8e-9c6d-1a2b3c4d5e6f';
@@ -57,9 +57,43 @@ describe('Document upload ticket MCP tools', () => {
     expect(response.body.error.code).toBe(-32602);
   });
 
+  test('forwards a download link as text, resource_link and structured content unchanged', async () => {
+    const documentGuid = '11111111-1111-4111-8111-111111111111';
+    const link = {
+      documentGuid,
+      fileName: 'pump-manual.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 2048,
+      downloadUrl: 'https://api.uteamup.com/api/mcp/download-links/abc',
+      expiresAt: '2026-11-25T22:10:00Z',
+    };
+    const reply = {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        result: {
+          content: [
+            { type: 'text', text: JSON.stringify(link) },
+            { type: 'resource_link', uri: link.downloadUrl, name: link.fileName, mimeType: link.contentType, size: 2048 },
+          ],
+          structuredContent: link,
+        },
+      },
+    };
+
+    const response = await call('UteamupDocumentCreateDownloadLink', { documentGuid }, reply, { documentGuid });
+
+    const [text, resourceLink] = response.body.result.content;
+    expect(JSON.parse(text.text).downloadUrl).toBe(link.downloadUrl);
+    expect(resourceLink).toEqual(reply.body.result.content[1]);
+    expect(response.body.result.structuredContent).toEqual(link);
+  });
+
   const tools = [
     { name: 'UteamupDocumentCreateUploadTicket', args: { fileName: 'a.pdf', contentType: 'application/pdf', sizeBytes: 10 } },
     { name: 'UteamupDocumentUploadTicketGet', args: { ticketGuid } },
+    { name: 'UteamupDocumentCreateDownloadLink', args: { documentGuid: '11111111-1111-4111-8111-111111111111' } },
   ];
 
   describeJsonRpcCompliance(call, tools);

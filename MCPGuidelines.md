@@ -161,6 +161,18 @@ for 15 minutes, for clients that can make HTTP requests (Claude Code, Codex) and
   inside `SchedulingDatabaseScope` for the ticket's tenant, so dedicated databases are honoured.
 - `uteamup_document_upload_ticket_get` shows status and `documentGuid` to the issuing caller only.
 
+## Download links (resource_link)
+
+`uteamup_document_create_download_link` (`Document.View`) returns three things for one document: a JSON text
+block first (older clients read `content[0].text`), an MCP `resource_link` (uri, name, mimeType, size), and the
+same JSON as `structuredContent`. The `downloadUrl` is `GET /api/mcp/download-links/{token}`: a data-protected
+token (`McpDownloadLinkRepository`, nothing stored when issued) bound to tenant, user, API key and document,
+valid 10 minutes and single use (its id is consumed in `OAuthAssertionReplays` on the first GET; HEAD checks
+without consuming). Membership, `Document.View`, the API key and the company's data-move freeze are checked
+again on use. The anonymous request has no viewer, so documents hidden by reading-privacy rules are not served
+(fail closed). The file is always sent as an attachment with `nosniff`, `no-store` and `no-referrer`. The CLI
+mirror is `uteamup document-upload download-link <documentGuid>`.
+
 ## Tasks (long-running tools, SEP-2663)
 
 The backend implements the `io.modelcontextprotocol/tasks` extension for a short allow-list of slow tools
