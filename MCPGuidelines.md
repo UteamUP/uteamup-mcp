@@ -161,6 +161,20 @@ for 15 minutes, for clients that can make HTTP requests (Claude Code, Codex) and
   inside `SchedulingDatabaseScope` for the ticket's tenant, so dedicated databases are honoured.
 - `uteamup_document_upload_ticket_get` shows status and `documentGuid` to the issuing caller only.
 
+## Structured output (outputSchema)
+
+Only curated read tools set `[McpServerTool(UseStructuredContent = true)]`: today `uteamup_asset_get`,
+`uteamup_workorder_get`, `uteamup_part_get` and `uteamup_location_get`. The SDK then publishes an `outputSchema`
+and returns the DTO as `structuredContent` next to the same JSON as text (the CLI and older clients read the
+text). Rules, enforced by `McpStructuredOutputContractTests`:
+
+- Add a tool to the list only when its DTO schema stays under 16 KB; every schema is sent on each `tools/list`.
+- `SanitizeToolForMcp` keeps the schema for standard MCP clients and removes integer `*Id`/`*Ids` properties
+  (results lose them through `McpIntegerIdentifiers`). The OpenAI connector path and the read-only pilot
+  still strip `outputSchema`.
+- `RequireStructuredObject` turns a success without an object (for example a `null` "not found") into a tool
+  error, because clients validate `structuredContent` against the schema.
+
 ## Download links (resource_link)
 
 `uteamup_document_create_download_link` (`Document.View`) returns three things for one document: a JSON text
