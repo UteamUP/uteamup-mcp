@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires the UteamUP MCP server (https://api.uteamup.com/mcp or the @uteamup/mcp-server package) and a signed-in UteamUP account.
 metadata:
   publisher: UteamUP
-  version: "1.1.0"
+  version: "1.2.0"
   access: write
 ---
 
@@ -110,8 +110,9 @@ Tool names below are the UteamUP MCP tool names; some clients show them with a s
     reuse a stored file via `uteamup_document_find_by_hash` (SHA-256 of the bytes) or upload it
     with `uteamup_document_upload_with_content` (`fileName` with extension, `fileContentBase64`,
     `contentType`, optional `description`), and link it with `uteamup_workorder_add_documents`
-    (`workorderGuid`, `documentGuids`). Uploading alone does not attach. Large files are better
-    uploaded in the app.
+    (`workorderGuid`, `documentGuids`). Uploading alone does not attach. For large files, if you can make
+    HTTP requests, use `uteamup_document_create_upload_ticket` and PUT the bytes to its `uploadUrl`;
+    otherwise upload them in the app.
 11. **Help the technician (optional).** `uteamup_workorder_similar_jobs` with `workorderGuid`
     shows past fixes and parts; it uses no AI credits.
 12. **Change status later.** Read with `uteamup_workorder_get`, confirm, then

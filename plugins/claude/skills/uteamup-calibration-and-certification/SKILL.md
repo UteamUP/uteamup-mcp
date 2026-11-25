@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires the UteamUP MCP server (https://api.uteamup.com/mcp or the @uteamup/mcp-server package) and a signed-in UteamUP account.
 metadata:
   publisher: UteamUP
-  version: "1.0.0"
+  version: "1.1.0"
   access: write
 ---
 
@@ -60,7 +60,8 @@ Tool names below are the UteamUP MCP tool names; some clients show them with a s
    `uteamup_document_find_by_hash`; otherwise `uteamup_document_upload_with_content` (`fileName`
    with extension, `fileContentBase64`, `contentType` such as `application/pdf`, short
    `description`). Keep the document GUID for `certificateDocumentGuid`. Only upload a file you can
-   read; for large files suggest the web app.
+   read; for large files use `uteamup_document_create_upload_ticket` if you can make HTTP
+   requests, otherwise suggest the web app.
 5. **New calibration.** Confirm a summary, then `uteamup_assetcalibration_create` with `model`:
    - Exactly one of `assetGuid` or `toolGuid`; `name` (required, e.g. "Annual pressure gauge
      calibration"); `description`.

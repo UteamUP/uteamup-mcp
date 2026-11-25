@@ -134,6 +134,20 @@ The backend is the OAuth 2.1 authorization server for `/mcp` and `/mcp/read-only
   `redirect_uri` must pass the redirect policy. It maps to a stable client row (`ToRegisteredClientId`) and then
   follows the registered-client consent flow; the consent page shows the document host next to the name.
 
+## Upload tickets (large files)
+
+`uteamup_document_create_upload_ticket` returns a single-use URL (`PUT /api/mcp/upload-tickets/{token}`) valid
+for 15 minutes, for clients that can make HTTP requests (Claude Code, Codex) and files too large for base64.
+
+- The 43-character token is the only credential and is stored as a SHA-256 hash (`McpUploadTickets`, shared
+  database, no file content). It is bound to tenant, user, API key, file name, content type and exact size.
+- The PUT claims the ticket atomically (`ExecuteUpdate`), so a token works once; unknown, used and expired tokens
+  all answer 404. Membership (`HasCurrentMembershipAsync`), `Document.Upload` and the API key are re-checked at
+  upload; a tenant frozen for a data move answers 503.
+- The file goes through `IDocumentRepository.UploadDocumentAsync` (same validation and storage as the web upload)
+  inside `SchedulingDatabaseScope` for the ticket's tenant, so dedicated databases are honoured.
+- `uteamup_document_upload_ticket_get` shows status and `documentGuid` to the issuing caller only.
+
 ## Tasks (long-running tools, SEP-2663)
 
 The backend implements the `io.modelcontextprotocol/tasks` extension for a short allow-list of slow tools

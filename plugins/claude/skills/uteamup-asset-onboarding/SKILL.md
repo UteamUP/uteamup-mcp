@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires the UteamUP MCP server (https://api.uteamup.com/mcp or the @uteamup/mcp-server package) and a signed-in UteamUP account.
 metadata:
   publisher: UteamUP
-  version: "1.0.0"
+  version: "1.1.0"
   access: write
 ---
 
@@ -113,8 +113,10 @@ is about one third larger than the file (a 9 MB file becomes about 12 MB). The M
 the storage provider each have their own request limits, and the tool does not promise one fixed
 maximum. So:
 
-- Small files (photos, short PDFs) are fine. For large manuals or drawings, tell the user the
-  upload may fail and that the web app (or the API multipart upload) handles large files better.
+- Small files (photos, short PDFs) are fine. For large manuals or drawings, prefer
+  `uteamup_document_create_upload_ticket` when you can make HTTP requests: PUT the raw bytes to its
+  `uploadUrl`, then read the `documentGuid` with `uteamup_document_upload_ticket_get`. Otherwise the
+  web app handles large files best.
 - Only upload files you can actually read. Never put a file path or URL in place of the content.
 - If an upload times out, the result is unknown: check `uteamup_document_find_by_hash` before
   retrying so the same file is not stored twice.
