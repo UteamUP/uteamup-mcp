@@ -7,6 +7,7 @@ metadata:
   publisher: UteamUP
   version: "1.0.0"
   access: read
+  read-only-connection: "yes"
 ---
 
 # UteamUP CMMS lookup

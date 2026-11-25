@@ -50,6 +50,7 @@ describe('portable agent skills shipped in host plugins', () => {
     ({ dir }) => {
       for (const { skillMd } of skillsIn(dir)) {
         expect(frontmatterOf(skillMd)).toMatch(/^\s+access:\s*"?read"?\s*$/m);
+        expect(frontmatterOf(skillMd)).toMatch(/^\s+read-only-connection:\s*"?yes"?\s*$/m);
       }
     },
   );

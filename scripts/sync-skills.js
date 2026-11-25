@@ -9,7 +9,8 @@
  *   node scripts/sync-skills.js --check    exit 1 when a plugin copy differs from the source
  *
  * Source: UTEAMUP_SKILLS_SOURCE, or ../UteamUP_Backend/Skills next to this repository.
- * Read-only plugins (they connect to /mcp/read-only) receive only skills whose metadata says access: read.
+ * Read-only plugins (they connect to /mcp/read-only) receive only skills whose metadata says access: read
+ * and read-only-connection: "yes".
  */
 const fs = require('fs');
 const path = require('path');
@@ -47,10 +48,12 @@ function readSkills() {
       const frontmatter = skillMd.startsWith('---\n') ? skillMd.slice(4, skillMd.indexOf('\n---', 4)) : '';
       const access = (frontmatter.match(/^\s+access:\s*"?(read|write)"?\s*$/m) || [])[1];
       if (!access) throw new Error(`${name}/SKILL.md has no metadata access: read|write`);
+      const readOnlyConnection = /^\s+read-only-connection:\s*"?yes"?\s*$/m.test(frontmatter);
       const files = Object.fromEntries(
         listFiles(dir).sort().map((file) => [file, fs.readFileSync(path.join(dir, file))]),
       );
-      return { name, readOnly: access === 'read', files };
+      // Read-only plugins connect to /mcp/read-only, which serves only a few tools.
+      return { name, readOnly: access === 'read' && readOnlyConnection, files };
     });
 }
 

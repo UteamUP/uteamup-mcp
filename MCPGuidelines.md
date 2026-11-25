@@ -132,7 +132,8 @@ Authoring rules (enforced by `UteamUP_API_Tests/Unit/MCP/McpAgentSkillsTests.cs`
 
 - agentskills.io format only: frontmatter keys `name`, `description`, `license`, `compatibility`, `metadata`. No host-specific keys (`allowed-tools`, `when_to_use`, `model`, …).
 - `name` is kebab-case, prefixed `uteamup-`, and equals the folder name. `description` ≤ 1,024 chars, third person, with "Use when …".
-- `metadata.access` is `read` or `write`. Read skills may only name read tools; read-only plugins and `/mcp/read-only` get read skills only. Home and Individual tenants get none.
+- `metadata.access` is `read` or `write`. Read skills may only name read tools. `/mcp/read-only` and the read-only plugins (MiniMax, ZCode) serve only five tools, so they get only read skills that also set `metadata.read-only-connection: "yes"`. Home and Individual tenants get none.
+- Tool names come from the SDK's snake_case policy, so acronyms split: `UteamupITManagementDashboard` is `uteamup_it_management_dashboard`, `UteamupIoTAlertsList` is `uteamup_io_t_alerts_list`. Check names against the served catalogue (the backend test does), not against a hand-made conversion.
 - Name tools by their bare MCP name (`uteamup_asset_search`); every name must exist in the served catalogue.
 - Text only (`.md`), references one level deep, ≤ 100 KB per file and ≤ 400 KB per skill (Anthropic's directory scan limits). No scripts, no tenant data.
 - Changing a skill changes its digest, so hosts ask users to approve it again. Edit deliberately, then run `npm run sync-skills` in this repo.
