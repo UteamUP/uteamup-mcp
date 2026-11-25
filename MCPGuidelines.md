@@ -117,6 +117,23 @@ Because the MCP server is a generic proxy, **adding a new tool happens on the ba
 
 ---
 
+## Authorization (MCP 2026-07-28)
+
+The backend is the OAuth 2.1 authorization server for `/mcp` and `/mcp/read-only`:
+
+- **RFC 9728** protected resource metadata, referenced from `WWW-Authenticate`.
+- **RFC 9207** `iss` on every authorization response (code, error and consent decisions);
+  metadata sets `authorization_response_iss_parameter_supported`.
+- **RFC 8707** `resource` is bound to the code at `/oauth/authorize`; `/oauth/token` refuses another resource,
+  and `McpApiKeyStatusMiddleware` accepts a token only on the exact resource it was issued for.
+- **Dynamic Client Registration** (deprecated in the spec, still used by hosts) accepts `application_type`
+  `web` (default) or `native` and echoes it; anything else is `invalid_client_metadata`.
+- **Client ID Metadata Documents**: an https `client_id` URL (path required, default port, no fragment, user
+  info or loopback) is fetched through `SsrfSafeHttpClientFactory` (no private addresses, no redirects, 5 s,
+  5 KB). The document's `client_id` must equal the URL, the client must be public, and at least one
+  `redirect_uri` must pass the redirect policy. It maps to a stable client row (`ToRegisteredClientId`) and then
+  follows the registered-client consent flow; the consent page shows the document host next to the name.
+
 ## Tasks (long-running tools, SEP-2663)
 
 The backend implements the `io.modelcontextprotocol/tasks` extension for a short allow-list of slow tools
