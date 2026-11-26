@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.9.2-beta.9...2.10.0-beta.9) (2026-11-25)
+
+
+### Features
+
+* **mcp:** cover document upload tickets and sync updated skills ([09bff08](https://github.com/UteamUP/uteamup-mcp/commit/09bff0871b78145fab539f065065fed43a387d02))
+* **skills:** ship 33 UteamUP skills and keep read-only plugins to pilot-ready skills ([cb14031](https://github.com/UteamUP/uteamup-mcp/commit/cb140319811d0676bf40958d2428f0bccde633f0))
+* **skills:** ship portable UteamUP agent skills in every host plugin ([f792bdb](https://github.com/UteamUP/uteamup-mcp/commit/f792bdbad568ce1f5bd8b1bb452f5b2d155d88a1))
+
+
+### Bug Fixes
+
+* **proxy:** forward every SSE event and keep plugin pins current ([3ab71b5](https://github.com/UteamUP/uteamup-mcp/commit/3ab71b5a6269e9ab7f86c0e4b447f51b9628eca3))
+
+
+### Miscellaneous
+
+* **paperclip:** ignore .paperclip-inbound attachment staging ([fbfab28](https://github.com/UteamUP/uteamup-mcp/commit/fbfab28ef1d761e1a9e727a29ce7092d5c8735e0))
+
+
+### Documentation
+
+* describe how the OpenAI connector is recognised ([25613a4](https://github.com/UteamUP/uteamup-mcp/commit/25613a468cba9e408faddbc6191521918aad3041))
+* describe private_key_jwt clients and enterprise ID-JAG grant ([ebc691b](https://github.com/UteamUP/uteamup-mcp/commit/ebc691b4014af451882b31abd8903b4046f2c568))
+* describe structured output tools and their limits ([0b65292](https://github.com/UteamUP/uteamup-mcp/commit/0b652923be05a487d49d34e84f8891d307932539))
+* **mcp:** describe the tasks extension and its security model ([e836b38](https://github.com/UteamUP/uteamup-mcp/commit/e836b38fa93680fc83bf1e2c00089882e5c8b14e))
+* **mcp:** document the MCP authorization server and CIMD support ([a513ced](https://github.com/UteamUP/uteamup-mcp/commit/a513ced866bb66623836bf9e98a5f7e5fab2f4ff))
+
+
+### Tests
+
+* cover the work permit, sustainability, workforce time and operations tools ([a96f393](https://github.com/UteamUP/uteamup-mcp/commit/a96f393cb4bb7f3f49fc5d0a304ff9fad4e3b19a))
+* forward document download links as resource_link content ([6086239](https://github.com/UteamUP/uteamup-mcp/commit/6086239a7f881440c52957f8331ff5d8f77d454f))
+* **mcp:** cover integration status read contracts (UTE-1637) ([#56](https://github.com/UteamUP/uteamup-mcp/issues/56)) ([770587f](https://github.com/UteamUP/uteamup-mcp/commit/770587f9045dcf87ac1d272b1c37ce9827aad30d))
+* **system-status:** assert per-service rows round-trip through the proxy (UTE-1647) ([e0e4bcc](https://github.com/UteamUP/uteamup-mcp/commit/e0e4bcc5fe67cf182d420b2d139f8dda1767fda2))
+* **workorder:** cover the work order document link tools ([2a3001f](https://github.com/UteamUP/uteamup-mcp/commit/2a3001fa881a025ccf14f0f6d8e1c6d7aa054c09))
+
 ## [2.8.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.7.10-beta.9...2.8.0-beta.9) (2026-11-18)
 
 
