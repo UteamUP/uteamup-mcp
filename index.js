@@ -231,16 +231,17 @@ async function requestNewAccessToken() {
     const authCode = await retryWithBackoff(
       async () => {
         return new Promise((resolve, reject) => {
+          const scope = config.mcpPath === '/mcp/read-only' ? 'mcp:read' : 'mcp:full';
           const authParams = new URLSearchParams({
             response_type: 'code',
             client_id: config.apiKey,
             redirect_uri: OAUTH_REDIRECT_URI,
             code_challenge: challenge,
             code_challenge_method: 'S256',
-            scope: 'mcp:full'
+            scope
           });
 
-          trace('Requesting authorization code', { scope: 'mcp:full' });
+          trace('Requesting authorization code', { scope });
 
           const authorizeUrl = new URL('/oauth/authorize', config.baseUrl);
           authorizeUrl.search = authParams.toString();
@@ -561,6 +562,7 @@ function postToBackend(request, requestId, data, token) {
           reject(new ProxyTransportError(`Backend did not answer within ${config.requestTimeout} ms`));
           req.destroy();
         }, config.requestTimeout);
+        if (typeof deadline.unref === 'function') deadline.unref();
         req.write(data);
         req.end();
       });
