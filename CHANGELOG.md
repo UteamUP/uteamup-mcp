@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.1-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.10.0-beta.9...2.10.1-beta.9) (2026-11-26)
+
+
+### Bug Fixes
+
+* **security:** request mcp:read on read-only proxy, validate SSE jsonrpc 2.0 & unref deadline timer ([2eaf8a1](https://github.com/UteamUP/uteamup-mcp/commit/2eaf8a1d3ef7fbadc308130c1372e72d251b9faa))
+
 ## [2.10.0-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.9.2-beta.9...2.10.0-beta.9) (2026-11-25)
 
 
