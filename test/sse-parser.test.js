@@ -64,6 +64,26 @@ describe('SSE parser (lib/sse)', () => {
     expect(response.error.code).toBe(-32602);
   });
 
+  test.each([0, '', 42, '42'])('does not fall back to an unrelated response for id %p', requestId => {
+    const notification = { jsonrpc: '2.0', method: 'notifications/progress', params: {} };
+    const messages = [notification, { jsonrpc: '2.0', id: 9, result: { private: true } },
+      { jsonrpc: '2.0', id: 10, error: { code: -32602, message: 'unrelated' } }];
+    expect(selectResponse(messages, requestId)).toEqual({ response: null, notifications: [notification] });
+  });
+
+  test('requires an exact id type and supports falsy ids', () => {
+    const response = { jsonrpc: '2.0', id: 0, result: {} };
+    expect(selectResponse([response], 0).response).toBe(response);
+    expect(selectResponse([response], '0').response).toBeNull();
+    const emptyId = { jsonrpc: '2.0', id: '', result: {} };
+    expect(selectResponse([emptyId], '').response).toBe(emptyId);
+  });
+
+  test.each([undefined, null])('preserves last-response selection when id is omitted (%p)', requestId => {
+    const last = { jsonrpc: '2.0', id: 2, result: {} };
+    expect(selectResponse([{ jsonrpc: '2.0', id: 1, result: {} }, last], requestId).response).toBe(last);
+  });
+
   test('does not forward server-to-client requests as notifications', () => {
     const messages = [{ jsonrpc: '2.0', id: 'srv-1', method: 'sampling/createMessage', params: {} }];
 
