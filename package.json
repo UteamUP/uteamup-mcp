@@ -41,11 +41,11 @@
   },
   "homepage": "https://github.com/UteamUP/uteamup-mcp#readme",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:integration": "jest test/integration.test.js",
-    "test:ai-governance": "jest test/ai-governance-boundary.test.js test/ai-governance-ci.test.js --runInBand",
-    "lint": "eslint index.js lib/ test/",
+    "test": "node scripts/serial-run.mjs -- jest",
+    "test:watch": "node scripts/serial-run.mjs -- jest --watch",
+    "test:integration": "node scripts/serial-run.mjs -- jest test/integration.test.js",
+    "test:ai-governance": "node scripts/serial-run.mjs -- jest test/ai-governance-boundary.test.js test/ai-governance-ci.test.js --runInBand",
+    "lint": "node scripts/serial-run.mjs -- eslint index.js lib/ test/ scripts/*.mjs",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "sync-skills": "node scripts/sync-skills.js",
     "prepublishOnly": "npm test"

@@ -55,6 +55,15 @@ module.exports = [
     }
   },
   {
+    files: ['scripts/*.mjs'],
+    languageOptions: { ecmaVersion: 2022, globals: nodeGlobals, sourceType: 'module' },
+    rules: {
+      'no-undef': 'error',
+      'no-unreachable': 'error',
+      'no-unused-vars': ['error', { caughtErrors: 'none' }]
+    }
+  },
+  {
     files: ['test/**/*.js'],
     languageOptions: {
       globals: jestGlobals
