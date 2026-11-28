@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.2-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.10.1-beta.9...2.10.2-beta.9) (2026-11-28)
+
+
+### Tests
+
+* **billing:** cover pending billing catalogue approvals tool ([20fdcc4](https://github.com/UteamUP/uteamup-mcp/commit/20fdcc46ff0feb96bc23d61dfb7462d72bbe56a7))
+
 ## [2.10.1-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.10.0-beta.9...2.10.1-beta.9) (2026-11-26)
 
 
