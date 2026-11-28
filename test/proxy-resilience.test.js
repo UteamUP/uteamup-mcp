@@ -115,6 +115,51 @@ function runProxy({ backend, requests, closeAfter = requests.length, sequential 
 }
 
 describe('MCP proxy resilience (real stdio proxy, mocked backend)', () => {
+  test.each(['Claude', 'OpenAI', 'other MCP client'])('preserves operational validation feedback for %s', async clientName => {
+    const args = {
+      model: { content: 'Pump is making an unusual sound' },
+      entryReview: { intent: 'ambiguous', safetyConcern: true },
+      _meta: { 'io.modelcontextprotocol/clientInfo': { name: clientName, version: '1.0' } }
+    };
+    const feedback = {
+      code: 'entry_validation_required', saved: false, saveStatus: 'not_saved',
+      missingFields: [{ field: 'entryReview.intent', question: 'Corrective work, completed event, or informational note?' }],
+      invalidFields: [{ field: 'entryReview.code', code: 'ambiguous_code', candidateCodeGuids: ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'] }],
+      safetyRecommendations: ['Escalate immediate danger without waiting for this record.']
+    };
+    const reply = { jsonrpc: '2.0', id: 2433, result: {
+      isError: true, content: [{ type: 'text', text: JSON.stringify(feedback) }], structuredContent: feedback
+    } };
+    const result = await runProxy({
+      backend: [
+        'oauth("fixture-token");',
+        `const expected = ${JSON.stringify(args)};`,
+        `nock(BASE).matchHeader("authorization", "Bearer fixture-token").post("/mcp", body => body.params.name === "uteamup_journal_create" && JSON.stringify(body.params.arguments) === JSON.stringify(expected)).reply(200, ${JSON.stringify(reply)});`
+      ].join('\n'),
+      requests: [{ jsonrpc: '2.0', id: 2433, method: 'tools/call', params: { name: 'uteamup_journal_create', arguments: args } }]
+    });
+    expect(result.status).toBe(0);
+    expect(result.responses).toEqual([reply]);
+    expect(result.pending).toEqual([]);
+  }, TEST_TIMEOUT_MS);
+
+  test.each(['saved', 'saved_with_attachment_failure'])('preserves confirmed identity and %s status without creating a retry', async saveStatus => {
+    const receipt = {
+      saved: true, saveStatus, recordType: 'note', recordGuid: '33333333-3333-4333-8333-333333333333',
+      attachmentStatus: saveStatus === 'saved' ? 'verified' : 'failed'
+    };
+    const reply = { jsonrpc: '2.0', id: 2434, result: {
+      isError: saveStatus !== 'saved', content: [{ type: 'text', text: JSON.stringify(receipt) }], structuredContent: receipt
+    } };
+    const result = await runProxy({
+      backend: `oauth("fixture-token"); nock(BASE).post("/mcp").once().reply(200, ${JSON.stringify(reply)});`,
+      requests: [{ jsonrpc: '2.0', id: 2434, method: 'tools/call', params: { name: 'uteamup_journal_create', arguments: {} } }]
+    });
+    expect(result.status).toBe(0);
+    expect(result.responses).toEqual([reply]);
+    expect(result.pending).toEqual([]);
+  }, TEST_TIMEOUT_MS);
+
   test('answers ping locally without a token or a backend call', async () => {
     const result = await runProxy({
       backend: '',
