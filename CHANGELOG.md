@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.4-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.10.3-beta.9...2.10.4-beta.9) (2026-11-28)
+
+
+### Bug Fixes
+
+* queue MCP checks through the bundled serial-run client ([#61](https://github.com/UteamUP/uteamup-mcp/issues/61)) ([0f85147](https://github.com/UteamUP/uteamup-mcp/commit/0f85147a58703f02f6af625f702e6b376be8ff4c))
+
+
+### Miscellaneous
+
+* **deps:** bump the github-actions group across 1 directory with 5 updates ([#15](https://github.com/UteamUP/uteamup-mcp/issues/15)) ([c9f8344](https://github.com/UteamUP/uteamup-mcp/commit/c9f83448b25b4ca150324cb00d17ddf40192ee02))
+
+
+### Tests
+
+* **entries:** preserve operational validation and save receipts (UTE-2433) ([#62](https://github.com/UteamUP/uteamup-mcp/issues/62)) ([cb62d70](https://github.com/UteamUP/uteamup-mcp/commit/cb62d706b79ee3450be3465c8e400ed3fec6d050))
+
 ## [2.10.2-beta.9](https://github.com/UteamUP/uteamup-mcp/compare/2.10.1-beta.9...2.10.2-beta.9) (2026-11-28)
 
 
